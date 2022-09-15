@@ -1,0 +1,240 @@
+<html><head>
+<!-- Based on MIT AI Memo 239 "HAKMEM" -->
+<!-- by M. Beeler, R.W. Gosper, and R. Schroeppel, Feb. 29, 1972. -->
+<!-- This html version Copyright (c) 1995 by Henry G. Baker. -->
+<link rev="made" href="mailto:hbaker1@pipeline.com">
+<title>HAKMEM -- PROGRAMMING ALGORITHMS, HEURISTICS -- DRAFT, NOT YET PROOFED</title>
+
+</head><body>
+
+Beeler, M., Gosper, R.W., and Schroeppel, R.  <i>HAKMEM</i>.  MIT AI
+Memo 239, Feb. 29, 1972.
+
+Retyped and converted to <i>html</i> ('Web browser format) by
+
+<a href="http://home.pipeline.com/~hbaker1/home.html">Henry Baker,</a>
+
+April, 1995.
+
+<h2>PROGRAMMING ALGORITHMS, HEURISTICS</h2>
+
+<a href="hacks.html">Previous</a>
+<a href="hakmem.html">Up</a>
+<a href="hardware.html">Next</a><p>
+
+<a name="item176"></a>
+
+<h3>ITEM 176 (Gosper):</h3>
+
+The "banana phenomenon" was encountered when processing a character
+string by taking the last 3 letters typed out, searching for a random
+occurrence of that sequence in the text, taking the letter following
+that occurrence, typing it out, and iterating.  This ensures that
+every 4-letter string output occurs in the original.  The program
+typed BANANANANANANANANA....  We note an ambiguity in the phrase, "the
+Nth occurrence of".  In one sense, there are five 00's in 0000000000;
+in another, there are nine.  The editing program TECO finds five.
+Thus it finds only the first ANA in BANANA, and is thus obligated to
+type N next.  By Murphy's Law, there is but one NAN, thus forcing A,
+and thus a loop.  An option to find overlapped instances would be
+useful, although it would require backing up N-1 characters before
+seeking the next N character string.
+
+<a name="item177"></a>
+
+<h3>ITEM 177 (Gosper): DRAWING CURVES INCREMENTALLY</h3>
+
+Certain plotters and displays are constrained to approximate curves by a
+sequence of king-moves between points on a lattice.<p>
+
+Many curves and contours are definable by F(X,Y) = 0 with F changing sign on
+opposite sides of the curve.  The following algorithm will draw most such
+curves more accurately than polygonal approximations and more easily than
+techniques which search for a "next" X and Y just one move away.<p>
+
+We observe that a good choice of lattice points is just those for which F, when
+evaluated on one of them, has opposite sign and smaller magnitude than on one
+or more of its four immediate neighbors.  This tends to choose the nearer
+endpoint of each graph paper line segment which the curve crosses, if near the
+curve F is monotone with distance from the curve.<p>
+
+First, divide the curve into arcs within which the curve's tangent lies within
+one 45 degree semiquadrant.  We can show that for reasonable F, only two
+different increments (say north and northwest) are needed to visit the desired
+points.<p>
+
+Thus, we will be changing one coordinate (incrementing Y) every step, and we
+have only to check whether changing the other (decrementing X) will reduce the
+magnitude of F.  (If F increases with Y, F(X,Y+1) &gt; -F(X-1,Y+1)
+means decrement X.)  F can often be manipulated so that the inequality
+simplifies and so that F is easily computed incrementally from X and Y.<p>
+
+As an example, the following computes the first semiquadrant of the circle
+
+<pre>
+     2    2    2
+F = X  + Y  - R  = 0.
+
+C0:    F &lt;- 0, Y &lt;- 0, X &lt;- R
+
+C1:    F &lt;- F+2Y+1, Y &lt;- Y+1
+
+C2:    if F &gt;= X, F &lt;- F-2X+1, X &lt;- X-1
+
+C3:    if Y &lt; X-1, go to C1
+
+C4:    (Link to next arc) if Y = X-1, Y &lt;- Y+1, X &lt;- X-1
+</pre>
+
+This can be bummed by maintaining Z = 2Y+1 instead of Y.  Symmetry may be used
+to compute all eight semiquadrants at once, or the loop may be closed at C2 and
+C3 with two PUSHJ's to provide the palindrome of decisions for the first
+quadrant.  There is an expression for the number of steps per quadrant, but it
+has a three-way conditional dependent upon the midpoint geometry.  Knowing this
+value, however, we can replace C3 and C4 with a simple loop count and an
+odd-even test for C4.<p>
+
+The loop must be top-tested (C3 before C1) if the "circle" R = 1, with four
+diagonal segments, is possible.<p>
+
+All this suggests that displays might be designed with an increment mode which
+accepts bit strings along with declarations of the form: "0 means north, 1
+means northwest".  1100 (or 0011) will not occur with a curve of limited
+curvature; thus, it could be used as an escape code, but this would be an
+annoying restriction.<p>
+
+See the following <a href="Figure9.html">illustration</a> of circles
+drawn this way.<p>
+
+[In case of a tie, i.e., F has equal magnitudes with opposite signs on
+adjacent points, do not choose both points but rather have some
+arbitrary yet consistent preference for, say, the outer one.  The
+problem can't arise for C2 in the example because the inequality F
+&gt;= X is really F &gt; -(F-2X+1) or F &gt; X-.5.]<p>
+
+<a name="item178"></a>
+
+<h3>ITEM 178 (Schroeppel, Salamin):</h3>
+
+Suppose Y satisfies a differential equation of the form
+
+<pre>
+P(X) Y(Nth derivative) + ..... + Q(X) = R(X)
+</pre>
+
+where P, ..... Q, and R are polynomials in X
+
+<pre>
+                                  2                2    2
+(for example, Bessel's equation, X  Y'' + X Y' + (X  - N ) Y = 0)
+</pre>
+
+and A is an algebraic number.  Then Y(A) can be evaluated to N places
+in time proportional to N(ln N)^3.<p>
+
+Further, e^X and ln X or any elementary function can be evaluated to N places
+in N(ln N)^2 for X a real number.  If F(X) can be evaluated in such time, so
+can the inverse of F(X) (by Newton's method), and the first derivative of F(X).
+Also, <i>zeta</i>(3) and <i>gamma</i> can be done in N(ln N)^3.
+
+<a name="item179"></a>
+
+<h3>ITEM 179 (Gosper):</h3>
+
+A program which searches a character string for a given substring can always be
+written by iterating the sequence fetch-compare-transfer (ILDB-CAIE-JRST on the
+<a href="../pdp-10/pdp-10.html">PDP6/10</a>) once for each character in the sought string.  The destinations of the
+transfers (address fields of the JRST's) must, however, be computed as
+functions of the sought string.  Let
+
+<tt><pre>
+0 1 2 3 4
+  S A S S Y
+  0 1 0 2 2
+</pre></tt>
+
+stand for the program
+
+<tt><pre>
+T0:     ILDB C,A        ;C gets next char from pointer in A
+T1:     CAIE C,"S       ;skip if it's an S
+        JRST T0         ;loop back on failure
+        ILDB C,A        ;next
+T2:     CAIE C,"A       ;skip if A
+        JRST T1         ;could be an S
+        ILDB C,A
+T3:     CAIE C,"S
+        JRST T0         ;S, A, non S, so start over
+        ILDB C,A
+T4:     CAIE C,"S
+        JRST T2         ;could be SAS.ASSY
+        ILDB C,A
+        CAIE C,"Y
+        JRST T2         ;could be SASS.ASSY
+;found SASSY
+</pre></tt>
+
+In other words, a number &gt; 0 in the top row is a location in the program
+where the corresponding letter of the middle row is compared with a character
+of the input string.  If it differs, the number in the bottom row indicates the
+location where comparison is to resume.  If it matches, the next character of
+the middle row is compared with the next character of the input string.<p>
+
+Let J be a number in the to row and K be the number below J, so that TK is the
+address field of the Jth JRST.  For each J = 1, 2, ... we compute K(J) as
+follows: K(1) = 0.  Let P be a counter, initially 0.  For each succeeding J,
+increment P.  If the Pth letter = the Jth, K(J) = K(P).  Otherwise, K(J) = P,
+and P is reset to 0.  (P(J) is the largest number such that the first P
+characters match the last P character in the first J characters of the sought
+string.)
+
+<tt><pre>
+J=      0 1                             0 1 2 3 4 5
+          M I S S I S S I P P I           I S S I S S I P P I
+K(J)=     0 1 1 1 1 1 1 1 1 1 1           0 1 1 0 1 1 0 5 1 0
+
+        0 1 2 3                         0 1 2 3
+          C O C A C O L A                 S A S S A F R A S
+          0 1 0 2 0 1 3 1                 0 1 0 2 1 3 1 1 0
+</pre></tt>
+
+To generalize this method to search for N strings at once, we produce a program
+of ILDB-CAIE-JRST's for each of the sought strings, omitting the initial ILDB
+from all but the first.  We must compute the destination of the Jth JRST in the
+Ith program, TKM(I,J), which is the location of the Kth compare in the Mth
+program.<p>
+
+It might be reasonable to compile such an instruction sequence whenever a
+search is initiated, since alternative schemes usually require saving or
+backing up the character pointer.
+
+<a name="item180"></a>
+
+<h3>ITEM 180 (Gosper):</h3>
+
+A problem which may arise in machine processing of visual information is the
+identification of corners on a noisy boundary of a polygon.  Assume you have a
+broken line.  If it is a closed loop, find the vertex furthest from the
+centroid (or any place).  Open the loop by making this place both endpoints and
+calling it a corner.  We define the corner of a broken line segment to be the
+point the sum of whose distances from the endpoints is maximal.  This will
+divide the segment in two, allowing us to proceed recursively, until our corner
+isn't much cornerier than the other along the line.<p>
+
+The perpendicular distance which the vector C lies from the line connecting the
+vectors A and B is just
+
+<tt><pre>
+(C - A) x (B - A)
+----------------- ,
+    2 |A - B|
+</pre></tt>
+
+but maximizing this can lose on very pointy V's.  The distance sum hack can
+lose on very squashed Z's.<p>
+
+<a href="hacks.html">Previous</a>
+<a href="hakmem.html">Up</a>
+<a href="hardware.html">Next</a><p>
+
+</body></html>

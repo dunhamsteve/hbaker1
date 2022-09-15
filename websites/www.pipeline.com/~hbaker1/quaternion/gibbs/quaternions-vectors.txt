@@ -1,0 +1,188 @@
+QUATERNIONS AND THE ALGEBRA OF VECTORS.
+
+J. Willard Gibbs, Ph.D, LL.D.
+
+[Nature, vol. XLVII. pp. 463, 464, Mar. 16,1893.]
+
+[ASCII editor's note: '[nabla]' stands for the usual inverted capital
+delta sign of vector calculus.]
+
+In a recent number of Nature [vol. xlvii, p. 151], Mr. McAulay puts
+certain questions to Mr. Heaviside and to me, relating to a subject of
+such importance as to justify an answer somewhat at length.  I cannot
+of course speak for Mr. Heaviside, although I suppose that his views
+are not very different from mine on the most essential points, but
+even if he shall have already replied before this letter can appear, I
+shall be glad to add whatever of force may belong to independent
+testimony.
+
+Mr. McAulay asks: ``What is the first duty of the physical vector
+analyst qua physical vector analyst?''  The answer is not doubtful.
+It is to present the subject in such a form as to be most easily
+acquired, and most useful when acquired.
+
+In regard to the slow progress of such methods towards recognition and
+use by physicists and others, which Mr. McAulay deplores, it does not
+seem possible to impute it to any want of uniformity of notation.  I
+doubt whether there is any modern branch of mathematics which has been
+presented for so long a time with a greater uniformity of notation
+than quaternions.
+
+What, then, is the cause of the fact which Mr. McAulay and all of us
+deplore?  It is not far to seek.  We need only a glance at the volumes
+in which Hamilton set forth his method.  No wonder that physicists and
+others failed to perceive the possibilities of simplicity,
+perspicuity, and brevity which were contained in a system presented to
+them in ponderous volumes of 800 pages.  Perhaps Hamilton may have
+intended these volumes as a sort of thesaurus, and we should look to
+his shorter papers for a compact account of his method.  But if we
+turn to his earlier papers on Quaternions in the Philosophical
+Magazine, in which principally he introduced the subject to the notice
+of his contemporaries, we find them entitled ``On Quaternions; or on a
+New System of Imaginaries in Algebra,'' and in them we find a great
+deal about imaginaries, and very little of a vector analysis.  To show
+how slowly the system of vector analysis developed itself in the
+quaternionic nidus, we need only say that the symbols S, V, and
+[nabla] do not appear until two or three years after the discovery of
+quaternions.  In short, it seems to have been only a secondary object
+with Hamilton to express the geometrical relations of
+vectors,--secondary in time, and also secondary in this, that it was
+never allowed to give shape to his work.
+
+But this relates to the past.  In regard to the present status, I beg
+leave to quote what Mr. McAulay has said on another occasion (see
+Phil. Mag., June 1892):--``Quaternions differ in an important respect
+from other branches of mathematics that are studied by mathematicians
+after they have in the course of years of hard labour laid the
+foundation of all their future work.  In nearly all cases these
+branches are very properly so called.  They each grow out of a
+definite spot of the main tree of mathematics, and derive their
+sustenance from the sap of the trunk as a whole.  But not so with
+quaternions.  To let these grow in the brain of a mathematician, he
+must start from the seed as with the rest of his mathematics regarded
+as a whole.  He cannot graft them on his already flourishing tree, for
+they will die there.  They are independent plants that require
+separate sowing and the consequent careful tending.''
+
+Can we wonder that mathematicians, physicists, astronomers, and
+geometers feel some doubt as to the value or necessity of something so
+separate from all other branches of learning?  Can that be a natural
+treatment of the subject which has no relations to any other method,
+and, as one might suppose from reading some treatises, has only
+occurred to a single man?  Or, at best, is it not discouraging to be
+told that in order to use the quaternionic method, one must give up
+the progress which he has already made in the pursuit of his favourite
+science, and go back to the beginning and start anew on a parallel
+course?
+
+I believe, however, that if what I have quoted is true of vector
+methods, it is because there is something fundamentally wrong in the
+presentation of the subject.  Of course, in some sense and to some
+extent it is and must be true.  Whatever is special, accidental, and
+individual, will die, as it should; but that which is universal and
+essential should remain as an organic part of the whole intellectual
+acquisition.  If that which is essential dies with the accidental, it
+must be because the accidental has been given the prominence which
+belongs to the essential.  For myself, I should preach no such
+doctrine to those whom I wish to convert to the true faith.
+
+In Italy, they say, all roads lead to Rome.  In mechanics, kinematics,
+astronomy, physics, all study leads to the consideration of certain
+relations and operations.  These are the capital notions; these should
+have the leading parts in any analysis suited to the subject.
+
+If I wished to attract the student of any of these sciences are to an
+algebra for vectors, I should tell him that the fundamental notions of
+this algebra were exactly those with which he was daily conversant.  I
+should tell him that a vector algebra is so far from being any one
+man's production that half a century ago several were already working
+toward an algebra which should be primarily geometrical and not
+arithmetical, and that there is a remarkable similarity in the results
+to which these efforts led (see Proc. A.A.A.S. for 1886, pp. 37, ff.)
+[this vol. p. 91, ff.].  I should call his attention to the fact that
+Lagrange and Gauss used the notation (abc) to denote precisely the
+same as Hamilton by his S(abc), except that Lagrange limited the
+expression to unit vectors, and Gauss to vectors of which the length
+is the secant of the latitude, and I should show him that we have only
+to give up these limitations, and the expression (in connection with
+the notion of geometrical addition) is endowed with an immense wealth
+of transformations.  I should call his attention to the fact that the
+notation [r_1 r_2], universal in the theory of orbits, is identical
+with Hamilton's V(p_1 p_2), except that Hamilton takes the area as a
+vector, i.e., includes the notion of the direction of the normal to
+the plane of the triangle, and that with this simple modification (and
+with the notion of geometrical addition of surfaces as well as of
+lines) this expression becomes closely connected with the
+first-mentioned, and is not only endowed with a similar capability for
+transformation, but enriches the first with new capabilities.  In
+fact, I should tell him that the notions which we use in vector
+analysis are those which he who reads between the lines will meet on
+every page of the great masters of analysis, or of those who have
+probed deepest the secrets of nature, the only difference being that
+the vector analyst, having regard to the weakness of the human
+intellect, does as the early painters who wrote beneath their pictures
+``This is a tree,'' ``This is a horse.''
+
+I cannot attach quite so much importance as Mr. McAulay to uniformity
+of notation.  That very uniformity, if it existed among those who use
+a vector analysis, would rather obscure than reveal their connection
+with the general course of modern thought in mathematics and physics.
+There are two ways in which we may measure the progress of any reform.
+The one consists in counting those who have adopted the shibboleth of
+the reformers; the other measure is the degree in which the community
+is imbued with the essential principles of the reform.  I should apply
+the broader measure to the present case, and do not find it quite so
+bad as Mr. McAulay does.
+
+Yet the question of notations, although not the vital question, is
+certainly important, and I assure Mr. McAulay that reluctance to make
+unnecessary innovations in notation has been a very powerful motive in
+restraining me from publication.  Indeed my pamphlet on Vector
+Analysis, which has excited the animadversion of quaternionists, was
+never formally published, although rather widely distributed, so long
+as I had copies to distribute, among those who I thought might be
+interested in the subject.  I may say, however, since I am called upon
+to defend my position, that I have found the notations of that
+pamphlet more flexible than those generally used.  Mr. McAulay, at
+least, will understand what I mean by this, if I say that some of the
+relations which he has thought of sufficient importance to express by
+means of special devices (see Proc. R.S.E.  for 1890-91), may be
+expressed at least as briefly in the notations which I have used, and
+without special devices.  But I should not have been satisfied for the
+purposes of my pamphlet with any notation which should suggest even to
+the careless reader any connection with the notion of the quaternion.
+For I confess that one of my objects was to show that a system of
+vector analysis does not require any support from the notion of the
+quaternion, or, I may add, of the imaginary in algebra.
+
+I should hardly dare to express myself with so much freedom, if I
+could not shelter myself behind an authority which will not be
+questioned.
+
+I do not see that I have done anything very different from what the
+eminent mathematician upon whom Hamilton's mantle has fallen has been
+doing, it would seem, unconsciously.  Contrast the system of
+quaternions, which he has described in his sketch of Hamilton's life
+and work in the North British Review for September, 1866, with the
+system which he urges upon the attention of physicists in the
+Philosophical Magazine in 1890.  In 1866 we have a great deal about
+imaginaries, and nearly as much about the quaternion.  In 1890 we have
+nothing about imaginaries, and little about the quaternion.  Prof.
+Tait has spoken of the calculus of quaternions as throwing off in the
+course of years its early Cartesian trammels.  I wonder that he does
+not see how well the progress in which he has led may be described as
+throwing off the yoke of the quaternion.  A characteristic example is
+seen in the use of the symbol [nabla].  Hamilton applies this to a
+vector to form a quaternion, Tait to form a linear vector function.
+But while breathing a new life into the formulae of quaternions, Prof.
+Tait stands stoutly by the letter.
+
+Now I appreciate and admire the generous loyalty toward one whom he
+regards as his master, which has always led Prof. Tait to minimise the
+originality of his own work in regard to quaternions, and write as if
+everything was contained in the ideas which flashed into the mind of
+Hamilton at the classic Brougham Bridge.  But not to speak of other
+claims of historical justice, we owe duties to our scholars as well as
+to our teachers, and the world is too large, and the current of modern
+thought is too broad, to be confined by the ipse dixit even of a
+Hamilton.

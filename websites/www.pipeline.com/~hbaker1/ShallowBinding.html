@@ -1,0 +1,566 @@
+<html><head>
+<!-- This document was created from RTF source by rtftohtml version 2.7.5 -->
+
+<title>Comm. of the ACM 21, 7 (July 1978), 565-569.</title>
+
+<link rev="made" href="mailto:hbaker1@pipeline.com">
+
+<h1>Shallow Binding in Lisp 1.5</h1>
+
+<address>
+<a href="home.html">Henry G. Baker, Jr.</a>
+</address>
+
+<address>
+Massachusetts Institute of Technology
+</address>
+
+<hr>
+
+<b>Shallow binding is a scheme which allows the value of a variable to be
+accessed in a bounded amount of computation.  An elegant model for shallow
+binding in Lisp 1.5 is presented in which context-switching is an environment
+tree transformation called <i>rerooting</i>.  Rerooting is completely general
+and reversible, and is optional in the sense that a Lisp 1.5 interpreter will
+operate correctly whether or not rerooting is invoked on every context change.
+Since rerooting leaves <i>assoc[v,a] </i>invariant, for all variables <i>v</i>
+and all environments <i>a</i>, the programmer can have access to a rerooting
+primitive, <i>shallow[]</i>, which gives him dynamic control over whether
+accesses are shallow or deep, and which affects only the speed of execution of
+a program, not its semantics.  In addition, multiple processes can be active in
+the same environment structure, so long as rerooting is an indivisible
+operation.  Finally, the concept of rerooting is shown to combine the concept
+of shallow binding in Lisp with Dijkstra's <i>display</i> for Algol and hence
+is a general model for shallow binding.</b><p>
+
+<b>Key Words and Phrases: Lisp 1.5, environment trees, FUNARG's, shallow
+binding, deep binding, multiprogramming, Algol display</b><p>
+
+<b>CR Categories: 4.13, 4.22, 4.32</b>
+
+<hr>
+
+</head><body>
+
+<address>
+Copyright (c) 1978 by the Association for Computing Machinery, Inc.  Permission
+to make digital or hard copies of part or all of this work for personal or
+classroom use is granted without fee provided that copies are not made or
+distributed for profit or direct commercial advantage and that copies show this
+notice on the first page or initial screen of a display along with the full
+citation.  Copyrights for components of this work owned by others than ACM must
+be honored.  Abstracting with credit is permitted.  To copy otherwise, to
+republish, to post on servers, to redistribute to lists, or to use any
+component of this work in other works whether directly or by incorporation via
+a link, requires prior specific permission and/or a fee.  Permissions may be
+requested from Publications Dept, ACM Inc., 1515 Broadway, New York, NY 10036
+USA, fax +1 (212) 869-0481, or permissions@acm.org.<br>This research was
+supported by the Advanced Research Projects Agency of the Department of Defense
+and was monitored by the Office of Naval Research under contract number
+N00014-75-C-0522.<br>Author's present address: Computer Science Department,
+University of Rochester, Rochester, NY 14627.
+</address>
+
+<h2>1.  Introduction</h2>
+
+A severe problem in Lisp 1.5
+
+<a href="#ref6">[6]</a>
+
+systems is the amount of time required to
+access the value of a variable.  This problem is compounded by Lisp's choice of
+"fluid" or "dynamic" scoping for nonlocal (free) variables, wherein a
+procedure's free variables are considered bound in the environment of the
+caller (or the caller's caller, etc.).  On the other hand, Algol and most other
+computer languages (with the major exception of APL) use a <i>lexical</i>
+scoping rule in which the free variables of a procedure are bound in the block
+which lexically (textually) embraces the procedure.  Dynamic scoping leads to
+environment trees at run-time which are "tall and thin" rather than "short and
+bushy" because the topology of the environment tree follows that of the
+run-time stack rather than the block structure of the source text.  Since the
+length of time to access the binding of a variable in the original Lisp 1.5
+implementation
+
+<a href="#ref6">[6]</a>
+
+is proportional to the distance in the tree from the current
+environment to the place where that variable is bound, this time can
+be quite large for the tall environment trees actually encountered.
+For example, accessing a global variable from the bottom of a deep
+recursion requires time proportional to the depth of the recursion.<p>
+
+The Maclisp interpreter
+
+<a href="#ref7">[7]</a>
+
+solves this problem through a scheme called
+"shallow binding".  In this scheme, each variable has a <i>value cell</i>,
+which can be accessed in constant time, and the bindings associated with the
+current environment are kept in these value cells so that they can be accessed
+without any search.  Whenever a context change occurs, such as when calling or
+returning from a function, some of the value cells must be changed or restored.
+Since Lisp uses dynamic variable scoping, the changes in the environment mirror
+those in the return-point stack, so Maclisp saves the old bindings from the
+value cells on a parallel stack called the <i>specpdl</i><a
+href="#fn0">\1/</a> when calling a procedure and restores
+them from the specpdl when returning from a procedure.  As a result, variable
+access time in Maclisp is constant and context-switching time is unbounded,
+whereas in so-called deep binding systems like Lisp 1.5, the access time is
+unbounded and the context-switching time is constant.  Thus, a tradeoff exists
+between the time needed to access the binding of a variable and the time needed
+to switch contexts, and whenever variable access is more common than context
+switching, shallow binding is more efficient.<p>
+
+However, the scheme used in Maclisp cannot be used to implement shallow binding
+in Lisp 1.5, because it does not handle function-producing functions (so-called
+<i>upward</i> FUNARG's
+
+<a href="#ref8">[8]</a>
+
+) correctly.  In fact, no stack-based environment
+structure can do so because using LIFO allocation discipline for Lisp
+environment nodes can lead to the premature unbinding of the free variables
+required by these upward FUNARG's.  On the other hand, our model for shallow
+binding keeps a <i>tree</i> environment structure and allocates environment
+nodes in the heap, and it is therefore capable of handing full FUNARG's.
+
+<h2>2.  The Environment Tree Rerooting Model</h2>
+
+In our model, the environment structure consists of an <i>environment tree</i>,
+a current environment ("you are here") <i>pointer</i>, and a global <i>value
+cell</i> for each variable name.  An environment tree node consists of a pair
+of pointers <i>&lt;binding,parent&gt;</i>, where <i>binding</i> is a pair
+<i>&lt;name,value&gt;</i>, and <i>parent</i> is another environment node or the
+distinguished pointer NIL.  The interpretation of an environment node <i>E'</i>
+= <i>&lt;&lt;name,value&gt;,E&gt;</i> is that the value of a variable in
+<i>E'</i> is the same as the value of that variable in <i>E</i>, unless it is
+the variable <i>name</i>, in which case it has the value <i>value</i> in the
+environment <i>E'</i>.  The value cell of each variable, on the other hand,
+contains the <i>default</i> binding of that variable, i.e. the binding to be
+used if the variable is not bound in any environment node along the "parent"
+path from the current environment node to the root in the environment tree.<p>
+
+The system is initialized so that the current environment pointer points to the
+top level environment, an environment node having a dummy binding and a NIL
+parent, thus identifying it as the current root.  The value cell of each
+variable is initialized to its top level binding, i.e. the pair
+<i>&lt;variable-name,top-level-value&gt;</i>, where the redundant
+<i>variable-name</i> simplifies programs presented later.  If the variable has
+no top level value, <i>top-level-value</i> is the distinguished indicator
+"UNBOUND", which causes a trap if the interpreter tries to return it as the
+value of a subexpression.<p>
+
+The algorithm for accessing a variable is: 1) search the environment tree from
+the current environment to the root, and if the variable name is found, use the
+associated binding; else 2) use the binding in the value cell.  Figure 1 gives
+Mlisp-like code for a version of Lisp's assoc function which implements this
+algorithm.
+
+<tt><pre>
+Fig.  1.  Variable lookup mechanism.
+
+assoc[v,a] = 	// Return the binding of v in the environment a.
+  [parent[a]=NIL      -&gt; vcell[v];
+   v=name[binding[a]] -&gt; binding[a];
+   T                  -&gt; assoc[v,parent[a]]]
+
+parent = CDR 	// Parent, binding, and name are new names
+binding = CAR 	// for cdr, car, and car, respectively.
+name = CAR
+
+vcell[y] returns the value cell of variable y, which is a cons cell having
+the structure (y . value[y]), in constant time.
+</pre></tt>
+
+So far we have described a conventional deep binding interpreter in which the
+<i>global</i> or <i>top level</i> value of each variable is kept in its value
+cell.  In order to convert this system into a <i>shallow</i> binding system, we
+need only make sure that the distance from the current environment to the root
+in the environment tree is <i>short</i>; i.e. <i>we make sure that the current
+environment is always the root</i>.  In this case, the search is always trivial
+and is eliminated.<p>
+
+The way that we do this is to <i>reroot</i> the environment tree at each
+context-switch,<a href="#fn1">\2/</a> so that the context
+to be switched to becomes the new root.  The rerooting algorithm is quite
+simple.  Suppose that <i>E</i> is the current root of the environment tree and
+<i>E'</i> is any other node in the tree which we wish to become the new root.
+Since <i>E</i> is the current root of the tree, the "parent" path in the tree
+from <i>E'</i> will terminate at <i>E</i>.  We make two passes over that path,
+one forward pass and one backward pass.  On the forward pass, we go from
+<i>E'</i> to <i>E</i>, stacking the nodes as we go.  On the backward (relative
+to the original path) pass, we go from <i>E</i> back to <i>E'</i>, reversing
+the binding links and exchanging the values in the association pairs with those
+in the value cells.  This has the effect of terminating with the proper values
+for <i>E'</i> in the value cells.<p>
+
+Figure 2 presents a modified <i>assoc</i> function which gets a variable
+binding directly from its value cell without any search and a modified
+<i>apply</i> function which reroots the environment tree whenever a context
+switch is made.  These functions are intended to work with a Lisp interpreter
+like that found in the Lisp 1.5 Programmer's Manual
+
+<a href="#ref6">[6].</a>
+
+<tt><pre>
+Fig.  2.  Continuous shallow-binding interpreter.
+
+assoc[v,a] = vcell[v] 	// Return the binding of v in the current environment a.
+
+apply[f,x,a] = 	// Apply function f to arguments x in environment a.
+  [atom[f]       -&gt;[f=CAR  -&gt; caar[x];
+                    f=CDR  -&gt; cdar[x];
+                    f=CONS -&gt; cons[car[x],cadr[x]];
+                    f=ATOM -&gt; atom[car[x]];
+                    f=EQ   -&gt; car[x]=cadr[x];
+                    T      -&gt; apply[eval[f,a],x,a]];
+   car[f]=LAMBDA -&gt; prog1[eval[caddr[f],reroot[pairlis[cadr[f],x,a]]],reroot[a]];
+   car[f]=FUNARG -&gt; prog1[apply[cadr[f],x,caddr[f]],reroot[a]]]
+
+pairlis[vars,vals,a] = 	// Extend environment a with new bindings of vars to vals.
+  [vars=NIL -&gt; a;
+   T        -&gt; cons[cons[car[vars],car[vals]],pairlis[cdr[vars],cdr[vals],a]]]
+
+reroot[a] = 	// Make a the new root.
+  [parent[a]=NIL -&gt; a; 	// a is already the root.
+   T             -&gt; onestep[a,reroot[parent[a]]]]
+
+onestep[new,old] = 	// new is new root; old is old root.
+  prog[[];
+       parent[new] := NIL, 	// Reverse binding link.
+       parent[old] := new,
+       binding[new] :=: binding[old],
+       binding[old] :=: vcell[name[binding[old]]]; 	// Exchange binding with value cell.
+       return[new]]
+
+progi[&lt;e1&gt;, &lt;e2&gt;, ..., &lt;en&gt;] evaluates &lt;e1&gt;, &lt;e2&gt;, ..., &lt;en&gt; in order and
+returns the value of &lt;ei&gt;.
+":=:" indicates an exchange operation.
+</pre></tt>
+
+We outline a proof of correctness for our model in two stages.  We show that
+the root of the environment tree can be moved one step while preserving
+<i>assoc[v,a] </i>for all variables <i>v</i> and all environments <i>a</i>, and
+then we exhibit a rerooting procedure which finds an appropriate directed path
+for the root movement and moves it by iterating the single-step method.<p>
+
+To prove that single-step movement is possible, consider the two nodes <i>E</i>
+and <i>E'</i> of the environment tree in Figure 3.  Before the transformation,
+<i>E</i> is the root and <i>E'</i> is some other node exactly one step from the
+root.  Now since <i>E'</i> is only one step from <i>E</i>, it differs from
+<i>E</i> in the value of exactly one variable, which we can assume to be <i>"X"
+</i>without loss of generality.  Now since <i>E</i> is the root, <i>X'</i>s
+binding to <i>x</i> in that context is stored in <i>X'</i>s value cell.  The
+directed link from <i>E'</i> to <i>E</i> encodes the fact that the binding of
+<i>X</i> in <i>E'</i> is different, namely <i>x'</i>.<p>
+
+
+Fig. 3.  The one step environment transformation.
+<p>
+
+<IMG SRC="ShallowBinding1.gif">
+<p>
+
+Now to reroot the tree at <i>E'</i>, we need only rearrange values and pointers
+in such a way that the bindings returned by <i>assoc</i> for both <i>E</i> and
+<i>E'</i> are not affected, yet <i>E'</i> becomes the new root.  The
+appropriate change is to invert the link between <i>E'</i> and <i>E</i>, and
+exchange the binding on the link (&lt;<i>X</i>,<i>x'</i>&gt;) with the binding
+in <i>X'</i>s value cell (&lt;<i>X</i>,<i>x</i>&gt;).  This accomplished, we
+notice that <i>assoc</i> will still return the correct binding for <i>X</i> in
+both <i>E'</i> and <i>E</i>.  Furthermore, the bindings of other variables in
+<i>E</i> and <i>E'</i> have not been affected, since those bindings remain in
+their value cells.  Finally, the bindings of variables in contexts which point
+to <i>E'</i> or <i>E</i> have not changed, since <i>E'</i> and <i>E</i> retain
+their identities in the values they assign to variables.  Thus, single step
+root movement is possible, and can be iterated to make any node in the tree the
+root.<p>
+
+However, if we desire to make a root from an arbitrary node, we must
+interpolate a path from the root to that node since the root may move only one
+step at a time.  Since the environment structure is a tree, such a path always
+exists and is unique.  The rerooting procedure described above traces this path
+forwards from the arbitrary node to the root and iterates the single-step
+transformation on the way back.<p>
+
+Since the parent links must be reversed on the second pass anyway, we can
+reverse them on the first pass and avoid the use of a stack.  Figure 4
+illustrates this technique.  This program for rerooting has much in common with
+the Deutsch-Schorr-Waite stackless list-tracing technique
+
+<a href="#ref5">[5].</a>
+
+<tt><pre>
+Fig.  4.  Stackless rerooting.
+
+reroot[a] = 	// Make a the new root using Deutsch-Schorr-Waite.
+ prog[[r,b,p]
+      r := nreverse[a], 	// Reverse a as in D-S-W.
+      b := binding[r], 	// Save dummy binding from the old root.
+      p := r, 	// Initialize p for loop.
+   while parent[p] != NIL
+   do prog3[binding[p] := binding[parent[p]],
+            binding[p] :=: vcell[name[binding[p]]],
+            p := parent[p]],
+   binding[a] := b,
+   return[a]]
+
+nreverse[a] = nreconc[a,NIL] 	// Destructively reverse list a, by flipping CDR pointers.
+
+nreconc[a,b] = 
+  [a=NIL -&gt; b;
+   T     -&gt; nreconc[cdr[a],rplacd[a,b]]]
+
+rplacd[x,y] = prog2[cdr[x]:=y,x]
+</pre></tt>
+
+The continuous shallow binding interpreter presented above is equivalent to the
+Maclisp interpreter for that class of Lisp programs which do not have FUNARG's,
+in the sense that the tree environment it creates consists of a single
+<i>path</i> (tree with no branches) which is isomorphic to the Maclisp
+<i>specpdl</i>.  However, our implementation of the model, being simple for
+pedagogic reasons, is not necessarily the most efficient way to perform shallow
+binding; e.g. since our environment nodes live in the heap rather than on a
+stack, they are more costly to reclaim.
+
+<h2>3.  Storage Requirements of Shallow Binding vis &aacute; vis Deep Binding</h2>
+
+Our shallow-binding model requires a value cell for every variable used by a
+program in addition to the storage required by the accessible environment tree
+nodes.  Therefore, the storage requirements are at least superficially the same
+as for a deep-binding model with global value cells.  However, one could
+conceive that, due to the pointer rearrangement in our model, the two models
+might differ in the details of when particular environment nodes (and hence the
+values to which they point) can be reclaimed by the garbage collector.  It so
+happens that this is <i>not</i> the case; the models are equivalent in the
+sense that the time-varying set of accessible nodes is precisely the same in
+both models.  The proof is beyond the scope of this paper, but depends on the
+fact that rerooting preserves the in-degree of all environment nodes, except
+for the old and the new roots.  This accessibility equivalence to deep binding
+is a nontrivial property of our shallow-binding model; some other models, such
+as deep binding with a <i>cache cell</i> for each variable
+
+<a href="#ref1">[1]</a>
+
+<a href="#ref2">[2]</a>
+
+<a href="#ref10">[10],</a>
+
+may retain
+pointers to nodes long after they would have become inaccessible in the
+deep-binding model.
+
+<h2>4.  Casual Rerooting</h2>
+
+Suppose now that we have a standard deep binding (nonrerooting) Lisp 1.5
+interpreter which has been augmented by the <i>shallow[]</i> primitive (see
+Figure 5).  When this primitive is invoked, the environment tree will be
+rerooted to the current environment.  Rerooting transforms the environment tree
+in such a way that <i>assoc[v,a]</i> is left invariant; therefore the
+interpretation proceeds correctly, but the length of variable searches is
+reduced.  In other words, the interpreter may <i>casually</i> reroot instead of
+rerooting at every context switch without affecting the semantics of the
+language.
+
+<tt><pre>
+Fig.  5.  Casual shallow-binding interpreter.
+
+assoc[v,a] =  	// The original deep-binding assoc.
+  [parent[a]=NIL      -&gt; vcell[v]; 	// Is a the root?
+   v=name[binding[a]] -&gt; binding[a];
+   T                  -&gt; assoc[v,parent[a]]]
+
+apply[f,x,a] =
+ [atom[f]       -&gt; [f=CAR -&gt; caar[x];
+                    ...
+                    f=SHALLOW -&gt; prog2[reroot[a],T] 	// Return T as value of shallow[]
+                    T -&gt; apply[eval[f,a],x,a]];
+  car[f]=LAMBDA -&gt; eval[caddr[f],pairlis[cadr[f],x,a]];
+  car[f]=FUNARG -&gt; apply[cadr[f],x,caddr[f]]]
+</pre></tt>
+
+This flexibility to run some functions shallow and some deep may reduce overall
+running time.  For example, a tight loop might run faster when shallow bound,
+while an interrupt handler might run better deep bound, since rerooting can be
+time consuming.<p>
+
+Lisp 1.5 can also be augmented with primitives for multiprocessing such as
+<i>fork</i>, <i>P</i>, and <i>V</i>.  Several processes can be active in the
+same environment tree in such a system.  Since rerooting preserves the value of
+<i>assoc[v,a]</i>, executing <i>shallow[]</i> in any process cannot affect the
+values of the variables in the other processes so long as rerooting is
+indivisible.<a href="#fn2">\3/</a> Of course, if more
+than one process tries to do continuous shallow binding, then we will get a
+form of <i>thrashing</i> in which the system spends all of its time rerooting!
+
+<h2>5.  Dijkstra's Display as a Shallow Binding Technique</h2>
+
+Dijkstra's <i>display</i> technique for fast variable access in lexically
+scoped languages
+
+<a href="#ref9">[9]</a>
+
+can be brought under the purview of our model, but we must
+first reformulate it.  Each variable reference in an Algol 60 program is
+normally compiled as a reference to an offset within the current activation
+record for the block which defines its scope.  One could conceptually<a
+href="#fn3">\4/</a> rewrite (i.e. do a source-to-source
+translation on) the Algol program in such a way that every block has exactly
+one variable a pointer variable which points to the current activation record
+for that block and all references to the original variables are mapped into
+offset references to these activation records via the pointer variables.<a
+href="#fn4">\5/</a>  Call these introduced pointer
+variables <i>display variables</i> and notice that they are the only variables
+left in the program.  Finally, give them names which correspond to their
+lexical depth in the program such as "<tt>Display_variable_depth_1</tt>" or
+"<tt>Display_variable_depth_6</tt>"; this naming assignment is consistent with
+the lexical scoping rule.<a href="#fn5">\6/</a><p>
+
+We now see that these display variables are the ones being shallowly bound in
+Dijkstra's display vector; indeed, the display is simply a vector of memory
+locations each acting as a value cell for a display variable.<p>
+
+Rerooting is thus a value-preserving transformation on a tree environment
+structure and has nothing to do with how the structure was created; e.g. the
+interpreter could use either lexical or dynamic scoping, or even some
+combination of the two
+
+<a href="#ref1">[1].</a>
+
+<h2>6.  Roots</h2>
+
+Our algorithm was discovered by pondering the Greenblatt Lisp machine proposal
+
+<a href="#ref3">[3]</a>
+
+which also describes a shallow scheme for handling general FUNARG's.  His
+scheme does not reverse any pointers, but appends an "up/down" bit to each node
+in the environment tree which essentially indicates whether that link would
+have been reversed in our scheme.  His less general method <i>must</i>
+continuously shallow bind because the pointers in the "down" path (the set of
+links which our model would have reversed) point in the wrong direction to be
+used by <i>assoc</i>.  Our scheme both simplifies and generalizes his so that
+not only can shallow binding be implemented more uniformly, but we also get the
+serendipitous benefit of being able at any point to choose between shallow and
+deep binding.<p>
+
+<i>Acknowledgments</i>.  I wish to thank Richard Stallman, Guy Steele, Ben
+Wegbreit, and the referees for their helpful comments and criticisms of this
+paper.
+
+<address>Received April 1976; revised October 1977</address>
+
+<h2>References</h2>
+
+<a name="ref1"></a>
+
+<b>1.</b>  Bobrow, D.G., and Wegbreit, B.  A model and stack implementation of
+multiple environments.  <i>Comm. ACM</i> <i>16</i>, 10 (Oct. 1973), 591-603.<p>
+
+<a name="ref2"></a>
+
+<b>2.</b>  Galley, S., and Pfister, G.  The MDL Language.  Programming
+Technology Division SYS.11.01. Proj. MAC, M.I.T., Cambridge, Mass., Sept.
+1975.<p>
+
+<a name="ref3"></a>
+
+<b>3.</b>  Greenblatt, R.  The Lisp Machine.  A.I. Working Paper 79, M.I.T.
+A.I. Lab., Cambridge, Mass., Nov. 1974.<p>
+
+<a name="ref4"></a>
+
+<b>4.</b>  Henhapl, W., and Jones, C.B.  A run-time mechanism for referencing
+variables.  <i>Inform. Processing Letters</i> 1 (1971), 14-16.<p>
+
+<a name="ref5"></a>
+
+<b>5.</b>  Knuth, D.  <i>The Art of Computer Programming, Vol. I: Fundamental
+Algorithms</i>.  Addison-Wesley, Reading, Mass., 1968, p. 417.<p>
+
+<a name="ref6"></a>
+
+<b>6.</b>  McCarthy, J., Abrahams, P., Edwards, D., Hart, T., and Levin, M.
+<i>LISP 1.5 Programmer's Manual</i>.  M.I.T. Press, Cambridge, Mass., 1965,
+especially pp. 12-13, 70-71.<p>
+
+<a name="ref7"></a>
+
+<b>7.</b>  Moon, D.  <i>MACLISP Reference Manual, Revision 0</i>.  Proj. MAC,
+M.I.T., Cambridge, Mass., 1974.<p>
+
+<a name="ref8"></a>
+
+<b>8.</b>  Moses, J.  The function of FUNCTION in LISP.  Memo 199, M.I.T. A.I.
+Lab., Cambridge, Mass., June 1970.<p>
+
+<a name="ref9"></a>
+
+<b>9.</b>  Randell, B., and Russell, L.J.  <i>ALGOL 60 Implementation</i>.
+Academic Press, London and New York, 1964, pp. 65-68, 75.<p>
+
+<a name="ref10"></a>
+
+<b>10.</b> Teitelman, W.  <i>InterLISP Reference Manual</i>.  Xerox Palo Alto
+Res. Ctr., Palo Alto, Calif., 1974.<p>
+
+<a name="ref11"></a>
+
+<b>11.</b>  Urmi, Jaak.  A Shallow Binding Scheme for Fast Environment Changing
+in a "Spaghetti Stack" Lisp System.  TR LiTH-MAT-R-76-18, Linkoeping Univ.
+(This independent paper of Urmi's <i>almost</i> discovers rerooting, but keeps
+Greenblatt's "up/down" bits
+
+<a href="#ref3"[3].</a>
+
+)<p>
+
+<a name="fn0">\1/</a>
+
+<i>Spec</i>ial variable <i>p</i>ush <i>d</i>own <i>l</i>ist.<p>
+
+<a name="fn1">\2/</a>
+
+A context switch is required for
+
+<ol>
+
+<li>a function call;</li>
+
+<li>a return from a function call;</li>
+
+<li>a nonlocal goto;</li>
+
+<li>an interrupt (if handled by a Lisp function); or</li>
+
+<li>a return from an interrupt.</li>
+
+</ol>
+
+<a name="fn2">\3/</a>
+
+We note that although a variable binding might be passed around in our
+scheme, there is only one copy of it, and hence this scheme is free
+from the "multiple copy update problem" of other fast access methods
+such as <i>caches</i>.<p>
+
+<a name="fn3">\4/</a>
+
+Except for the fact that Algol 60 does not support pointer
+variables!<p>
+
+<a name="fn4">\5/</a>
+
+We now assume that activation records live somewhere off in a heap.<p>
+
+<a name="fn5">\6/</a>
+
+This naming convention tends to minimize the number of names required,
+e.g. if the value cells are implemented in special hardware registers
+as in the Burroughs B5500.  Display variables can have any names
+consistent with the lexical scoping rule, including a distinct one for
+each block
+
+<a href="#ref4">[4].</a>
+
+</body></html>

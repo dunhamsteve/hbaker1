@@ -1,0 +1,867 @@
+<html><head>
+<!-- Based on MIT AI Memo 239 "HAKMEM" -->
+<!-- by M. Beeler, R.W. Gosper, and R. Schroeppel, Feb. 29, 1972. -->
+<!-- This html version Copyright (c) 1995 by Henry G. Baker. -->
+<link rev="made" href="mailto:hbaker1@pipeline.com">
+<title>HAKMEM -- NUMBER THEORY, PRIMES, PROBABILITY -- DRAFT, NOT YET PROOFED</title>
+
+</head><body>
+
+Beeler, M., Gosper, R.W., and Schroeppel, R.  <i>HAKMEM</i>.  MIT AI
+Memo 239, Feb. 29, 1972.
+
+Retyped and converted to <i>html</i> ('Web browser format) by
+
+<a href="http://home.pipeline.com/~hbaker1/home.html">Henry Baker,</a>
+
+April, 1995.
+
+<h2>NUMBER THEORY, PRIMES, PROBABILITY</h2>
+
+<a href="random.html">Previous</a>
+<a href="hakmem.html">Up</a>
+<a href="automata.html">Next</a>
+
+<a name="item28"></a>
+
+<h3>ITEM 28 (Schroeppel):</h3>
+
+After about 40 minutes of run time to verify the absence of any
+non-trivial factors less than 235, the 125th Mersenne number,
+
+<pre>
+ 125
+2    - 1,
+</pre>
+
+was factored on Tuesday, January 5, 1971, in 371 seconds run time
+as follows:
+
+<pre>
+ 125
+2    - 1 = 31 * 601 * 1801 * 269,089,806,001 * 4,710,883,168,879,506,001.
+</pre>
+
+John Brillhart at the University of Arizona had already done this.
+M137 was factored on Friday, July 9, 1971 in about 50 hours of
+computer time:
+
+<pre>
+ 137
+2    - 1 = 32,032,215,596,496,435,569 * 5,439,042,183,600,204,290,159.
+</pre>
+
+[<a href="http://www.utm.edu/departments/math/largest.html">Current prime records</a> --  <i>H.B.</i>]
+
+<a name="item29"></a>
+
+<h3>ITEM 29 (Schroeppel):</h3>
+
+For a random number X, the probability of its largest prime factor being
+
+<ol>
+
+<li>greater than sqrt(X)=X^(1/2) is ln 2.</li>
+
+<li>less than X^(1/3) is about 4.86%.</li>
+
+</ol>
+
+This suggests that similar probabilities are independent of X; for
+instance, the probability that the largest prime factor of X is less
+than X^(1/20) may be a fraction independent of the size of X.<p>
+
+RELEVANT DATA: ([] denote the expected value of adjacent entries.)
+
+<tt><pre>
+RANGE            COUNT          CUMULATIVE SUM OF COUNT
+10^12 to 10^6    7198 [6944]    10018
+10^6 to 10^4     2466           2820
+10^4 to 10^3     354            402 [487]
+10^3 to 252      40             48      ;252 = 10^2.4
+252 to 100       7              8
+100 to 52        1              1       ;52 = 10^1.7
+51 to 1          0              0
+</pre></tt>
+
+where:<p>
+
+"COUNT" is the number of numbers between 10^12 + 1 and 10^12 + 10018 whose
+largest prime factor is in "RANGE".  The number of primes in 10^12 + 1 to 10^12
++ 10018 is 335; the prime number theorem predicts 363 in this range.  This is
+relevant to Knuth's discussion of Legendre's factoring method, vol. 2, p.
+351-354.
+
+<a name="item30"></a>
+
+<h3>ITEM 30 (Schroeppel):</h3>
+
+Twin primes:
+
+<ul>
+
+<li>166,666,666,667 = (10^12 + 2)/6</li>
+
+<li>166,666,666,669</li>
+
+</ul>
+
+The number 166,666,666,666,667 is prime, but 166,666,666,666,669 is not.<p>
+
+The primes which bracket 10^12 are 10^12 + 39 and 10^12 - 11.<p>
+
+The primes which bracket 10^15 are 10^15 + 37 and 10^15 - 11.<p>
+
+The number 23,333,333,333 is prime.<p>
+
+Various primes, using T = 10^12, are:<p>
+
+40 T + 1, 62.5 T + 1, 200 T - 3, 500 T - 1, 500 T - 7.
+
+<a name="item31"></a>
+
+<h3>ITEM 31 (Schroeppel):</h3>
+
+Ramanujan's problem of solutions to
+
+<pre>
+ N        2
+2  - 7 = X
+</pre>
+
+was searched to about N = 10^40; only his solutions (N = 3, 4, 5, 7,
+15) were found.  It has recently been proven that these are the only
+ones.  Another Ramanujan problem: Find all solutions of n! + 1 = x^2.
+
+<a name="item32"></a>
+
+<h3>ITEM 32 (Schroeppel):</h3>
+
+Take a random real number and raise it to large powers; we expect the fraction
+part to be uniformly distributed.  Some exceptions:
+
+<ol>
+
+<li><i>phi</i> = (1 + sqrt(5))/2</li>
+
+<li>all - 1 &lt; X &lt; 1</li>
+
+<li>sqrt(2) (half are integers, other half are probably uniformly
+distributed)</li>
+
+<li>1 + sqrt(2) -- Proof:
+
+<pre>
+             N                N
+(1 + sqrt(2))  + (1 - sqrt(2))  = integer (by induction);
+
+                 N
+the (1 - sqrt(2))  goes to zero.
+</pre></li>
+
+<li>2 + sqrt(2) -- similar to 1 + sqrt(2)</li>
+
+<li>any algebraic number whose conjugates are all inside the unit circle</li>
+
+</ol>
+
+Now, 3 + sqrt(2) is suspicious; it looks non-uniform, and seems to
+have a cluster point at zero.  PROBLEM: Is it non-uniform?
+
+<a name="item33"></a>
+
+<h3>ITEM 33 (Schroeppel):</h3>
+
+Numbers whose right digit can be repeatedly removed and they are still prime:
+CONJECTURE: There are a finite number of them in any radix.  In decimal there
+are 51, the longest being 1,979,339,333 and 1,979,339,339.
+
+<a name="item34"></a>
+
+<h3>ITEM 34 (Schroeppel):</h3>
+
+PROBLEM: Can every positive integer be expressed in terms of 3 and the
+operations factorial and integer square root?  E.g., 5 = sqrt(sqrt(3!!)).
+
+<a name="item35"></a>
+
+<h3>ITEM 35 (Schroeppel):</h3>
+
+Take as many numbers as possible from 1 to N such that no 3 are in
+arithmetic progression.  CONJECTURE: As N - &gt; infinity, the density
+of such sets approaches zero, probably like
+
+<pre>
+ (ln 2)/(ln 3)
+N             .
+</pre>
+
+<ul>
+
+<li>XX.XX is a known solution for N = 5</li>
+
+<li>XX.XX....XX.XX is a known solution for N = 14</li>
+
+</ul>
+
+Conjecture that XX.XX just keeps getting copied.  If the N^[(ln 2)/(ln
+3)] can be proved, it follows that there are infinitely many primes
+P1, P2, P3 in arithmetic progression, since primes are much more
+common than N^[(ln 2)/(ln 3)].
+
+<a name="item36"></a>
+
+<h3>ITEM 36 (Schroeppel):</h3>
+
+PROBLEM: How many squares have no zeros in their decimal expression?  Ternary?
+
+<a name="item37"></a>
+
+<h3>ITEM 37 (Gosper):</h3>
+
+The number of n digit strings base B in which all B digits occur at
+least once is just the Bth forward difference at 0 of the nth powers
+of 0, 1, ... .  E.g., for n = 4:
+
+<tt><pre>
+  0     1     16    81   256   625
+     1     15    65   175   369
+        14    50   110   194
+           36    60    84
+              24    24
+                  0
+</pre></tt>
+
+so there are 14 (= 2^4 - 2) such 4-bit strings, 36 such 4-digit
+ternary strings, 24 (= 4!) such quaternary, and 0 for all higher bases.  27 (=
+10e?) random decimal digits are required before it is more likely than not that
+every digit has occurred; with 50 digits the likelihood is 95%.<p>
+
+<a name="item38"></a>
+
+<h3>ITEM 38 (Fredkin):</h3>
+
+By the binomial theorem, the bth forward difference at 0 of the 0, 1, 2, ...
+powers of n is (n-1)^b.  E.g., for n = 4:
+
+<tt><pre>
+  1     4    16    64   256
+     3    12    48   192
+        9    36   144
+          27   108
+             81
+</pre></tt>
+
+In fact, any straight line with rational slope through such an array
+will always go through a geometric sequence with common ratio of the
+form n^a (n-1)^b.  In the above, east by southeast knight's moves give
+the powers of 12: 1, 12, 144, ... .
+
+<a name="item39"></a>
+
+<h3>ITEM 39 (Schutzenberger):</h3>
+
+PROBLEM: Using N digits, construct a string of digits which at no time has any
+segment appearing consecutively twice.
+
+<ul>
+
+<li>N = 2 -&gt; finite maximum string</li>
+
+<li>N = 10 -&gt; known infinite</li>
+
+</ul>
+
+Determine maximum string length for N = 3.<p>
+
+SUB-PROBLEM: How many sequence exist for any particular length?
+
+<a name="item40"></a>
+
+<h3>ITEM 40 (Gosper):</h3>
+
+The variance of a pseudo-Gaussian distributed random variable made by adding T
+independent, uniformly distributed random integer variables which range from 0
+to N-1, inclusive, is T((N^2 - 1)/12).
+
+<a name="item41"></a>
+
+<h3>ITEM 41 (Salamin):</h3>
+
+There are exactly 23000 primes less than 2^18.
+
+<a name="item42"></a>
+
+<h3>ITEM 42 (Gosper):</h3>
+
+To show that
+
+<pre>
+   N
+  ====
+  \                                L  N + 1          N + 1  L
+   >    BINOMIAL(N + L, L) ((1 - X)  X      + (1 - X)      X ) = 1
+  /
+  ====
+  L = 0
+</pre>
+
+set N to 20 and observe that it is the probability that one or the
+other player wins at pingpong.  (X = probability of first player
+gaining one point, L = loser's score, deuce rule irrelevant.)  If this
+seems silly, try more conventional methods.<p>
+
+PROBLEM: If somehow you determine A should spot B 6 points for their
+probabilities of winning to be equal, and B should spot C 9 points,
+how much should A give C?
+
+<a name="item43"></a>
+
+<h3>ITEM 43 (Schroeppel):</h3>
+
+Let (A, B, C, ...) be the multinomial coefficient
+
+<pre>
+(A + B + C....)!
+----------------
+  A! B! C! ...
+</pre>
+
+This is equal modulo the prime p to
+
+<pre>
+(A0, B0, C0...) (A1, B1, C1...) (A2, B2, C2...)...
+</pre>
+
+where AJ is the Jth from the right digit of A base p.<p>
+
+Thus BINOMIAL(A+B, A) mod 2 is 0 iff (AND A B) is not.<p>
+
+The exponent of the largest power of p which divides (A, B, C,...) is equal to
+the sum of all the carries when the base p expressions for A, B, C, ... are
+added up.
+
+<a name="item44"></a>
+
+<h3>ITEM 44 (Gosper):</h3>
+
+Recurrences for multinomial coefficients:<p>
+
+(A,B,C,...) = (A+B,C,...)(A,B) = (A+B+C,...)(A,B,C) = ...<p>
+
+<a name="item45"></a>
+
+<h3>PROBLEM 45 (Gosper):</h3>
+
+<ul>
+
+<li>Take a unit step at some heading (angle).</li>
+
+<li>Double the angle, step again.</li>
+
+<li>Redouble, step, etc.</li>
+
+</ul>
+
+For what initial heading angles is your locus bounded?<p>
+
+PARTIAL ANSWER (Schroeppel, Gosper): When the initial angle is a
+rational multiple of <i>pi,</i> it seems that your locus is bounded (in fact,
+eventually periodic) iff the denominator contains as a factor the
+square of an odd prime other than 1093 and 3511, which must occur at
+least cubed.  (This is related to the fact that 1093 and 3511 are the
+only known primes satisfying
+
+<pre>
+ P          2
+2  = 2 mod P ).
+</pre>
+
+But a denominator of 171 = 9 * 19 never loops, probably because 9
+divides <i>phi</i>(19).  Similarly for 9009 and 2525.  Can someone
+construct an irrational multiple of <i>pi</i> with a bounded locus?
+Do such angles form a set of measure zero in the reals, even though
+the "measure" in the rationals is about .155?  About .155 = the
+fraction of rationals with denominators containing odd primes squared
+= 1 - product over odd primes of 1 - 1/P(P + 1).  This product =
+.84533064 +- a smidgen, and is not, alas, sqrt(<i>pi</i>/2) ARCERF(1/4) =
+.84534756.  This errs by 16 times the correction factor one expects
+for 1093 and 3511, and is not even salvaged by the hypothesis that all
+primes &gt; a million satisfy the congruence.  It might, however, be
+salvaged by quantities like 171.
+
+<a name="item46"></a>
+
+<h3>ITEM 46 (Schroeppel):</h3>
+
+The most probable suit distribution in bridge hands is 4-4-3-2, as
+compared to 4-3-3-3, which is the most evenly distributed.  This is
+because the world likes to have unequal numbers: a thermodynamic
+effect saying things will not be in the state of lowest energy, but in
+the state of lowest disordered energy.
+
+<a name="item47"></a>
+
+<h3>ITEM 47 (Beeler):</h3>
+
+The Fibonacci series modulo P has been studied.  This series has a cycle length
+L and within this cycle has sub-cycles which are bounded by zero members.<p>
+
+The length of powers of primes seems to be
+
+<pre>
+                             power-1
+L = (length of prime) * prime       .
+</pre>
+
+The length of products of powers of primes seems to be<p>
+
+<pre>
+L = least common multiple of lengths of powers of primes which are factors.
+</pre>
+
+There can be only 1, 2, or 4 sub-cycles in the cycle of a prime.<p>
+
+Primes with 1 sub-cycle seem to have lengths
+
+<pre>
+     prime - 1
+L =  --------- ,
+         N
+</pre>
+
+N covering all integers.  Primes with 2 sub-cycles seem to have lengths
+
+<pre>
+                 M
+     prime - (-1) 
+L =  ------------- ,
+          M
+</pre>
+
+M covering all integers except of form 10 K + 5.<p>
+
+Primes with 4 sub-cycles seem to always be of form 4 K + 1, and seem
+to have lengths
+
+<pre>
+      prime + 1    prime - 1
+L =   --------- or --------- ,
+          R            S
+</pre>
+
+R covering all integers of form 10 K + 1, 3, 7 or 9; S covering all integers.<p>
+
+At Schroeppel's suggestion, the primes have been separated mod 40, which
+usually determines their number of sub-cycles:
+
+<tt><pre>
+PRIME mod 40    SUB-CYCLES
+1, 9    usually 2, occasionally 1 or 4 (about equally)
+3, 7, 23, 27    2
+11, 19, 31, 39  1
+13, 17, 33, 37  4
+21, 29          1 or 4 (about equally)
+2 (only 2)      1
+5 (only 5)      4
+</pre></tt>
+
+Attention was directed to primes which are 1 or 9 mod 40 but have 1 or
+4 subcycles.
+
+<pre>
+    2       2
+25 X  + 16 Y
+</pre>
+
+seems to express those which are 9 mod 40;
+
+<pre>
+           2        2
+(10 X +- 1)  + 400 Y
+</pre>
+
+seems to express those which are 1 mod 40.<p>
+
+PROBLEM: Can some of the "seems" above be proved?  Also, can a general
+test be made which will predict exact length for any number?
+
+<a name="item48"></a>
+
+<h3>ITEM 48 (Gosper, Schroeppel):</h3>
+
+A point of the 2 dimensional lattice is called <i>visible</i> iff its
+coordinates are relatively prime.  The invisible 2 by 2 square with
+smallest X has its near corner on (14,20).  (I.e., (14,20), (15,20),
+(14,21), and (15,21) are all invisible.)  The corresponding 3 by 3 is
+at (104,6200).  By the chines remainder theorem, there exist invisible
+sets of every finite shape.  Excellent reference: <i>Amer. Math.
+Monthly,</i> May '71, p487.
+
+<a name="item49"></a>
+
+<h3>ITEM 49:</h3>
+
+There is a unique "magic hexagon" of side 3:
+
+<tt><pre>
+     3  17  18
+  19   7   1  11
+16   2   5   6   9
+  12   4   8  14
+    10  13  15
+</pre></tt>
+
+First discovered by Clifford W. Adams, who worked on the problem from
+1910.  In 1957, he found a solution.  (See Aug. 1963 <i>Sci. Am.,</i>
+Math. Games.)  Other length sides are impossible.
+
+<a name="item50"></a>
+
+<h3>ITEM 50 (Schroeppel):</h3>
+
+There is no magic cube of order 4.<p>
+
+Proof: Let K (= 130) be the sum of a row.<p>
+
+Lemma 1: In a magic square of order four, the sum of the corners is K.<p>
+
+Proof: Add together each edge of the square and the two diagonals.  This covers
+the square entirely, and each corner twice again.  This adds to 6 K, so twice
+the corner sum is 2 K.<p>
+
+Lemma 2:  In a magic cube of order 4, the sum of any two corners connected by
+an edge of the cube is K/2.<p>
+
+Proof:  Call the corners a and b.  Let c, d and e, f be the corners of any two
+edges of the cube parallel to ab.  Then abcd, abef, and cdef are all the
+corners of magic squares.  So a+b+c+d + a+b+e+f + c+d+e+f = 3K; a+b+c+d+e =
+3K/2; a+b = K/2.<p>
+
+Proof of magic cube impossibility: Consider a corner x.  There are three
+corners connected by an edge to x.<p>
+
+Each must have value K/2 - x.  QED
+
+<a name="item51"></a>
+
+<h3>ITEM 51 (Schroeppel):</h3>
+
+By similar reasoning, the center of an order 5 magic cube must be 63 = K/5.<p>
+
+COROLLARY: There is no magic tesseract of order 5.
+
+<a name="item52"></a>
+
+<h3>ITEM 52 (Salamin):</h3>
+
+The probability that two random integers are relatively prime is 6/<i>pi</i>^2.<p>
+
+PSEUDO-PROOF: Let X be the probability.  Let S be the set of points in the
+integer lattice whose coordinates are relatively prime, so that S occupies a
+fraction X of the lattice points.  Let S(D) be the set of points whose
+coordinates have a GCD of D.  S(D) is S expanded by a factor of D from the
+origin.  So S(D) occupies a fraction X/D^2 of the lattice, or the probability
+that two random integers have a GCD of D is X/D^2.  If D unequals D', then S(D)
+intersect S(D') is empty, and union of all S(D) is the entire lattice.
+Therefore X*(1/1^2+1/2^2+1/3^2+...) = 1, so X = 6/<i>pi</i>^2.  This argument is not
+rigorous, but can be made so.
+
+<a name="item53"></a>
+
+<h3>ITEM 53 (Salamin):</h3>
+
+The probability that N numbers will lack a Pth power common divisor is 1/<i>zeta</i>(NP).
+
+<a name="item54"></a>
+
+<h3>ITEM 54 (Salamin &amp; Gosper):</h3>
+
+The probability that a random rational number has an even denominator is 1/3.
+
+<a name="item55"></a>
+
+<h3>ITEM 55 (Schroeppel): GAUSSIAN INTEGERS</h3>
+
+See following illustrations; also <a href="pi.html">PI</a> section.<p>
+
+<a href="Figure1a.html">Figure 1(a).</a> This diagram is to
+substantiate the claim that every Gaussian integer has a unique bit
+combination.  Running through bit combinations 0, 1, 10, 11, ..., the
+diagram is a map of values, radix <i>i</i>-1.  The origin is circled;
+the dot is at the 127th combination (1111111 = 2 + 5<i>i</i>), which
+is merely the last point drawn.<p>
+
+<a href="Figure1b.html">Figure 1(b).</a> As 1(a), but radix
+<i>i</i>+1.  Large circle is origin.  Dashes indicate continuity of
+curve at confusing places.  Dotted curve is with an infinity of ones
+to the left (big dot = ...1111 = i).  The solid and dotted curves are
+symmetrical about the point marked with a small circle.<p>
+
+<a href="Figure2.html">Figure 2.</a> Similar to 1(a), but showing
+fraction parts as well.  Reprinted by special permission from Knuth,
+<i>The Art of Computer Programming, Volume 2, Seminumerical
+Algorithms,</i> 1969, Addison-Wesley, Reading, Mass.
+
+<a name="item56"></a>
+
+<h3>ITEM 56 (Beeler):</h3>
+
+The "length" of an N-digit
+decimal number is defined as the number of times one must iteratively form the
+product of its digits until one obtains a one-digit product (see <i>Technology
+Review</i> Puzzle Corner, December 1969 and April 1970).  For various N, the
+following shows the maximum "length", as well as how many distinct numbers
+(permutation groups of N digits) there are:
+
+<tt><pre>
+ N     MAX L     DISTINCT
+ 2       4           54
+ 3       5          219
+ 4       6          714
+ 5       7        2,001
+ 6       7        5,004
+ 7       8       11,439
+ 8       9       24,309
+ 9       9       48,619
+10      10       92,377
+11      10      167.959
+12      10      293,929
+</pre></tt>
+
+Also, for N = 10, 11 and 12, a tendency for there to be many fewer numbers of
+"length" = 7 is noted.  Other than this, the frequency of numbers of any given
+N, through N = 12, decreases with increasing "length", CONJECTURE (Schroeppel):
+No L &gt; 10.
+
+<a name="item57"></a>
+
+<h3>ITEM 57 (Beeler, Gosper):</h3>
+
+There is at least one zero in the decimal expression of each power of 2 between
+
+<pre>
+ 86                                           30739014
+2   = 77,371,252,455,336,267,181,195,264 and 2        ,
+</pre>
+
+where the program was stopped.  If digits of such powers were random,
+the probability that there is another zeroless power would be about
+1/10^411816.  Assuming there aren't any raises the question:<p>
+
+How many final nonzero digits can a power of two have?<p>
+
+ANSWER (Schroeppel): Arbitrarily many.  If we look at the last n digits of
+consecutive powers of 2, we see:
+
+<ol>
+
+<li>None end in zero.</li>
+
+<li>After the nth, they are all multiples of 2^n.</li>
+
+<li>They get into a loop of length 4 * 5^(n-1).  (Because 2 is a
+primitive root of powers of 5.)</li>
+
+</ol>
+
+But there are only 4 * 5(n-1) multiples of 2^n which don't end with
+zero and are &lt; 10^n, so we will see them all.  In particular, we
+will see the one composed entirely of 1's and 2's, which ends
+...11112111211111212122112.
+
+<a name="item58"></a>
+
+<h3>ITEM 58 (Fredkin):</h3>
+
+<pre>
+ 3    3    3    3
+3  + 4  + 5  = 6 .
+</pre>
+
+<a name="item59"></a>
+
+<h3>ITEM 59 (Schroeppel):</h3>
+
+<pre>
+                                               2
+91038 90995 89338 00226 07743 74008 17871 09376  =
+
+82880 83126 51085 58711 66119 71699 91017 17324
+91038 90995 89338 00226 07743 74008 17871 09376
+</pre>
+
+<a name="item60"></a>
+
+<h3>ITEM 60 (Beeler):</h3>
+
+If S = the sum of all integers which exactly divide N, including 1 and N, then
+"perfect numbers" are S = 2 N; the first three numbers which are S = 3 N are:
+
+<pre>
+           3
+    120 = 2  * 3 * 5 = 1111000 base 2
+
+           5
+    672 = 2  * 3 * 7 = 1010100000 base 2
+
+           9
+523,776 = 2  * 3 * 11 * 31 = 1111111111000000000 base 2
+</pre>
+
+<a name="item61"></a>
+
+<h3>ITEM 61 (Root):</h3>
+
+Consider iteratively forming the sum of the factors (including 1 but not N) of
+a number N.  This process may loop; "perfect numbers" are those whose loop is
+one member, N.  For example, N = 28 = 1 + 2 + 4 + 7 + 14.  An example of a
+two-member loop is:
+
+<ul>
+
+<li>sum of factors of 220 = 284</li>
+
+<li>sum of factors of 284 = 220</li>
+
+</ul>
+
+Two-member loops are called "amicable pairs."<p>
+
+A program to search for loops of length &gt; 2, all of whose members are &lt;
+6,600,000,000 found the known loops of length 5 (lowest member is 12496) and 28
+(lowest member is 14316), but also 13 loops of 4 members (lowest member is
+given):
+
+<tt><pre>
+  1,264,460 = 2^2 * 5 * 17 * 3,719
+  2,115,324 = 2^2 * 3^2 * 67 * 877
+  2,784,580 = 2^2 * 5 * 29 * 4,801
+  4,938,136 = 2^3 * 7 * 109 * 809
+  7,169,104 = 2^4 * 17 * 26,357
+ 18,048,976 = 2^4 * 11 * 102,551
+ 18,656,380 = 2^2 * 5 * 932,819
+ 46,722,700 = 2^2 * 5^2 * 47 * 9,941
+ 81,128,632 = 2^3 * 13 * 19 * 41,057
+174,277,820 = 2^2 * 5 * 29 * 487 * 617
+209,524,210 = 2 * 5 * 7 * 19 * 263 * 599
+330,003,580 = 2^2 * 5 * 16,500,179
+498,215,416 = 2^3 * 19 * 47 * 69,739
+</pre></tt>
+
+<a name="item62"></a>
+
+<h3>ITEM 62 (Speciner):</h3>
+
+The first four perfect numbers are 6, 28, 496, 8128.<p>
+
+Two-member loops (amicable pairs) are:
+
+<tt><pre>
+   220 &lt;-&gt; 284
+  1184 &lt;-&gt; 1210
+  2620 &lt;-&gt; 2924
+  5020 &lt;-&gt; 5564
+  6232 &lt;-&gt; 6368
+ 10744 &lt;-&gt; 10856
+ 12285 &lt;-&gt; 14595
+ 17296 &lt;-&gt; 18416
+ 63020 &lt;-&gt; 76084
+ 66928 &lt;-&gt; 66992
+ 67095 &lt;-&gt; 71145
+ 69615 &lt;-&gt; 87633
+ 79750 &lt;-&gt; 88730
+100485 &lt;-&gt; 124155
+122265 &lt;-&gt; 139815
+122368 &lt;-&gt; 123152
+141644 &lt;-&gt; 153176
+142310 &lt;-&gt; 168730
+171856 &lt;-&gt; 176336
+176272 &lt;-&gt; 180848
+185368 &lt;-&gt; 203432
+196724 &lt;-&gt; 202444
+</pre></tt>
+
+(Exhaustive to smaller member &lt;= 196724 and larger member &lt; 2^35.)<p>
+
+A prime decade is where N+1, N+3, N+7 and N+9 are all prime.  The first
+occurrence of two prime decades with the theoretical minimum separation is N =
+1006300 and N = 1006330.  The 335th prime decade is N = 2342770.  There are
+172400 primes &lt; 2342770.
+
+<a name="item63"></a>
+
+<h3>ITEM 63 (Schroeppel, etc.):</h3>
+
+The joys of 239 are as follows:
+
+<ul>
+
+<li><i>pi</i> = 16 arctan (1/5) - 4 arctan(1/239),</li>
+
+<li>which is related to the fact that 2 * 13^4 - 1 = 239^2,</li>
+
+<li>which is why 239/169 is an approximant (the 7th) of sqrt(2).</li>
+
+<li>arctan(1/239) = arctan(1/70) - arctan(1/99) = arctan(1/408) + arctan(1/577)</li>
+
+<li>239 needs 4 squares (the maximum) to express it.</li>
+
+<li>239 needs 9 cubes (the maximum, shared only with 23) to express it.</li>
+
+<li>239 needs 19 fourth powers (the maximum) to express it.</li>
+
+<li>(Although 239 doesn't need the maximum number of fifth powers.)</li>
+
+<li>1/239 = .00418410041841..., which is related to the fact that</li>
+
+<li>1,111,111 = 239 * 4,649.</li>
+
+<li>The 239th Mersenne number, 2^239 - 1, is known composite, but no factors are known.#</li>
+
+<li>239 = 11101111 base 2.</li>
+
+<li>239 = 22212 base 3.</li>
+
+<li>239 = 3233 base 4.</li>
+
+<li>There are 239 primes &lt; 1500.</li>
+
+<li>K239 is Mozart's only work for 2 orchestras.</li>
+
+<li>Guess what memo this is.</li>
+
+<li>And 239 is prime, of course.</li>
+
+</ul><p>
+
+<i># Actually, this statement was not correct, even in 1972.  Many
+thanks to these sharp-eyed Netizens of sci.math --
+kfoster@rainbow.rmii.com (Kurt Foster) 4-Nov-1996, rawling@erols.com
+(Mark Rawlings) 4-Nov-1996, Dan Shanks ~1972 [according to
+rcs@cs.arizona.edu (Richard Schroeppel)] -- for pointing out that
+
+<pre>
+M239 = 2^239 - 1
+     = 479 * 1913 * 5737 * 176383 * 134000609
+           * 7110008717824458123105014279253754096863768062879.
+</pre>
+
+The "factor()" command of the incredible "PARI-GP" program reproduced
+the above factorization in 50 seconds on a lowly 68030 processor
+without a floating point unit.  The PARI-GP program is by C. Batut,
+D. Bernardi, H. Cohen, and M. Olivier of</i>
+
+<pre>
+Laboratoire A2X, Universite Bordeaux I
+351 Cours de la Liberation
+33405 TALENCE Cedex, FRANCE
+pari@math.u-bordeaux.fr
+</pre>
+<a href="ftp://megrez.math.u-bordeaux.fr/pub/pari/">ftp://megrez.math.u-bordeaux.fr/pub/pari/</a><p>
+
+<a href="random.html">Previous</a>
+<a href="hakmem.html">Up</a>
+<a href="automata.html">Next</a>
+
+</body></html>

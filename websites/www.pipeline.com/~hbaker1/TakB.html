@@ -1,0 +1,198 @@
+<html><head>
+<!-- This document was created from RTF source by rtftohtml version 2.7.5 -->
+
+<title>ACM Lisp Pointers V, 3 (Jul/Sep 1992), 22-23.</title>
+
+<link rev="made" href="mailto:hbaker1@pipeline.com">
+
+<h1>A Tachy<a href="#fn0">[1]</a> 'TAK'</h1>
+
+<address>
+<a href="home.html">Henry G. Baker</a>
+</address>
+
+<address>
+Nimble Computer Corporation, 16231 Meadow Ridge Way, Encino, CA 91436<br>
+(818) 986-1436  (818) 986-1360 (FAX)<br>
+Copyright (c) 1992 by Nimble Computer Corporation
+</address>
+
+<hr>
+
+We show how to speed up the Tak Benchmark by an order of magnitude--5X faster
+than the Cray-1--on a Common Lisp system (40MHz 80860-based OKIstation) using
+memoizing.  The list-based Takl Benchmark improves even more--30X faster than
+the Cray-1.  Given the speed attainable through memoizing, the possibility of
+further speedups using parallelism seems unlikely.
+
+<hr>
+
+</head><body>
+
+<h2>A.  INTRODUCTION</h2>
+
+The Tak benchmark is John McCarthy's mis-remembered version of the Takeuchi
+function [Gabriel85].  The Tak benchmark is one of the most commonly used
+benchmarks because its reliance on only recursive function-calling and integer
+arithmetic allows it to be used early in hardware debugging, and because it is
+short enough to memorize and type surreptitiously into a competitor's computer
+at a trade show.  While some benchmarks have been criticized for running
+"entirely within the cache", the Tak benchmark typically runs "entirely within
+the register set" of a RISC architecture, and therefore deserves a double dose
+of the same criticism.  It is generally assumed that because of its ubiquity
+that Tak cannot be speeded up by non-intelligent means; we show that this
+assumption is erroneous.<p>
+
+We show that Tak can be speeded up by the technique of "memoization" [Bird80]
+[Keller86], which requires only that the function be "functional"--i.e.,
+contain no side-effects.  Since the lack of side-effects can often be
+statically assured at compile time by simple syntactic tests, a compiler could
+decide to utilize memoization for Tak as one of its standard optimizations.
+
+<h2>B.  STANDARD 'TAK'</h2>
+
+According to [Gabriel85], the Tak benchmark contains 63,609 recursive calls to
+<tt>tak</tt>, as well as 47,706 decrement operations, when performed on the
+arguments <tt>(18 12 6)</tt> to produce the answer <tt>7</tt>.  None of the
+arguments to <tt>tak</tt> ever becomes negative, nor does any ever exceed
+<tt>18</tt>.  The first arm of the conditional is executed 75% of the time.
+
+<tt><pre>
+(defun tak (x y z)
+  (if (not (&lt; y x)) z
+    (tak (tak (1- x) y z)
+         (tak (1- y) z x)
+         (tak (1- z) x y))))
+</pre></tt>
+
+<h2>C.  MEMOIZING 'TAK'</h2>
+
+A simple measurement shows that <tt>tak</tt> is called with only 281 distinct
+combinations of arguments, so memoization can work splendidly.  However, in
+order to memoize, we must construct a single "key" from the triple of integers
+passed to <tt>tak</tt> as arguments.  The Lispiest way to do this is to
+construct a Lisp list of the 3 arguments, and then use this as a key to a
+Common Lisp <tt>equal</tt> hash table, as in the following code:
+
+<tt><pre>
+(defparameter *memo-table* (make-hash-table :test #'equal)
+  "Those who don't remember the past are condemned to recompute it"<a href="#fn1">[2]</a>)
+
+(defun make-key (x y z) `(,x ,y ,z))
+
+(defun tak (x y z)
+  (let ((key (make-key x y z)))		; <a href="#fn2">[3]</a>
+    (or (gethash key *memo-table*)
+        (setf (gethash key *memo-table*)
+              (if (not (&lt; y x)) z
+                (tak (tak (1- x) y z)
+                     (tak (1- y) z x)
+                     (tak (1- z) x y)))))))
+</pre></tt>
+
+This implementation works, and can already out-perform many standard
+<tt>tak</tt> implementations.  It can be speeded up by the straight-forward
+technique of "hash consing"
+
+<a href="othergc/Ershov-Hash.txt">[Ershov58]</a>
+
+[Goto74] [Deutsch73], which allows the
+<tt>equal</tt> hash table to be replaced by an <tt>eq</tt> hash table.  But the
+fastest implementation utilizes the fact that the argument integers are
+bounded, and we can therefore <i>pack</i> them into a single fixnum:
+
+<tt><pre>
+(defparameter *memo-table* (make-hash-table :test #'eq))
+
+(defun make-key (x y z) (+ (ash x 16) (ash y 8) z))
+</pre></tt>
+
+<h2>D.  STANDARD 'TAKL'</h2>
+
+The Gabriel Takl benchmark is obtained from the Tak benchmark by replacing
+integer counters with list counters; i.e., lists of length <i>n</i> are used to
+represent the integer <i>n</i>.  Intuitively, one would presume that Takl would
+run a small factor slower than Tak, since list counters would appear to be only
+a small factor slower than fixnum counters (assuming that the lists are in the
+cache).  However, it is much more difficult to implement the <tt>&lt;</tt>
+predicate on lists than on fixnums; therefore, <tt>shorterp</tt> takes time
+proportional to the smaller of its arguments instead of taking only a small
+constant amount of time.  On the standard benchmark versions, we find
+non-memoized Takl to be about 5.7X slower than non-memoized Tak.
+
+<h2>E.  MEMOIZING 'TAKL'</h2>
+
+Memoizing Takl is slightly more difficult than memoizing Tak, because we cannot
+utilize packed integers as the keys to our memo table, but must construct
+unique keys using hash consing.  However, our table still consists of only 281
+active entries, so it will likely remain entirely within the cache.<p>
+
+In Takl, we actually have a choice about whether to memoize <tt>mas</tt>,
+<tt>shorterp</tt> or both.  While memoizing <tt>shorterp</tt> should
+dramatically shorten its time, we would still execute the entire 63,609 number
+of calls to <tt>mas</tt>.  If we memoize <tt>mas</tt>, then we are left with
+very few calls to <tt>shorterp</tt>, in which case its timing won't matter very
+much.  Thus, it is only necessary to memoize <tt>mas</tt> to get most of the
+benefits of memoization.
+
+<h2>F.  RESULTS</h2>
+
+The memoization optimization improves Tak by about an order of magnitude.  We
+achieve a Tak time of 0.008 seconds on the 40Mhz 80860-based OKIstation(TM),
+which time is 5 X faster than the Cray-1 on the old benchmark.<a
+href="#fn3">[4]</a>  By utilizing memoization with hash consing on
+the Takl benchmark, we achieve a Takl time of 0.01 seconds, which is 30 X
+faster than the Cray-1 on the old benchmark.  Interestingly enough, Takl is
+only 25% slower than Tak when both are memoized; these numbers indicate that
+the memo table lookup dominates both computations.
+
+<h2>G.  REFERENCES</h2>
+
+Anderson, J.Wayne, <i>et al</i>.  "Implementing and Optimizing Lisp for the
+Cray".  <i>IEEE Software</i> (July 1987),74-83.<p>
+
+Bird, R.S.  "Tabulation Techniques for Recursive Programs".  <i>ACM Comp. Surv.
+12</i>,4 (Dec. 1980),403-417.<p>
+
+Deutsch, L. Peter.  "An Interactive Program Verifier".  Xerox PARC TR CSL-73-1,
+1973.<p>
+
+<a href="othergc/Ershov-Hash.txt">[Ershov58]</a>
+
+Ershov, A.P.  "On Programming of Arithmetic Operations".  <i>Doklady, AN USSR
+118</i>,3 (1958),427-430, transl. Friedman, M.D., <i>CACM 1</i>,8 (Aug.
+1958),3-6.<p>
+
+Gabriel, R.P.  <i>Performance and Evaluation of Lisp Systems</i>.  MIT Press,
+Camb., MA, 1985.<p>
+
+Goto, Eiichi.  "Monocopy and Associative Algorithms in Extended Lisp".  TR.
+74-03, U. Tokyo, 1974.<p>
+
+Keller, R.M., and Sleep, M.R.  "Applicative Caching".  <i>ACM TOPLAS 8</i>,1
+(Jan. 1986),88-108.<p>
+
+<a href="http://www.cs.cmu.edu:8001/Web/Groups/AI/html/cltl/cltl2.html">[Steele90]</a>
+
+Steele, Guy L.  <i>Common Lisp, The Language; 2nd Ed</i>.  Digital Press,
+Bedford, MA, 1990,1029p.<p>
+
+<a name="fn0">[1]</a>
+
+Look it up in your <i>Funk&amp;Wagnall's</i>.<p>
+
+<a name="fn1">[2]</a>
+
+Apologies to Santayana.<p>
+
+<a name="fn2">[3]</a>
+
+One might also utilize <tt>&amp;rest</tt> arguments to
+construct the key list, as in <tt>(defun tak (&amp;rest key) ... )</tt>.<p>
+
+<a name="fn3">[4]</a>
+
+We are using the "old" Cray-1 numbers from [Gabriel85];
+newer numbers for the Cray-1 are given in [Anderson87].
+
+</body></html>

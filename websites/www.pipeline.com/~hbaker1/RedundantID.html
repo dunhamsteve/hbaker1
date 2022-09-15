@@ -1,0 +1,137 @@
+<html><head>
+<title>A Source of Redundant Identifiers in PASCAL Programs</title>
+
+<link rev="made" href="mailto:hbaker1@pipeline.com">
+
+</head><body>
+
+<h1>A Source of Redundant Identifiers in PASCAL Programs</h1>
+
+<address>
+<a href="home.html">Henry G. Baker, Jr.</a><br>
+Computer Science Department<br>
+University of Rochester<br>
+Rochester, New York  14627<p>
+</address>
+
+<address>ACM <i>Sigplan Notices 15,</i> 2 (February 1980), 14-16.<p></address>
+
+I recently had occasion to write a significant program in PASCAL (a
+compiler) which made extensive use of PASCAL's list-processing and
+functional facilities.  Although I was much impressed by other
+features of PASCAL, I was appalled by the number of redundant
+identifiers required to write this code.<p>
+
+Redundant identifiers have several costs.  Larger symbol tables mean
+more storage during compilation, larger cross-reference listings, and
+more storage during symbolic debugging.  However, the most significant
+cost is the conceptual load the extra identifiers place on the persons
+writing and maintaining the code.<p>
+
+The identifier redundancies come from the interaction of PASCAL's
+restrictions on pointer definitions and its restrictions on type
+specifications in parameter lists.<p>
+
+Consider the following (unfortunately illegal) PASCAL program:
+
+<tt><pre>
+PROGRAM typetest1;
+TYPE
+  lhsexp = ^ RECORD
+               CASE op: (simple,pointer,qualified,subscripted) OF
+                 simple: (name: ALFA);
+                 pointer: (pbase: lhsexp);
+                 qualified: (qbase: lhsexp; field: ALFA);
+                 subscripted: (abase: lhsexp; index: rhsexp)
+             END;
+  rhsexp = ^ RECORD
+               CASE op: (variable,plus,minus,times) OF
+                 variable: (reference: lhsexp);
+                 plus,minus,times: (left,right: rhsexp)
+             END;
+  FUNCTION conssubscript(base: lhsexp; index: rhsexp): lhsexp;
+    BEGIN
+    END;
+  BEGIN
+  END.
+</pre></tt>
+
+The program above is illegal because PASCAL restricts the type
+expression following the "^" in type definitions to be a type
+identifier.  One possible way to change the program to make it legal
+PASCAL is to shift the names "lhsexp" and "rhsexp" from being pointers
+to records to being records themselves, as in the following code:
+
+<tt><pre>
+PROGRAM typetest2;
+TYPE
+  lhsexp = RECORD
+             CASE op: (simple,pointer,qualified,subscript) OF
+               simple: (name: ALFA);
+               pointer: (pbase: ^ lhsexp);
+               qualified: (qbase: ^ lhsexp; field: ALFA);
+               subscripted: (abase: ^ lhsexp; index: ^ rhsexp)
+             END;
+  rhsexp = RECORD
+             CASE op: (variable,plus,minus,times) OF
+               variable: (reference: ^ lhsexp);
+               plus,minus,times: (left,right: ^ rhsexp)
+           END;
+  FUNCTION conssubscript(base: ^lhsexp; index: ^rhsexp): ^lhsexp;
+    BEGIN
+    END;
+  BEGIN
+  END.
+</pre></tt>
+
+This change makes the type definition work, and avoids the undefined
+type identifier from the mutually recursive type definitions, but is
+illegal because "^" is not allowed in a parameter list!  Thus, one is
+required to name both the record and the pointer to the record,
+resulting in more names than are necessary to describe the data
+structures that one needs.<p>
+
+The program shown above also illustrates that incomprehensibility of
+another PASCAL restriction, namely, that the type expression for the
+discriminant of a variant RECORD must be a type identifier.  This
+results in yet another name which is redundant in that it will not be
+referenced outside the one reference inside the CASE clause of the
+RECORD definition.<p>
+
+To summarize, then, we give a legal PASCAL program which exhibits clearly the
+extra names required by the unnecessary restrictions of PASCAL.
+
+<tt><pre>
+PROGRAM typetest3;
+TYPE
+  unneeded1 = (simple,pointer,qualified,subscripted);
+  lhsexp = RECORD
+             CASE op: unneeded1 OF
+               simple: (name: ALFA);
+               pointer: (pbase: ^lhsexp);
+               qualified: (qbase: ^lhsexp; field: ALFA);
+               subscripted: (abase: ^lhsexp; index: ^rhsexp)
+           END;
+  unneeded2 = ^lhsexp;
+  unneeded3 = (variable,plus,minus,times);
+  rhsexp = RECORD
+             CASE op: unneeded3 OF
+               variable: (reference: ^lhsexp);
+               plus,minus,times: (left,right: ^rhsexp)
+           END;
+  unneeded4 = ^rhsexp;
+  FUNCTION conssubscript(base: unneeded2; index: unneeded4): unneeded2;
+    BEGIN
+    END;
+  BEGIN
+  END.
+</pre></tt>
+
+Thus, we see that because of the unnecessary type restrictions in
+PASCAL, each different list record requires 3 names instead of only 1,
+a fact which costs every PASCAL application time and money.  We note
+in conclusion that ADA allows a program analogous to "typetest1", so
+this direction is probably the correct one for any PASCAL standard to
+take.
+
+</body></html>

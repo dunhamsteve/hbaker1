@@ -1,0 +1,984 @@
+<html><head>
+<!-- This document was created from RTF source by rtftohtml version 2.7.5 -->
+
+<title>ACM Ada Letters XI, 9 (Nov/Dec 1991), 116-127.</title>
+
+<link rev="made" href="mailto:hbaker1@pipeline.com">
+
+<h1>Object-Oriented Programming in Ada83 -- Genericity Rehabilitated</h1>
+
+<address>
+<a href="home.html">Henry G. Baker</a>
+</address>
+
+<address>
+Nimble Computer Corporation, 16231 Meadow Ridge Way, Encino, CA 91436<br>
+(818) 986-1436  (818) 986-1360 (FAX)<br>
+Copyright (c) 1991 by Nimble Computer Corporation
+</address>
+
+<hr>
+
+A scheme for single-inheritance object-oriented programming in Ada83 is
+presented in which many methods are determined at compile time using "generic"
+subprogram overloading.  Unlike previous schemes for object-oriented
+programming in Ada83, which rely exclusively on derived types for inheritance,
+our scheme utilizes both derived types and generic units, and hence is more
+powerful.  In particular, inheritance schemes based on derived types cannot
+handle the C++ concept of "virtual function", while our scheme determines many
+of these methods at compile time.  Our results call into question Bertrand
+Meyer's conclusions regarding the weakness of generic units.
+
+<hr>
+
+</head><body>
+
+<h2>I.  INTRODUCTION</h2>
+
+Object-oriented programming (OOP) started with the <i>Simula</i> language
+[Birtwistle73] and has been popularized by <i>Smalltalk</i> [Goldberg83] and
+<i>C++</i> [Stroustrup86].  Due to the efforts of these pioneers, OOP has
+achieved a maturity enabling it to be used for everyday programming.  However,
+the Ada language [Ada83], required for DoD programming (Public Law 101-511),
+was standardized before OOP had become widely accepted.  A proposal for the
+coming "Ada-9X" revision of the Ada standard [Taft91] includes extensions for
+OOP, but this proposal is still controversial.  Even if accepted, it will not
+be available for general use for at least 2 years.  On the other hand, the
+Ada-9X project will have an effect within the development and/or maintenance
+life span of code currently being envisioned.  Therefore, projects for which
+Ada code is being written must somehow deal with the existing Ada83 language,
+and they must also prepare for the coming Ada-9X revisions.<p>
+
+Emulating existing OOP styles in Ada83 requires solving a number of essentially
+orthogonal problems.  We must provide for objects with <i>object identity</i>
+
+<a href="ObjectIdentity.html">[Baker93],</a>
+
+and this identity must be preserved by the normal value transmission
+operations of Ada83 (aggregation, selection, parameter passing, result
+returning, assignment, etc.).  Objects may have lifetimes different
+from the control contexts in which they were created, and so require a
+flexible form of storage management--e.g., garbage collection.  A
+companion paper
+
+<a href="LPprogram.html">[Baker91]</a>
+
+discusses one solution to providing object
+identity and flexible storage management using Ada83's <i>limited
+private</i> types.<p>
+
+A second major problem that must be solved is that of coordinating the parallel
+execution of objects.  Since implicitly coordinated parallel processing is one
+of the advertised advantages of OOP (e.g., the <i>actor</i> model of
+computation [Hewitt73]
+
+[Baker78]
+
+[Agha86] [Yonezawa87]), we must provide for
+this capability in any OOP system.  Ada83 has provisions for parallel tasks, so
+it should be possible to map the parallel requirements of "actor-like" objects
+into Ada83.  We will address this problem in a future paper.<p>
+
+Before we can state the third problem, which is the subject of this paper, we
+need some terminology.  In OOP, objects have components called <i>slots</i> or
+<i>instance variables</i>, which are capable of storing <i>state</i>, as well
+as behavior implemented by means of <i>methods</i> or <i>member functions</i>.
+Objects with identical slot structure and identical methods <i>belong</i> to
+the same <i>proper class</i>; we say that an object is "of" a class if and only
+if the class is the proper class of the object.  <u>An object's proper class
+determines its structure and behavior</u>.  When defining a new class, one may
+designate one or more <i>parent</i> or <i>super</i> classes from which the new
+class <i>inherits</i> structure and behavior--i.e., its slots and methods; the
+new class is a <i>child</i> of its parent class(es).  Objects of the child
+class also <i>belong</i> to the parent classes, as well to the grandparent
+classes, etc.  If all classes in an OOP system have at most one parent, then we
+have a <i>single inheritance</i> system, while if one or more classes have
+multiple parents, then we have a <i>multiple inheritance </i>system.  Since the
+slot structure of a child class in a single inheritance system is a superset of
+the slot structure of the parent, and since the representation of a child
+object typically incorporates the parent object's representation as a prefix,
+the child class is called an <i>extension</i> of the parent class.<p>
+
+A <i>variable</i> in an OOP system is an abstraction of a memory location whose
+contents can be modified through assignment.  A object slot is a variable, as
+is a variable declared within a program; i.e., a <i>program variable</i>.  If
+the programming language is a strongly typed language, we can discuss the
+<i>type of a variable</i> independent from the type of the variable's contents
+at any given time.  The type of a variable is the set of all objects that the
+strong typing system will allow to occupy the variable; in Ada83 terminology,
+the type of a variable consists of the base type plus whatever additional
+constraints are placed on it by any discriminant, index or range constraints
+provided at its <i>elaboration</i> (the result of executing an Ada83
+declaration, which execution usually allocates the necessary storage for the
+variable).<a href="#fn0">[1]</a><p>
+
+A <i>formal parameter</i> in an OOP system is a name used within a subprogram
+which is <i>bound</i> to an object for the duration of a single execution of
+the subprogram.  Since different objects may be bound to the formal parameter
+for different executions of the subprogram, the <i>type of a parameter</i> is
+the set of all objects that the strong typing system will allow to be bound to
+the parameter.  In strongly typed programming languages such as Ada83, the
+typing system provides the same typing restrictions for both variable
+assignment and parameter binding.<a href="#fn1">[2]</a><p>
+
+In Ada83, the concept of <i>type</i> is used for two different purposes.  A
+variable of a certain type is capable of holding objects of a certain
+<i>shape</i>, and this shape is determined by the type of the variable.  In
+addition, types are used to control subprogram <i>overloading</i>, where
+several different subprograms with the same name are distinguished at compile
+time by their parameter and result types.  Ada83 also incorporates the notion
+of type <i>derivation</i>, wherein a single type can be cloned into different
+types, all of which have the same shape, but potentially different
+overloadings.<p>
+
+With this terminology established, we can now talk intelligently about using
+Ada83 types to implement OOP classes.  We have only two choices in mapping the
+OOP concept of <i>class</i> onto Ada83's concept of <i>type</i>: implement each
+class with its own type, or implement all classes with a single type.  The
+scheme presented in this paper utilizes both notions.  From the "inside" of the
+implementation, all classes map into a single Ada83 type--an access type
+discriminated by a class ID which points to a discriminated record holding the
+slots appropriate to the class determined by the ID.  We call this type the
+"base structure" type.  From the "outside" of the implementation, the class
+user sees a number of distinct types, which happen to have all been derived
+from the same base structure type, and therefore have the same shape.  Having a
+distinct type for each proper class allows the Ada compiler to perform method
+selection at compile time based on the different overloadings of the subprogram
+(method) names.<p>
+
+There are some subtleties in this scheme.  In Ada83, a variable or parameter
+can have only one type; a value of that type can be stored in the variable (or
+be bound to the parameter).  Since each class is represented by its own
+distinct type, then a variable of a type can hold only members of a particular
+class; in fact, it can hold only <i>proper</i> members of that class (i.e.,
+objects which are not members of any subclass).  The same restriction is also
+true of parameters.  This restriction allows the behavior of any object stored
+in the variable or designated by the parameter to be determined by its class,
+but it does not allow typical OOP semantics in which <i>any</i> member of a
+class, including a member of a subclass, can be stored in a variable or
+designated by a parameter.  If we wish to have "polymorphic" variables and
+parameters, which are capable of holding objects of more than one type, we must
+go to some additional trouble in Ada83.<p>
+
+The basic problem in emulating OOP behavior in Ada83 is that we either need
+<i>polymorphic variables</i>, which store objects of different classes, or we
+need <i>polymorphic subprograms</i>, which provide different behaviors for the
+same "message" for arguments of different classes.
+
+<h2>II.  EMULATING SINGLE INHERITANCE IN ADA83</h2>
+
+Consider 4 classes: <tt>a</tt>, <tt>b</tt>, <tt>c</tt>, <tt>d</tt>, arranged in
+a hierarchy, such that <tt>a</tt> is the parent of <tt>b</tt>, which has both
+<tt>c</tt> and <tt>d</tt> as children.<p>
+
+<IMG SRC="OOAdaLetters1.gif"><p>
+
+We can consider each class to have exactly one <i>direct</i> (i.e.,
+non-inherited) slot/instance variable without loss of generality, because this
+slot may be a record with any number of components, including zero.<a
+href="#fn2">[3]</a>  The set of slots of each class is
+isomorphic to the set of ancestors of the class (including the class itself);
+e.g., the slots of class <tt>d</tt> are <tt>d</tt>'s direct slot plus the slots
+inherited from <tt>a</tt> and <tt>b</tt>.  Each slot requires two accessor
+subprograms--a <i>reader</i> function and a <i>writer</i> procedure; these are
+both called <i>accessors</i>.  Slot accessors are inherited in a manner
+isomorphic to the slots themselves.  The detailed slot structure is an issue
+only for the <i>implementation</i> of a class, because the slots themselves are
+hidden; only accessor subprograms are visible outside the class.
+
+<h3>OBJECT REPRESENTATION</h3>
+
+A single variant record represents the structure of slots needed for all OOP
+objects, which is discriminated by a class "tag".  The "internal" base
+structure type is an access type<a href="#fn3">[4]</a>
+pointing to the variant record type.  This access type is then <i>derived</i>
+to obtain the external types for each of the proper classes.  The distinct
+class types all derive from a single base structure type, and since the slot
+accessor subprograms are defined for this base type, <i>the derived types
+inherit these accessors</i>.<p>
+
+Ada83 requires a separate package for each level of derivation (3.4/15), in
+which we also define an <tt>assign</tt> procedure for converting to the
+polymorphic <tt>object</tt> type.  Each class needs two types--one
+unconstrained and one constrained to its own class tag.  The applications
+programmer should use the constrained type, because variables of this type can
+hold only objects with the correct class tag.  The unconstrained type is used
+during the instantiation of the class behavior generic units, when a class may
+masquerade as another class in order to select the correct method.
+Masquerading types give us the additional power for emulating C++ <i>virtual
+methods</i>.  In a final representation package, we define the constrained
+types, a constructor for each class, and an assignment from <tt>object</tt> to
+each constrained type.  These constructors do not belong with the other
+("instance") methods, because constructors are "class" methods.  Any "class
+variables/slots" which are shared by all instances of the class should also be
+defined here.  The body of this object initialization package is deferred until
+after the instance behavior package has been specified, so that instance
+methods may be called during object initialization.<p>
+
+If the types of the slots are recursive with the types of the classes
+themselves, as is usual in Smalltalk-like systems, then we are forced to define
+these slots in terms of "dummy" access types and use
+<tt>unchecked_conversion</tt> to access them.<a
+href="#fn4">[5]</a>  This subterfuge is required because
+Ada83 disallows recursive types to span more than one package (3.8.1/3), and
+also disallows multiple levels of derivation to be performed within a single
+package (3.4/15)--Gotcha!<a href="#fn5">[6]</a>
+
+<tt><pre>
+package orep_poly is
+  -- Define base object representation in this package.
+  type class_tag is (atag,btag,ctag,dtag);		-- The class type tags.
+  type aslot_t is &lt; a programmer-defined type &gt;;	-- The slot type definitions.
+  type bslot_t is &lt; a programmer-defined type &gt;;
+  type cslot_t is &lt; a programmer-defined type &gt;;
+  type dslot_t is &lt; a programmer-defined type &gt;;
+  type object(class: class_tag := atag) is private;	-- Polymorphic type.
+  -- A programmer must NOT himself constrain object type; instead, use types derived below.
+  function new_object(tag: class_tag) return object;	-- New object of class "tag".
+  procedure assign(o1: in out object; o2: object);	-- o1:=o2; inherited by a,b,c,d.
+  function aslot(o: object) return aslot_t;		-- All accessors are inherited.
+  function bslot(o: object) return bslot_t;
+  function cslot(o: object) return cslot_t;
+  function dslot(o: object) return dslot_t;
+  procedure set_aslot(o: object; v: aslot_t);		-- aslot(o) := v;
+  procedure set_bslot(o: object; v: bslot_t);		-- bslot(o) := v;
+  procedure set_cslot(o: object; v: cslot_t);		-- cslot(o) := v;
+  procedure set_dslot(o: object; v: dslot_t);		-- dslot(o) := v;
+  pragma inline(assign,aslot,bslot,cslot,dslot,set_aslot,set_bslot,set_cslot,set_dslot);
+private
+  type object_representation(class: class_tag := atag) is record
+     aslot: aslot_t;
+     case class is
+      when atag =&gt; null;
+      when others =&gt;
+       bslot: bslot_t;
+       case class is
+        when btag =&gt; null;
+        when others =&gt;
+         case class is      -- This extraneous case indicates the general form of extension.
+          when ctag =&gt; cslot: cslot_t;
+          when dtag =&gt; dslot: dslot_t;
+          when others =&gt; null;
+          end case; end case; end case;
+    end record;
+  type unconstrained_object is access object_representation;
+  type object(class: class_tag := atag) is
+    record p: unconstrained_object(class); end record;
+  end orep_poly;
+
+package body orep_poly is
+  function new_object(tag: class_tag) return object is
+    begin return (tag,new object_representation(tag)); end new_object;
+  procedure assign(o1: in out object; o2: object) is begin o1:=o2; end;
+  function aslot(o: object) return aslot_t is begin return o.p.aslot; end;
+  function bslot(o: object) return bslot_t is begin return o.p.bslot; end;
+  function cslot(o: object) return cslot_t is begin return o.p.cslot; end;
+  function dslot(o: object) return dslot_t is begin return o.p.dslot; end;
+  procedure set_aslot(o: object; v: aslot_t) is begin o.p.aslot := v; end;
+  procedure set_bslot(o: object; v: bslot_t) is begin o.p.bslot := v; end;
+  procedure set_cslot(o: object; v: cslot_t) is begin o.p.cslot := v; end;
+  procedure set_dslot(o: object; v: dslot_t) is begin o.p.dslot := v; end;
+  end orep_poly;
+
+with orep_poly; use orep_poly;
+package orep_a is
+  type auc is new object;
+  function new_object(tag: class_tag) return auc;	-- Overload to cause run-time error.
+  procedure assign(o1: in out object; o2: auc);		-- Inherited by b,c,d.
+  pragma inline(assign);				-- assign has a trivial body.
+  end orep_a;
+
+package body orep_a is
+  function new_object(tag: class_tag) return auc is
+    foo: auc; begin raise &lt; your own error exception &gt;; return foo; end;
+  procedure assign(o1: in out object; o2: auc) is begin o1:=object(o2); end;
+  end orep_a;
+
+with orep_a; package orep_b is type buc is new orep_a.auc; end;
+
+with orep_b; package orep_c is type cuc is new orep_b.buc; end;
+
+with orep_b; package orep_d is type duc is new orep_b.buc; end;
+
+with orep_poly,orep_a,orep_b,orep_c,orep_d;
+package orep_mono is
+  subtype a is orep_a.auc(atag);
+  function new_a(&lt; parameters &gt;) return a;
+  procedure assign(o1: in out auc; o2: object);
+  subtype b is orep_b.buc(btag);
+  function new_b(&lt; parameters &gt;) return b;
+  procedure assign(o1: in out buc; o2: object);
+  subtype c is orep_c.cuc(ctag);
+  function new_c(&lt; parameters &gt;) return c;
+  procedure assign(o1: in out cuc; o2: object);
+  subtype d is orep_d.duc(dtag);
+  function new_d(&lt; parameters &gt;) return d;
+  procedure assign(o1: in out duc; o2: object);
+  end orep_mono;
+
+with behavior; use behavior;
+package body orep_mono is
+  function new_a(&lt; parameters &gt;) return a is
+    xa: constant auc := auc(object'(new_object(atag)));
+    begin &lt; initialize xa &gt;; return xa; end;
+
+  procedure assign(o1: in out auc; o2: object) is begin o1:=a(o2); end;
+
+  function new_b(&lt; parameters &gt;) return b is
+    xb: constant buc := buc(object'(new_object(btag)));
+    begin &lt; initialize xb &gt;; return xb; end;
+
+  procedure assign(o1: in out buc; o2: object) is begin o1:=b(o2); end;
+
+  function new_c(&lt; parameters &gt;) return c is
+    xc: constant cuc := cuc(object'(new_object(ctag)));
+    begin &lt; initialize xc &gt;; return xc; end;
+
+  procedure assign(o1: in out cuc; o2: object) is begin o1:=c(o2); end;
+
+  function new_d(&lt; parameters &gt;) return d is
+    xd: constant duc := duc(object'(new_object(dtag)));
+    begin &lt; initialize xd &gt;; return xd; end;
+
+  procedure assign(o1: in out duc; o2: object) is begin o1:=d(o2); end;
+  end orep_mono;
+</pre></tt>
+
+<h3>METHODS</h3>
+
+We may consider that every class implements exactly the same set of
+(non-accessor) method names, because a class is free to implement the method
+name in such a way that it causes a run-time error.<a
+href="#fn6">[7]</a>  We therefore consider that every class
+responds to the (non-accessor) method names <tt>m1</tt>, <tt>m2</tt>, and
+<tt>m3</tt>, although this response may be inherited from a superclass.  It is
+also important that all methods with the same name have the same parameter
+list, or else we will not be able to shadow a class's method with a method from
+one of its descendant classes.  Any variability in the parameter list for a
+method must conform to the restrictions of Ada overloading; a form of generic
+"collection/dictionary" type may be necessary in order to emulate some OOP
+styles.<p>
+
+Although we utilize derivation to inherit slot accessor methods, we will not
+inherit non-accessor instance methods, because derivation is not powerful
+enough to handle, for example, methods which are mutually recursive with
+methods defined at different levels in the class hierarchy.  Since a method may
+be mutually recursive with almost any other method (this recursion has been
+termed the <i>yoyo</i> problem [Taenzer89]), we find it convenient to specify a
+single package in which all non-accessor methods are defined.  We call this
+package the "behavior" package, since it defines the object behavior for the
+entire class system.  We first define the methods for the <i>monomorphic</i>
+type for each proper class, and then we define the methods on the
+<i>polymorphic/union</i> type <tt>object</tt>, whose variables can hold objects
+from any of the classes.<p>
+
+Variables (references) in our scheme are of two kinds--monomorphic and
+polymorphic.  Monomorphic variables are of the constrained types
+<tt>a</tt>,<tt>b</tt>,<tt>c</tt>,<tt>d</tt>; these variables can hold only
+objects of the corresponding proper (sub)type.<a
+href="#fn7">[8]</a>  As a result, the behavior of the
+objects stored in these variables is determined by the variable's type.
+Polymorphic variables are of type <tt>object</tt>; these variables can hold
+objects of any or all of the types <tt>a</tt>,<tt>b</tt>,<tt>c</tt>,<tt>d</tt>.
+The behavior of objects stored in polymorphic variables requires run-time
+dispatching on the object's actual type.
+
+<tt><pre>
+with orep_poly,orep_mono; use orep_poly,orep_mono;
+package behavior is
+  procedure method1(o: a; &lt; other params. &gt;);	-- Programmers call these methods.
+  procedure method2(o: a; &lt; other params. &gt;);	-- Constrained types do runtime check which
+  procedure method3(o: a; &lt; other params. &gt;);	-- detects programmer masquerading.
+  procedure method1(o: b; &lt; other params. &gt;);
+  procedure method2(o: b; &lt; other params. &gt;);
+  procedure method3(o: b; &lt; other params. &gt;);
+  procedure method1(o: c; &lt; other params. &gt;);
+  procedure method2(o: c; &lt; other params. &gt;);
+  procedure method3(o: c; &lt; other params. &gt;);
+  procedure method1(o: d; &lt; other params. &gt;);
+  procedure method2(o: d; &lt; other params. &gt;);
+  procedure method3(o: d; &lt; other params. &gt;);
+  pragma inline(method1,method2,method3);	-- All above procedures have call-through bodies.
+  procedure method1(o: object; &lt; other params. &gt;);
+  procedure method2(o: object; &lt; other params. &gt;);
+  procedure method3(o: object; &lt; other params. &gt;);
+  end behavior;
+</pre></tt>
+
+Next, for each class, we define a generic "behavior" package of methods which
+accepts the representation type and all of the methods as parameters.  The
+behavior of the more specific classes may call upon the methods of the more
+general classes, but these methods operate on the representation of the more
+specific class.
+
+<tt><pre>
+with orep_poly; use orep_poly;
+generic type monotype is private;
+        with procedure assign(o1: in out monotype; o2: object) is &lt;&gt;;
+        with procedure assign(o1: in out object; o2: monotype) is &lt;&gt;;
+        with function aslot(o: monotype) return aslot_t is &lt;&gt;;
+        with procedure set_aslot(o: monotype; v: aslot_t) is &lt;&gt;;
+        with procedure method1(o: monotype; &lt; other params. &gt;) is &lt;&gt;;
+        with procedure method2(o: monotype; &lt; other params. &gt;) is &lt;&gt;;
+        with procedure method3(o: monotype; &lt; other params. &gt;) is &lt;&gt;;
+package a_behavior is
+  procedure m1_out(o: monotype; &lt; other params. &gt;);
+  procedure m2_out(o: monotype; &lt; other params. &gt;);
+  procedure m3_out(o: monotype; &lt; other params. &gt;);
+  end a_behavior;
+
+with orep_mono,behavior; use orep_mono,behavior;
+package body a_behavior is
+  procedure m1_out(o: monotype; &lt; other params. &gt;) is
+    begin &lt; method1 for a's &gt; end;		-- May call method1, method2, method3.
+  procedure m2_out(o: monotype; &lt; other params. &gt;) is begin &lt; method2 for a's &gt; end;
+  procedure m3_out(o: monotype; &lt; other params. &gt;) is begin &lt; method3 for a's &gt; end;
+  end a_behavior;
+
+with a_behavior,orep_poly; use orep_poly;
+generic type monotype is private;
+        with procedure assign(o1: in out monotype; o2: object) is &lt;&gt;;
+        with procedure assign(o1: in out object; o2: monotype) is &lt;&gt;;
+        with function aslot(o: monotype) return aslot_t is &lt;&gt;;
+        with procedure set_aslot(o: monotype; v: aslot_t) is &lt;&gt;;
+        with function bslot(o: monotype) return bslot_t is &lt;&gt;;
+        with procedure set_bslot(o: monotype; v: bslot_t) is &lt;&gt;;
+        with procedure method1(o: monotype; &lt; other params. &gt;) is &lt;&gt;;
+        with procedure method2(o: monotype; &lt; other params. &gt;) is &lt;&gt;;
+        with procedure method3(o: monotype; &lt; other params. &gt;) is &lt;&gt;;
+package b_behavior is
+  package super is new a_behavior(monotype);
+  procedure m1_out(o: monotype; &lt; other params. &gt;);-- To inherit, use "renames super.m1_out".
+  procedure m2_out(o: monotype; &lt; other params. &gt;);-- To inherit, use "renames super.m2_out".
+  procedure m3_out(o: monotype; &lt; other params. &gt;);-- Ditto.
+  end b_behavior;
+
+with orep_mono,behavior; use orep_mono,behavior;
+package body b_behavior is
+  procedure m1_out(o: monotype; &lt; other params. &gt;) is
+    begin &lt; method1 for b's &gt; end;		-- To "send super", call super.mn_out(o).
+  procedure m2_out(o: monotype; &lt; other params. &gt;) is begin &lt; method2 for b's &gt; end;
+  procedure m3_out(o: monotype; &lt; other params. &gt;) is begin &lt; method3 for b's &gt; end;
+  end b_behavior;
+
+with b_behavior,orep_poly; use orep_poly;
+generic type monotype is private;
+        with procedure assign(o1: in out monotype; o2: object) is &lt;&gt;;
+        with procedure assign(o1: in out object; o2: monotype) is &lt;&gt;;
+        with function aslot(o: monotype) return aslot_t is &lt;&gt;;
+        with procedure set_aslot(o: monotype; v: aslot_t) is &lt;&gt;;
+        with function bslot(o: monotype) return bslot_t is &lt;&gt;;
+        with procedure set_bslot(o: monotype; v: bslot_t) is &lt;&gt;;
+        with function cslot(o: monotype) return cslot_t is &lt;&gt;;
+        with procedure set_cslot(o: monotype; v: cslot_t) is &lt;&gt;;
+        with procedure method1(o: monotype; &lt; other params. &gt;) is &lt;&gt;;
+        with procedure method2(o: monotype; &lt; other params. &gt;) is &lt;&gt;;
+        with procedure method3(o: monotype; &lt; other params. &gt;) is &lt;&gt;;
+package c_behavior is
+  package super is new b_behavior(monotype);
+  procedure m1_out(o: monotype; &lt; other params. &gt;);
+  procedure m2_out(o: monotype; &lt; other params. &gt;);
+  procedure m3_out(o: monotype; &lt; other params. &gt;);
+  end c_behavior;
+
+with orep_mono,behavior; use orep_mono,behavior;
+package body c_behavior is
+  procedure m1_out(o: monotype; &lt; other params. &gt;) is begin &lt; method1 for c's &gt; end;
+  procedure m2_out(o: monotype; &lt; other params. &gt;) is begin &lt; method2 for c's &gt; end;
+  procedure m3_out(o: monotype; &lt; other params. &gt;) is begin &lt; method3 for c's &gt; end;
+  end c_behavior;
+
+with b_behavior,orep_poly; use orep_poly;
+generic type monotype is private;
+        with procedure assign(o1: in out monotype; o2: object) is &lt;&gt;;
+        with procedure assign(o1: in out object; o2: monotype) is &lt;&gt;;
+        with function aslot(o: monotype) return aslot_t is &lt;&gt;;
+        with procedure set_aslot(o: monotype; v: aslot_t) is &lt;&gt;;
+        with function bslot(o: monotype) return bslot_t is &lt;&gt;;
+        with procedure set_bslot(o: monotype; v: bslot_t) is &lt;&gt;;
+        with function dslot(o: monotype) return dslot_t is &lt;&gt;;
+        with procedure set_dslot(o: monotype; v: dslot_t) is &lt;&gt;;
+        with procedure method1(o: monotype; &lt; other params. &gt;) is &lt;&gt;;
+        with procedure method2(o: monotype; &lt; other params. &gt;) is &lt;&gt;;
+        with procedure method3(o: monotype; &lt; other params. &gt;) is &lt;&gt;;
+package d_behavior is
+  package super is new b_behavior(monotype);
+  procedure m1_out(o: monotype; &lt; other params. &gt;);
+  procedure m2_out(o: monotype; &lt; other params. &gt;);
+  procedure m3_out(o: monotype; &lt; other params. &gt;);
+  end d_behavior;
+
+with orep_mono,behavior; use orep_mono,behavior;
+package body d_behavior is
+  procedure m1_out(o: monotype; &lt; other params. &gt;) is begin &lt; method1 for d's &gt; end;
+  procedure m2_out(o: monotype; &lt; other params. &gt;) is begin &lt; method2 for d's &gt; end;
+  procedure m3_out(o: monotype; &lt; other params. &gt;) is begin &lt; method3 for d's &gt; end;
+  end d_behavior;
+
+with a_behavior,b_behavior,c_behavior,d_behavior,orep_a,orep_b,orep_c,orep_d;
+use orep_a,orep_b,orep_c,orep_d;
+package body behavior is
+  -- Define "call-throughs", because Ada83 won't allow "renames" for method bodies here.
+  package a_ops is new a_behavior(auc);-- Unconstrained type avoids redundant runtime checks.
+  procedure method1(o: a; &lt; other params. &gt;) is begin a_ops.m1_out(o,&lt; other params. &gt;); end;
+  procedure method2(o: a; &lt; other params. &gt;) is begin a_ops.m2_out(o,&lt; other params. &gt;); end;
+  procedure method3(o: a; &lt; other params. &gt;) is begin a_ops.m3_out(o,&lt; other params. &gt;); end;
+  package b_ops is new b_behavior(buc);
+  procedure method1(o: b; &lt; other params. &gt;) is begin b_ops.m1_out(o,&lt; other params. &gt;); end;
+  procedure method2(o: b; &lt; other params. &gt;) is begin b_ops.m2_out(o,&lt; other params. &gt;); end;
+  procedure method3(o: b; &lt; other params. &gt;) is begin b_ops.m3_out(o,&lt; other params. &gt;); end;
+  package c_ops is new c_behavior(cuc);
+  procedure method1(o: c; &lt; other params. &gt;) is begin c_ops.m1_out(o,&lt; other params. &gt;); end;
+  procedure method2(o: c; &lt; other params. &gt;) is begin c_ops.m2_out(o,&lt; other params. &gt;); end;
+  procedure method3(o: c; &lt; other params. &gt;) is begin c_ops.m3_out(o,&lt; other params. &gt;); end;
+  package d_ops is new d_behavior(duc);
+  procedure method1(o: d; &lt; other params. &gt;) is begin d_ops.m1_out(o,&lt; other params. &gt;); end;
+  procedure method2(o: d; &lt; other params. &gt;) is begin d_ops.m2_out(o,&lt; other params. &gt;); end;
+  procedure method3(o: d; &lt; other params. &gt;) is begin d_ops.m3_out(o,&lt; other params. &gt;); end;
+
+  -- Define the polymorphic methods on the base (unconstrained) type.
+  procedure method1(o: object; &lt; other params. &gt;) is
+    begin
+    case o.class is
+     when atag =&gt; method1(auc(o),&lt; other params. &gt;);	-- Use a_ops.m1_out for more speed.
+     when btag =&gt; method1(buc(o),&lt; other params. &gt;);	-- Use b_ops.m1_out for more speed.
+     when ctag =&gt; method1(cuc(o),&lt; other params. &gt;);	-- Etc.
+     when dtag =&gt; method1(duc(o),&lt; other params. &gt;);
+     end case;
+    end method1;
+
+  procedure method2(o: object; &lt; other params. &gt;) is
+    begin
+    case o.class is
+     when atag =&gt; method2(auc(o),&lt; other params. &gt;);
+     when btag =&gt; method2(buc(o),&lt; other params. &gt;);
+     when ctag =&gt; method2(cuc(o),&lt; other params. &gt;);
+     when dtag =&gt; method2(duc(o),&lt; other params. &gt;);
+     end case;
+    end method2;
+
+  procedure method3(o: object; &lt; other params. &gt;) is
+    begin
+    case o.class is
+     when atag =&gt; method3(auc(o),&lt; other params. &gt;);
+     when btag =&gt; method3(buc(o),&lt; other params. &gt;);
+     when ctag =&gt; method3(cuc(o),&lt; other params. &gt;);
+     when dtag =&gt; method3(duc(o),&lt; other params. &gt;);
+     end case;
+    end method3;
+  end behavior;
+</pre></tt>
+
+This code requires comment.  First, each non-accessor method is defined
+independently, and should call only the "incoming" methods.  In particular, it
+should not <i>directly</i> call itself recursively,<a
+href="#fn8">[9]</a> nor should it <i>directly</i> call
+other methods defined within the same package; these rules are required to
+preserve "object identity", wherein an object's behavior is determined by its
+proper class.  Such potential mutual recursion need not become actual mutual
+recursion, because while incoming methods are <i>available</i> during the
+definition of outgoing methods, the incoming methods are often not called.
+Second, when defining the non-accessor methods for a class, we first define the
+methods of the superclass (which itself may define methods for its
+super-superclass, etc.), so that the newly defined methods can call upon the
+superclass methods (e.g., Smalltalk's "send super").  We use a class type
+masquerading as one of its superclass types during the definition of the
+superclass methods; masquerading requires unconstrained types so that Ada83
+does not prematurely unmask such a type with a constraint error.<p>
+
+An ideal OOP system has O(m+n) source code, where m and n are the number of
+methods and classes, respectively.  Our scheme has an small additional O(m*n)
+term which is independent of the sizes of the method bodies.  Furthermore, if
+generic units are implemented by macro-expansion, then the object code has size
+O(m*n*d), where d is the maximum class depth; in the worst case d=n, implying a
+worst-case object code size of O(m*n^2).  Most Ada83 compilers can optimize
+away the large fraction of these subprograms which are never called, however,
+thereby reducing the executable code size to manageable proportions.<p>
+
+Our use of generic units has an interesting interpretation in terms of the
+standard Smalltalk execution model.  In Smalltalk, each object is a vector of
+instance variables, together with a single pointer to its proper class object;
+the object's methods are found by consulting the proper class's method
+dictionary, which is a mapping from "messages" to method objects.  We consider
+that inheritance of instance variables and methods occurs at class construction
+time.  To send a message to an object in Smalltalk, one consults the method
+dictionary of the proper class of the object, and applies the method found to
+the message as an argument.  Since this lookup is performed for each message
+send, the object retains its "identity".  In terms of this Smalltalk model, our
+generic subprogram parameters are analogous to the indices of the instance
+variables (for the accessor methods), or to the indices within the method
+dictionary (for non-accessor methods).  The <i>reading</i> of these storage
+locations in the standard Smalltalk model is analogous to the inclusion of
+these subprogram parameters as <i>incoming</i> methods for the class method
+definitions, while the <i>writing</i> of these storage locations (during the
+construction of the class) is analogous to the <i>definition</i> of these class
+methods within the instantiated package.  In other words, our sequence of
+generic formal parameters plays the part of a real data structure in the
+standard Smalltalk model.<p>
+
+Our use of generic units with mutually recursive subprograms as parameters is
+reminiscent of the <i>Y combinator</i>, used to implement recursion in the
+lambda calculus [Barendregt84,ch.6].  Our scheme for simulating mutual
+recursion is analogous that of Gabriel [Gabriel88].
+
+<h2>III.  PREVIOUS WORK</h2>
+
+There have been a number of papers showing how to do "object-oriented
+programming" in Ada83.  These papers, however, do not address the difficult
+questions, such as the recursive nature of the required types, the mutually
+recursive nature of the methods, the problems of "object identity" during Ada83
+parameter, result and assignment transmission operations, the problem of
+storage management, and the problem of concurrency.<p>
+
+One of the best discussions of the Ada language limitations for OOP (without
+using the term) is [Schwartz80].  This paper covers the problems of storage
+management, parameter modes, the lack of procedure variables, the lack of
+finalization, and the poor task scheduling capabilities.<p>
+
+The classic paper of Meyer [Meyer86] shows many limitations of Ada83 in
+emulating OOP systems.  However, Meyer does not fully appreciate the power of
+generic units, which we use to better effect--especially in conjunction with
+the weaker forms of inheritance dismissed by Meyer.<p>
+
+Seidewitz [Seidewitz87] shows that generic units have greater power, but does
+not utilize generic units which instantiate other generic units to achieve true
+inheritance.  The idea of method inheritance using overloading and type
+derivation is also discussed in [Perez88].<p>
+
+There are several large OOP extensions of Ada83 in the literature.
+<i>InnovAda</i> [Simonian88] is an implementation in Ada83 of the MIT Lisp
+Machine <i>Flavors</i> OOP system.  InnovAda claims to have solved the problems
+of multiple inheritance and concurrent programming.  InnovAda also makes
+reference to the ability to create new objects during run-time.  No details of
+this implementation are given, however, so it is impossible to compare this
+system in any more detail.<p>
+
+<i>Classic-Ada</i> [Bach89] [Donaldson89] is an implementation in Ada83 of a
+Smalltalk-like language.  It has single inheritance and polymorphism, with some
+support for tasking and dynamic storage management.  Classic-Ada does not
+currently have an automatic garbage collector, however, nor does it support for
+concurrent Actor-like [Agha86] objects [SPS89].  Furthermore, Classic-Ada
+supports <i>only</i> polymorphic variables--<i>all</i> method selection is
+dynamic.  On the other hand, Classic-Ada <i>does</i> have an interface to the
+ONTOS persistent object-oriented database.  Unfortunately, the transparently
+mapping of Classic-Ada into both persistent and non-persistent implementations
+requires unchecked conversions, thereby side-stepping the Ada83 type system.<p>
+
+DRAGOON (Distributed Reusable Ada Generated from an Object Oriented Notation
+[DiMaio89]) is an OOP language similar to Ada83, but is not a compatible
+extension.  DRAGOON programs can be mapped into Ada83, but, like Classic-Ada,
+the code is low-level and involves unchecked conversions.  ADA++ [Forestier89]
+is an extension of Ada83 to support an OOP style quite similar to ours.
+However, ADA++ requires some form of translation, since it is not strictly
+Ada83.  Cohen [Cohen89] describes another extension of Ada83 to support
+single-inheritance OOP.  Cohen's ideas have been incorporated into an early
+version of the Ada-9X language revision mapping documents [Taft91].  Winkler
+[Winkler90] offers another alternative for Ada OOP.
+
+<h2>IV.  CONCLUSIONS AND ADA-9X RECOMMENDATIONS</h2>
+
+We have shown how to utilize generic units and subprogram overloading to
+perform method selection at compile time in an Ada83 emulation of
+single-inheritance object-oriented programming. Our scheme does not depend upon
+derived types, and might therefore be extended to multiple inheritance.  Due to
+the organization and redundancy of the code, it might be better generated by
+means of a CASE tool, rather than being generated directly by a programmer.<p>
+
+Our scheme should be superior to Classic-Ada [Bach89] in execution speed.
+Since we utilize compile-time resolution of overloaded procedure calls for
+method invocations both within methods and for monomorphic variables, there is
+no run-time performance penalty for our OOP.<a
+href="#fn9">[10]</a><p>
+
+Our use of generic units (which are often implemented in Ada83 by
+macro-expansion) faithfully emulates the traditional code reuser, who copies a
+sequence of code into his program and manually edits the type definition.
+Inheritance through macro-expansion reuses the source code, but without sharing
+at the object code level, the program can expand quadratically with the depth
+of inheritance.  Most Ada83 compilers, however, provide optimizations which
+eliminate uncalled subprograms; these optimizations significantly reduce the
+space requirements of our Ada83 OOP scheme.<p>
+
+We have made no provision for variables of "intermediate" polymorphic types,
+which would be capable of holding any object from some subtree of the classes.
+While some languages have found these polymorphic variables useful, the slight
+additional expressive power does not seem to be worth the additional
+complexity.<p>
+
+Ada83 derived types present a security problem.  Ada83 cannot stop the
+inheritance of certain subprograms, so we must overload them to generate an
+error.<a href="#fn10">[11]</a>  If two Ada83 types are
+derived directly or indirectly from the same base type, then they are
+interconvertable using an explicit coercion.  Since such a coercion causes one
+class to masquerade as another, a wrong method may be selected.  Unfortunately,
+Ada83 cannot prohibit or otherwise control these coercions.  We must live with
+this security hole, or we must hide the fact that these types are all derived
+from a single type by creating a package layer which makes these types all
+private.  Since the creation of this layer is straight-forward, we have not
+included it here.<p>
+
+We have shown no means for deallocating objects, either explicitly or through
+automatic <i>garbage collection</i>.  Any real implementation of OOP should
+include a form of object deallocation.  We recommend the use of limited private
+types in conjunction with <b>in out </b>parameters, as presented in
+
+<a href="LPprogram.html">[Baker91],</a>
+
+to implement fully automatic garbage collection.  Using that technique for our
+examples would, however, have lengthened the examples and obfuscated the method
+selection scheme.<a href="#fn11">[12]</a><p>
+
+More work is required to integrate asynchronous operation (tasking) into our
+OOP model.<p>
+
+We believe that Ada-9X should not lock people into a single object-oriented
+programming (OOP) style, because we feel that this is premature.  However, an
+enormous amount can be gained through a large number of relatively innocuous
+changes which would dramatically improve Ada's capabilities for dealing with
+the basic issues of OOP systems.  Below is a catalog of some of the rough edges
+we have found in Ada83:
+
+<ul>
+
+<li>The ordering restrictions on what and what cannot be done with an incomplete
+private type are extremely difficult to understand and work around.  The
+simplest solution would be to allow the package specifying a private type to
+toggle back and forth between <tt>public</tt> and <tt>private</tt>, so that the
+full type can be disclosed as soon as possible.  Private type
+<i>specifications</i> then become just that--the external view of the private
+type, which can be <i>implemented</i> in a number of different ways.  For
+example, it should be possible to complete a private type through renaming
+(subtyping) and type derivation, as well as through normal declaration.  More
+importantly, subprogram specifications should be capable of being fulfilled
+through renaming, type derivation, generic instantiation, etc.  It should be
+possible to declare public variables of the private type within the defining
+package, and it should be possible to define generic units which have formal
+objects of the type.  All of these things are easily implemented if the full
+type is disclosed to the compiler as soon as possible, lexically speaking.  In
+other words, the compiler should not be forced to wait until the end of the
+defining package to discover the full type of a private type.  Eliminating this
+delay allows a private type to be used in a generic instantiation or a type
+derivation within its defining package.</li>
+
+<li>It is essential that the interconvertibility of derived types be controlled
+by the programmer, even in Ada83.  Currently, by deriving the type in public,
+one loses control of convertibility, while by deriving the type in private, one
+has a massive job of publicizing the new operations.  Neither of these
+alternatives is particularly palatable.</li>
+
+<li>Ada-9X must provide some mechanism for allowing recursive types to extend
+over several packages.  As our examples attest, all classes in a class
+hierarchy are highly recursive, and one would not like to restrict the
+definition of this extensive structure to a single package.</li>
+
+<li>Ada-9X should provide a mechanism whereby a discriminated type (possibly
+private), whose discriminant is an enumerated type, can have its discriminant
+type extended with additional enumerated values, and the discriminated type
+extended with additional variants--in a subsequent package.  With such a
+mechanism, single-inheritance representation structures are easily emulated.</li>
+
+<li>Ada-9X needs to provide for subprogram variables, which can be used to
+better implement the method dispatch of an object-oriented system by collecting
+the different implementations of a method together into a vector, and indexing
+the vector with a type code.</li>
+
+<li>Ada-9X could profitably utilize universal subtype quantification
+[Cardelli85], which would allow the collapsing of the <tt>case</tt> statements
+in our polymorphic methods to a single statement quantified over all "subtypes"
+(Ada83 derivatives) of <tt>object</tt>; e.g.,
+
+<tt><pre>
+forall x &lt;= object do
+   if o.class=x'tag then method1(x(o),&lt; other params. &gt;);
+   end if;
+</pre></tt></li>
+
+</ul>
+
+<h2>IV.  ACKNOWLEDGEMENTS</h2>
+
+We appreciate the suggestions of Carl Friedlander and Geoff Mendal for
+improving this paper.
+
+<h2>V.  REFERENCES</h2>
+
+Ada83.  <i>Reference Manual for the Adareg. Programming Language</i>.
+ANSI/MIL-STD-1815A-1983, USGPO, 1983.<p>
+
+Agha, Gul A.  <i>Actors: A Model of Concurrent Computation in Distributed
+Systems</i>.  MIT Press, Camb., MA, 1986.<p>
+
+Bach, William W.  "Is Ada Really an Object-Oriented Programming Language?"
+<i>J. Pascal, Ada &amp; Modula-2</i>, March/April 1989,18-25.<p>
+
+Baker, Henry.  <i>Actor Systems for Real-Time Computation</i>.  MIT/LCS/TR-197,
+March 1978.<p>
+
+<a href="ObjectIdentity.html">[Baker93]</a>
+
+Baker, Henry.  "Equal Rights for Functional Objects or, The More Things Change,
+The More They Are the Same".  ACM <i>OOPS Messenger 4</i>,4 (Oct. 1993),
+2-27.<p>
+
+<a href="LPprogram.html">[Baker91]</a>
+
+Baker, Henry.  "Structured Programming with Limited Private Types in Ada:
+Nesting is for the Soaring Eagles".  <i>ACM Ada Letters XI,</i>5 (July/Aug.
+1991),79-90.<p>
+
+Barendregt, H.P.  <i>The Lambda Calculus: Its Syntax and Semantics</i>.
+North-Holland, Amsterdam, 1984.<p>
+
+Birtwistle, G., <i>et al.</i>  <i>Simula Begin</i>.  Auerbach Press,
+Philadelphia, PA, 1973.<p>
+
+Cardelli, L., and Wegner, P.  "On Understanding Types, Data Abstraction, and
+Polymorphism".  <i>ACM Computing Surveys 17</i>,4 (Dec. 1985),471-522.<p>
+
+Cohen, Norman H.  "Ada Subtypes as Subclasses (Version 1)".  Tech. Rept.
+RC14912(#66747), IBM Watson Res. Lab., Yorktown Hts., NY, Sept. 1989,45p.<p>
+
+Collard, P.  "Object-Oriented Programming Techniques with Ada: An Example".
+<i>ACM Ada Letters 9</i>,6 (Sept./Oct. 1989),119-126.<p>
+
+DiMaio, Andrea, <i>et al</i>.  "DRAGOON: an Ada-based object-oriented langauge
+for concurrent, real-time, distributed systems".  <i>Proc. Ada-Europe Int'l
+Conf.</i>, June 1989, Camb. Univ. Press, Camb., UK, 1989.<p>
+
+Donaldson, C.M.  "Dynamic binding and inheritance in an object-oriented Ada
+design".  <i>Proc. Ada-Europe Int'l Conf.</i>, June 1989, Camb. Univ. Press,
+Camb., UK, 1989.<p>
+
+Forestier, J.P., <i>et al</i>.  "Ada++: a class and inheritance extension for
+Ada".  <i>Proc. Ada-Europe Int'l Conf.</i>, June 1989, Camb. Univ. Press,
+Camb., UK, 1989.<p>
+
+Gabriel, R.P.  "The Why of Y".  <i>ACM Lisp Pointers 2</i>,2 (Oct.-Dec.
+1988),15-25.<p>
+
+Genillard, C., Ebel, N., and Strohmeier, A.  "Rationale for the Design of
+Reusable Abstract Data Types Implemented In Ada".  <i>ACM Ada Letters IX</i>,2
+(March/April 1989),62-71.<p>
+
+Goldberg, A., and Robson, D.  <i>Smalltalk-80: The Language and its
+Implementation</i>.  Addison-Wesley, 1983.<p>
+
+Hewitt, C., <i>et al</i>.  "A Universal, Modular Actor Formalism for Artificial
+Intelligence".  <i>Proc. IJCAI</i>, 1973.<p>
+
+Hilfinger, Paul N.  <i>Abstraction Mechanisms and Language Design</i>.  MIT
+Press, Cambridge, MA, 1983,176p.<p>
+
+Lieberman, Henry.  "Using Prototypical Objects to Implement Shared Behavior in
+Object-Oriented Systems".  <i>Proc. OOPSLA'86, Sigplan Not. 21</i>,11 (Nov.
+1986),214-223.<p>
+
+Meyer, Bertrand.  "Genericity versus Inheritance".  <i>Proc. OOPSLA'86, Sigplan
+Not. 21</i>,11 (Nov. 1986),391-405.<p>
+
+Perez, E.P.  "Simulating Inheritance with Ada".  <i>ACM Ada Letters 8</i>,5
+(1988),37-46.<p>
+
+Schwartz, Richard L., and Melliar-Smith, Peter M.  "The Suitability of Ada for
+Artificial Intelligence Applications".  Final Report, Contract
+#AAG29-79-C-0216, Army Research Office, SRI International, May 1980,48p.<p>
+
+Seidewitz, Ed.  "Object-Oriented Programming in Smalltalk and Ada".  <i>Proc.
+OOPSLA'87, also ACM Sigplan Not. 22</i>,12 (Dec. 1987),168-182.<p>
+
+Seidewitz, Ed.  "Object-Oriented Programming Through Type Extension in Ada 9X".
+<i>ACM Ada Letters 11</i>,2 (March/April 1991),86-97.<p>
+
+Simonian, Richard, and Crone, Michael.  "InnovAda: True Object-Oriented
+Programming in Ada".  <i>J. Object-Oriented Progr. 1</i>,4 (Nov./Dec. 1988).<p>
+
+Software Productivity Solutions, Inc. (SPS).  "Classic-Ada Technical
+Specification".  Melbourne, FL, 1988.<p>
+
+Software Productivity Solutions, Inc.  (SPS).  "Classic-Ada User's Manual".
+Melbourne, FL, 1989.<p>
+
+Stroustrup, Bjarne.  <i>The C++ Programming Language</i>.  Addison-Wesley,
+Reading, MA  1986,328p.<p>
+
+Taenzer, David, <i>et al</i>.  "Object-Oriented Software Reuse: The Yoyo
+Problem".  <i>J. Obj.-Oriented Progr. 2</i>,3 (Sept./Oct. 1989),30-35.<p>
+
+Taft, Tucker, <i>et al</i>.  <i>[Ada-9X] DRAFT Mapping Document</i>.  Ada-9X
+Proj. Rep., Feb. 1991.<p>
+
+Taft, Tucker, <i>et al</i>.  <i>[Ada-9X] DRAFT Mapping Rationale Document</i>.
+Ada-9X Proj. Rep., Feb. 1991.<p>
+
+Winkler, J&uuml;rgen F.H.  "Adding Inheritance to Ada".  <i>Proc. Wash. Ada
+Symp</i>. (June 1990),241-244.<p>
+
+<a name="fn0">[1]</a>
+
+More precisely, an Ada83 type with additional discriminant, index or range
+constraints is called a <i>subtype</i>.<p>
+
+<a name="fn1">[2]</a>
+
+This similarity has led Ada83 to confuse the concepts of
+<i>variable</i> and <i>parameter</i> by using "copy-in, copy-out" for <tt><b>in
+out</b></tt> parameters instead of "by reference" semantics, with dire
+consequences for object identity [Baker91].<p>
+
+<a name="fn2">[3]</a>
+
+We temporarily defer the problem of slots which hold
+references to objects of the type with this slot.  Types defined in terms of
+themselves are called <i>recursive types</i>; the only recursive types allowed
+in Ada83 involve access types.<p>
+
+<a name="fn3">[4]</a>
+
+Ada83 preserves object identity only for access types.<p>
+
+<a name="fn4">[5]</a>
+
+Most Ada83 implementations utilize a uniform bit-level
+representation for all access types.<p>
+
+<a name="fn5">[6]</a>
+
+The rationale for these restrictions is beyond the scope
+of this paper.<p>
+
+<a name="fn6">[7]</a>
+
+We will have to wait for Ada-9X [Taft91] to cause a
+compile-time error in this situation.<p>
+
+<a name="fn7">[8]</a>
+
+The applications programmer should not normally use the
+unconstrained types <tt>auc</tt>, <tt>buc</tt>, etc.<p>
+
+<a name="fn8">[9]</a>
+
+"Recursive" methods (i.e., those which call "self") should
+call themselves by calling the incoming method of the same name; the cycle will
+be completed later, when the generic package is instantiated.<p>
+
+<a name="fn9">[10]</a>
+
+The efficiency of both schemes is enhanced, however, if
+the Ada83 compiler offers efficient inlining of procedures with <tt><b>in out
+</b></tt>parameters, and if <tt>case</tt> statements are implemented by means
+of a jump table.  The Ada83 compiler should also attempt to eliminate the many
+<i>redundant</i> runtime subtype checks that are typically generated.<p>
+
+<a name="fn10">[11]</a>
+
+We will have to wait for Ada-9X [Taft91] to cause a
+compile-time error in this situation.<p>
+
+<a name="fn11">[12]</a>
+
+The technical report on which this paper is based uses
+the structured programming style with limited private types, and hence supports
+automatic garbage collection.
+
+</body></html>

@@ -1,0 +1,288 @@
+<html><head>
+<!-- Based on MIT AI Memo 239 "HAKMEM" -->
+<!-- by M. Beeler, R.W. Gosper, and R. Schroeppel, Feb. 29, 1972. -->
+<!-- This html version Copyright (c) 1995 by Henry G. Baker. -->
+<link rev="made" href="mailto:hbaker1@pipeline.com">
+<title>HAKMEM -- RECURRENCE RELATIONS -- DRAFT, NOT YET PROOFED</title>
+
+</head><body>
+
+Beeler, M., Gosper, R.W., and Schroeppel, R.  <i>HAKMEM</i>.  MIT AI
+Memo 239, Feb. 29, 1972.
+
+Retyped and converted to <i>html</i> ('Web browser format) by
+
+<a href="http://home.pipeline.com/~hbaker1/home.html">Henry Baker,</a>
+
+April, 1995.
+
+<h2>RECURRENCE RELATIONS</h2>
+
+<a href="geometry.html">Previous</a>
+<a href="hakmem.html">Up</a>
+<a href="boolean.html">Next</a>
+
+<a name="item12"></a>
+
+<h3>ITEM 12 (Gosper &amp; Salamin): "the Fast Fibonacci Transform"</h3>
+
+(motivation for next item)<p>
+
+Define multiplication on ordered pairs<p>
+
+(A,B) (C,D) = (A C + A D + B C, A C + B D).<p>
+
+This is just (A X + B) * (C X + D) mod X^2 - X - 1, and so is associative, etc.  We note (A,B) (1,0) = (A + B, A), which is the
+Fibonacci iteration.  Thus, (1,0)^N = (FIB(N), FIB(N-1)),
+which can be computed in log N steps by repeated squaring, for instance.
+FIB(15) is best computed using N = 16, thus pushing the minimal binary addition
+chain counterexample to 30 (Liknaitzky).  (See Knuth vol. 2, p 398.)  By the
+last formula,<p>
+
+(1,0)^-1 = (FIB(-1),FIB(-2)) = (1, -1),<p>
+
+which, as a multiplier, <i>backs up</i> one Fibonacci step (further complicating the
+addition chain question).  Observing that<p>
+
+(1,0)^0 = (FIB(0), FIB(-1)) = (0,1)<p>
+
+ = the (multiplicative) identity, equate it with scalar 1.  Define addition and
+scalar multiplication as with ordinary vectors.<p>
+
+(A,B)^-1 = (-A, A + B) / (B^2 + A B - A^2),<p>
+
+so we can compute rational functions when the denominator isn't zero.  Now, by
+using power series and Newton's method, we can compute fractional Fibonaccis,
+and even <i>e</i>^(X,Y) and log (X,Y).  If we start with (1,0) and square iteratively,
+the ratio will converge to the larger root of x^2 - x - 1 (= the golden ratio) about as rapidly as with Newton's method.<p>
+
+This method generalizes for other polynomial roots, being an improvement on the
+method of Bernoulli and Whittaker (Rektorys, <i>Survey of Applicable Math.,</i> p.
+1172).  For the general second order recurrence, F(N+1) = X F(N) + Y F(N-1),
+we have the multiplication rule: (A,B) (C,D) = (A D + B C + X A C, B D + Y A C).<p>
+
+Inverse: (A,B)^-1 = (-A, X A + B) / (B^2 + X A B - Y A^2).<p>
+
+Two for the price of one: (F(1), Y F(0)) (1,0)^N = (F(N+1), Y F(N))).
+
+<a name="item13"></a>
+
+<h3>ITEM 13 (Salamin &amp; Gosper): LINEAR RECURRENCE RELATIONS</h3>
+
+Recurrence relation:
+
+<pre>
+(1)     A  = C    A    + ... + C  A   
+         k    n-1  k-1          0  k-n
+
+with A , ..., A    given as initial values.
+      0        n-1
+</pre>
+
+Consider the algebra with basis vectors
+
+<pre>
+ 0   1   2        n-1
+X , X , X , ..., X
+</pre>
+
+and the identification
+
+<pre>
+         n         n-1             0
+(2)     X  = C    X    + ... + C  X .
+              n-1               0
+</pre>
+
+Thus if U, V, W are vectors and W = U V, then componentwise
+
+<pre>
+                ====
+                \
+(3)      W    =  >      T    U  V  ,
+          i     /        ijk  j  k
+                ====
+                j,k
+</pre>
+
+where the T's depend only on the C's.  The following simple procedure
+yields A(k): express the vector X^k as a linear combination of the
+basis vectors, then set
+
+X^m = A(m) (0&lt;=m&lt;n).
+
+Computation of X^k can be done by k-n+1 applications of (2) or by
+computing the T's in (3) and then applying (3) O(log k) times.<p>
+
+PROOF: If 0 &lt;= k &lt; n, X^k is already a basis vector, so we get A(k).
+Suppose the procedure works for k &lt; L.
+
+<pre>
+ L    n  L-n
+X  = X  X
+
+            n-1              L-n
+   = (C    X    + ... + C ) X
+       n-1               0
+
+           L-1             L-n
+   = C    X    + ... + C  X
+      n-1               0
+</pre>
+
+The procedure evaluates each X^m to A(m), so X^L evaluates to
+
+<pre>
+C    A    + ... + C  A    = A .  QED
+ n-1  L-1          0  L-n    L
+</pre>
+
+The same procedure will work for negative k using
+
+<pre>
+         -1     n-1         n-2
+(4)     X   = (X    - C    X    - ... - C )/C ,
+                       n-1               1   0
+</pre>
+
+the unique vector which when multiplied by X yields X^0.<p>
+
+Let (2) be F(X) = 0 and V be the algebra constructed above.  Then V is a field
+iff F(X) is irreducible in the field of the coefficients of V.<p>
+
+PROOF: Note that an element P of V is zero iff P(X) = 0 mod F(X).  If G(X) H(X)
+= F(X), DEG G,H &lt; DEG F, then the product of two non-zero elements is zero
+and so V can't be a field.<p>
+
+Let P be an arbitrary non-zero element of V.<p>
+
+DEG(GCD(P,F)) &lt;= DEG P &lt; DEG F.<p>
+
+If F(X) is irreducible, then GCD(P,F) = 1, so there exist Q(X), R(X) such that
+Q(X) P(X) + R(X) F(X) = 1.  Then Q(X) P(X) = 1 mod F(X).  Since P has an
+inverse, V is a field.
+
+<a name="item14"></a>
+
+<h3>ITEM 14 (Gosper &amp; Salamin):</h3>
+
+Yet another way to rapidly evaluate recurrences is to observe that if<p>
+
+F(N+1) = X * F(N) + Y * F(N-1), then<p>
+
+F(N+2) = (X^2 + 2 Y) * F(N) - Y^2 * F(N-2).<p>
+
+This rate doubling formula can be applied iteratively to compute the Nth term
+in about log N steps, e.g., to get the 69th term given terms 1 and 2, we form
+1, 2, 3, 5, 9, 13, 21, 37, 69.  This sequence is computed from right to left by
+iteratively subtracting half the largest possible power of 2.  This is
+sufficient to guarantee that some term further left will differ from the left
+one by that same (halved) power of 2; e.g., 5, ..., 21, 37 have a common
+difference of 2^4, so that term 37 can be found from term 5 and term 21 using
+the fourth application of the rate doubling formula.<p>
+
+The rate tripling formula is F(N+3) = (X^3 + 3 X Y) * F(N) + Y^3 * F(N-3).<p>
+
+For the K-tupling formula:<p>
+
+F(N+K) = P(K) * F(N) + Q(K) * F(N-K)<br>
+P(K+1) = X * P(K) + Y * P(K-1) (the same recurrence as F)<br>
+Q(K+1) = -Y * Q(K)<br>
+P(1) = X<br>
+Q(1) = Y<br>
+P(0) = 2<br>
+Q(0) = -1<br>
+Q(K) = -(-Y)^K<br>
+P(K) = 2 (-Y)^K/2 * T(K; X/sqrt(-4 Y)), where T(K; X) is the Kth Chebychev polynomial = cos(K arccos X).<p>
+
+If A(I), B(I), and C(I) obey the same second order recurrence,
+
+<tt><pre>
+        [ A   B  ] -1 [ C  ]
+        [  I   I ]    [  I ]
+(I)     [        ]    [    ]
+        [ A   B  ]    [ C  ]
+        [  J   J ]    [  J ]
+</pre></tt>
+
+is independent of I and J, provided the inverse exists.  (This is true even if
+coefficients are not constant, since any two independent sequences form a
+basis.)<p>
+
+Plugging in F and P as defined above, we get an expression for the Nth term of
+the general second order recurrence in terms of P(N) and P(N+1):
+
+<tt><pre>
+[ P(N)  P(N+1) ] [ P(0)  P(1) ] -1 [ F(0) ]
+                 [ P(1)  P(2) ]    [ F(1) ]  =  F(N).
+</pre></tt>
+
+Setting X = Y = 1, we get FIB(N) = (2 P(N+1) - P(N))/5, which is a complex but otherwise square root free closed form. (sqrt(-4) = 2<i>i</i>)<p>
+
+With constant coefficients, the invariance (I) implies:
+
+<tt><pre>
+[ A     A    ] [ A       A      ] -1 [ A    ]
+[  P+I   P+J ] [  Q+I+K   Q+J+K ]    [  R+K ]
+               [                ]    [      ]  =  A
+               [ A       A      ]    [ A    ]      P-Q+R
+               [  Q+I+L   Q+J+L ]    [  R+L ]
+</pre></tt>
+
+These matrix relations generalize directly for Nth order recurrences.
+
+<a name="item15"></a>
+
+<h3>ITEM 15 (Chebychev):</h3>
+
+The Nth Chebychev polynomial T(N) = T(N; x) = cos(N arccos x).<p>
+
+T(0) = 1, T(1) = x, T(N+1) = 2 x T(N) -T(N-1).<p>
+
+T(N; T(M)) clearly = T(N M).<p>
+
+x^N - 2^(1-N) T(N), whose degree is N-2,
+is the polynomial of degree &lt; N which stays closest to x^N in the interval (-1,1),
+deviating by at most 2^(1-N)
+at the N+1 places where x = cos(K * pi/N), K=0, 1, ...N.<p>
+
+Generating function:
+
+<pre>
+ ====
+ \           N      1 - x S
+  >    T(N) S  = --------------
+ /                            2
+ ====            1 - 2 x S + S
+</pre>
+
+First order (nonlinear) recurrence:
+
+<pre>
+                     -------------------
+                    /     2           2
+T(N+1) = x T(N) -  /(1 - x ) (1 - T(N) ) .
+                  V
+</pre>
+
+(T(N+1),-T(N)) = (T(1),-T(0)) (1,0),<p>
+
+where (A,B) (C,D) = (A D + B C + 2 x A C, B D - A C).
+
+<a name="item16"></a>
+
+<h3>ITEM 16:</h3>
+
+<tt><pre>
+                             n         n
+                   1   (1+ix)  - (1-ix)
+tan (n arctan x) = - * -----------------
+                   i         n         n
+                       (1+ix)  + (1-ix)
+</pre></tt><p>
+
+<a href="geometry.html">Previous</a>
+<a href="hakmem.html">Up</a>
+<a href="boolean.html">Next</a>
+
+</body></html>

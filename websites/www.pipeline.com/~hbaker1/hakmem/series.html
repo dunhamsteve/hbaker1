@@ -1,0 +1,511 @@
+<html><head>
+<!-- Based on MIT AI Memo 239 "HAKMEM" -->
+<!-- by M. Beeler, R.W. Gosper, and R. Schroeppel, Feb. 29, 1972. -->
+<!-- This html version Copyright (c) 1995 by Henry G. Baker. -->
+<link rev="made" href="mailto:hbaker1@pipeline.com">
+<title>HAKMEM -- SERIES -- DRAFT, NOT YET PROOFED</title>
+
+</head><body>
+
+Beeler, M., Gosper, R.W., and Schroeppel, R.  <i>HAKMEM</i>.  MIT AI
+Memo 239, Feb. 29, 1972.
+
+Retyped and converted to <i>html</i> ('Web browser format) by
+
+<a href="http://home.pipeline.com/~hbaker1/home.html">Henry Baker,</a>
+
+April, 1995.
+
+<h2>SERIES</h2>
+
+<a href="topology.html">Previous</a>
+<a href="hakmem.html">Up</a>
+<a href="flows.html">Next</a>
+
+<a name="item116"></a>
+
+<h3>ITEM 116 (Schroeppel &amp; Gosper):</h3>
+
+<pre>
+ inf
+ ====
+ \       N! N!    4    2 <i>pi</i>
+  >      ------ = - + --------- .
+ /       (2 N)!   3   9 SQRT(3)
+ ====
+ N=0
+</pre>
+
+PROBLEM: Evaluate in closed form
+
+<pre>
+ inf
+ ====
+ \      N! N! N!
+  >     -------- , which =
+ /       (3 N)!
+ ====
+ N=0
+
+  1
+ /
+ [
+ I  (P + Q arccos (R)) dT , where
+ ]
+ /
+  0
+
+               2      3
+     2 (8 + 7 T  - 7 T )
+ P = -------------------  and
+             2    3 2
+       (4 - T  + T )
+
+                    2        2    3
+            4 (T - T ) (5 + T  - T )
+ Q = ------------------------------------------  and
+           2    3 2            2    3
+     (4 - T  + T )  SQRT((4 - T  + T ) (1 - T))
+
+          2    3
+         T  - T
+ R = 1 - ------- .
+            2
+</pre>
+
+<a name="item117"></a>
+
+<h3>ITEM 117 (Henry Cohen):</h3>
+
+<pre>
+                        2      3      4
+                       X      X      X
+ <i>gamma</i> = - ln X + X - ---- + ---- - ---- ... + ERROR
+                      2 2!   3 3!   4 4!
+</pre>
+
+Where ERROR is of the order of (<i>e</i>^-X)/X.
+
+<a name="item118"></a>
+
+<h3>ITEM 118 (Schroeppel):</h3>
+
+Differentiate
+
+<pre>
+   -Y
+Y E   = X  to get Y + Y X Y' - X Y' = 0.
+</pre>
+
+Substitute for Y a power series in X with coefficients to be
+determined.  One observes the curious identity:
+
+<pre>
+     N
+    ====
+    \      J - 1        N - J                   N      0
+     >    J      (N - J)      BINOMIAL(N, J) = N     (0  = 1)
+    /
+    ====
+    J=1
+</pre>
+
+and thus
+
+<pre>
+        ====    N - 1  N
+        \      N      X
+ Y(X) =  >     ---------
+        /         N!
+        ====
+        N=1
+</pre>
+
+<a name="item119"></a>
+
+<h3>ITEM 119 (Schroeppel):</h3>
+
+PROBLEM: Can someone square some series for <i>pi</i> to give the series
+
+<pre>
+   2                    ====
+ <i>pi</i>    1    1           \       1
+ --  = -- + -- + ... =   >      --  ?
+  6     2    2          /        2
+       1    2           ====    N
+</pre>
+
+<a name="item120"></a>
+
+<h3>ITEM 120 (Euler):</h3>
+
+The series accelerating transformation<p>
+
+(Abramowitz &amp; Stegun, se. 3.6.27)
+
+<pre>
+                          ====        K       K
+                          \       (-1)  (delta  A0)
+A0 - A1 + A2 - ...   =     >      -----------------
+                          /              K+1
+                          ====          2
+
+                       K
+                      ====
+              K       \                      K-m
+(where  (DELTA  A0) =  >  BINOMIAL(K, m) (-1)    Am   = Kth forward difference on A0)
+                      /
+                      ====
+                      m=0
+</pre>
+
+when applied to
+
+<pre>
+ <i>pi</i>      1   1
+ -- = 1 - - + - - ...
+ 4        3   5
+</pre>
+
+gives
+
+<pre>
+      ====     N-1   2
+ <i>pi</i>   \       2    N!
+ -- =  >     ----------
+ 4    /      (2 N + 1)!
+      ====
+      N=0
+</pre>
+
+Applied to the formula for <i>gamma</i> in <i>Amer. Math. Monthly</i>
+(vol. 76, #3, Mar69 p273) =
+
+<pre>
+  ====         T
+  \       (- 1)  [LOG2(T)]
+   >      ----------------     ([ ] means integer part of)
+  /              T
+  ====
+  T=0
+</pre>
+
+we get
+
+<pre>
+  inf             K-1
+  ====            ====
+  \      -(K+1)   \              1
+   >    2          >    ------------------
+  /               /               I
+  ====            ====  BINOMIAL(2 + J, J)
+  K=1             J=0
+</pre>
+
+(Gosper) which converges fast enough for a few hundred digits.<p>
+
+The array of reciprocals of the terms follows, with powers of 2
+factored out to the left from all member of each row.
+
+<tt><pre>
+4                1
+8              1   3
+16           1   5   6
+32         1   9  15  10
+64       1  17  45  35  15
+128    1  33 153 165  70  21
+256  1  65 561 969 495 126  28
+</pre></tt>
+
+The next to left diagonal is 2^(N+1); the perpendicular one 3rd from
+the right is 1, *9/1= 9, *10/2= 45, *11/3= 165, *12/4= 495.
+
+<a name="item121"></a>
+
+<h3>ITEM 121 (Gosper):</h3>
+
+Consider the triangular array:
+
+<tt><pre>
+                1
+              1   1
+            1   4   1
+          1  11  11   1
+        1  26  66  26   1
+      1  57 302 302 57   1
+</pre></tt>
+
+This bears an interesting relationship to Pascal's triangle.  The 302 in the
+4th southeast diagonal and the 3rd southwest one = 4*26 + 3*66.  Note that rows
+then sum to factorials rather than powers of 2.  If the nth row of the triangle
+is dotted with any n consecutive elements of (either) n+1st diagonal of
+Pascal's triangle, we get the nth Bernoulli polynomial: for n = 5, 1(6,i) +
+26(6,i+1) + 66(6,i+2) + 26(6,i+3) + 1(6,i+4) = sum of 5th powers of 1 thru i+5,
+where (j,i) = BINOMIAL(j+i,j).
+
+<a name="item122"></a>
+
+<h3>ITEM 122 (Schroeppel, Gosper):</h3>
+
+The "parity number" =
+
+<pre>
+     inf
+     ====
+  1  \     PARITY(N)
+  -   >    ---------
+  2  /         N
+     ====     2
+     N=0
+</pre>
+
+where the parity of N is the sum the bits of N mod 2.  The parity number's
+value is .4124540336401075977..., or, for hexadecimal freaks,
+.6996966996696996... .  It can be written (base 2) in stages by taking the
+previous stage, complementing, and appending to the previous stage:<p>
+
+<pre>
+.0
+.01
+.0110
+.01101001
+.0110100110010110
+.01101001100101101001... radix 2
+</pre>
+
+i.e.,
+
+<pre>
+stage 0 = 0
+                              N
+                            -2
+                       1 - 2   - stage N
+stage N+1 = stage N +  ----------------- .
+                              N
+                             2
+                            2
+</pre>
+
+If
+
+<pre>
+NUM 0 = 0, DEN 0 = 2
+
+NUM N+1 = ((NUM N)+1) * ((DEN N)-1)
+
+                       N+1
+                 2    2
+DEN N+1 = (DEN N)  = 2
+</pre>
+
+then
+
+<pre>
+                                    N            N
+NUM N+1                           -2           -2
+------- = stage N+1 = (stage N + 2   ) * (1 - 2   ) .
+DEN N+1
+</pre>
+
+Or, faster, by substituting in the string at any stage:
+
+<ul>
+
+<li>the string itself for zeros, and</li>
+<li>the complement of the string for ones.</li>
+
+</ul>
+
+It is claimed (perhaps proven by Thue?) that the parity number is
+transcendental.<p>
+
+Its regular continued fraction begins:
+
+0 2 2 2 1 4 3 5 2 1 4 2 1
+
+5 44 1 4 1 2 4 1 1 1 5 14 1 50 15 5 1 1 1 4 2 1 4 1 43 1 4 1 2 1
+3 16 1 2 1 2 1 50 1 2 424 1 2 5 2 1 1 1 5 5 2 22 5 1 1 1 1274 3 5
+2 1 1 1 4 1 1 15 154 7 2 1 2 2 1 2 1 1 50 1 4 1 2 867374 1 1 1 5
+5 1 1 6 1 2 7 2 1650 23 3 1 1 1 2 5 3 84 1 1 1 1284 ...
+
+and seems to continue with sporadic large terms in suspicious patterns.  A
+non-regular fraction is
+
+<pre>
+1/(3 -1/(2 -1/(4 -3/(16 -15/(256 -255/(65536 -65535/
+
+            N     N
+           2     2
+      (...2   -(2  -1)/(... .
+</pre>
+
+This fraction converges much more rapidly than the regular one, its Nth
+approximant being
+
+<pre>
+1 + NUM N
+--------- ,
+1 + DEN N
+</pre>
+
+which is, in fact, an approximant of the regular fraction, roughly the
+2^N'th.<p>
+
+In addition, 4*(parity number) =
+
+<pre>
+    1   3   15   255   65535
+2 - - * - * -- * --- * ----- * ...
+    2   4   16   256   65536
+</pre>
+
+This gives still another non-regular fraction per the
+
+<a href="cf.html#item100">product conversion item</a>
+
+in the
+
+<a href="cf.html">CONTINUED FRACTION</a>
+
+section.<p>
+
+For another property of the parity number, see the spacefilling curve item in
+the TOPOLOGY section.
+
+<a name="item123"></a>
+
+<h3>ITEM 123 (Schroeppel, Gosper, Salamin):</h3>
+
+Consider the image of the circle |z| = 1 under the function
+
+<pre>
+                n
+        ===    2
+        \     z
+ f(z) =  >    --- .
+        /      n
+        ===   2
+</pre>
+
+This is physically analogous to a series of clock hands placed end to
+end.  The first hand rotates around the center (0,0) at some rate.
+the next hand is half as long and rotates around the end of the first
+hand at twice this rate.  The third hand rotates around the end of the
+second at four times this rate; etc.  It would seem that the end of
+the "last" hand (really there are infinitely many) would sweep through
+space very fast, tracing out an (infinitely) long curve in the time
+the first hand rotates once.  The hands shrink, however, because of
+the 2^n in the denominator.  Thus it is unclear whether the curve's
+arc length is really infinite.<p>
+
+Also, it is a visually interesting curve, as are
+
+<pre>
+        ===   n!                ===   FIB(n)
+        \    z                  \    z
+ f(z) =  >   ---   and   f(z) =  >   ------- .
+        /    n!                 /    FIB(n)
+        ===                      ===
+</pre>
+
+Gosper has programmed the one mentioned first, which makes an
+intriguing display pattern.  see following illustrations.  If you
+write a program to display this, be sure to allow easy changing of:
+
+<ol>
+
+<li>z and z* on alternate terms (alternate hands rotate in opposite
+directions),</li>
+
+<li>negation of alternate terms (alternate hands initially point in opposite
+directions), and</li>
+
+<li>how many terms are used in the computation, since these cause fascinating
+variations in the resulting curve.</li>
+
+</ol>
+
+<a href="Figure6a.html">Figure 6(a).</a>
+Image of circles |z| = 1/2, 3/4, 7/8, 1 under the function
+
+<pre>
+                      inf
+                      ===    n!
+                      \     z
+               f(z) =  >    --- .
+                      /     n!
+                      ===
+                      n=1
+</pre>
+
+<a href="Figure6b.html">Figure 6(b).</a>
+Image of circles |z| = 1/8, 2/8, ..., 8/8 under the function
+
+<pre>
+                      inf     n
+                      ===    2
+                      \     z
+               f(z) =  >    --- .
+                      /      n
+                      ===   2
+                      n=0
+</pre>
+
+Both [original] plots by Salamin on the RLE PDP-1.<p>
+
+<a name="item124"></a>
+
+<h3>ITEM 124 (Schroeppel):</h3>
+
+Consider
+
+<pre>
+   ====         ====                    ====
+   \     1      \      1      1         \        1       1
+    >    --  =   >    (-- - ------)  +   >    (----- - -----)  =
+   /      2     /       2    2   1      /          1       1
+   ====  N      ====   N    N  - -      ====   N - -   N + -
+                                 4                 2       2
+
+               ====
+               \           1
+           2 -  >    ------------- .
+               /      2     2
+               ====  N  (4 N  - 1)
+</pre>
+
+Take the last sum and re-apply this transformation.  This may be a
+winner for computing the original sum.  For example, the next
+iteration gives
+
+<pre>
+               ====
+        31     \                      1
+        -- - 9  >      --------------------------------
+        18     /        2     2           4      2
+               ====    N  (4 N  - 1) (25 N  + 5 N  + 9)
+ </pre>
+
+where the denominator also =
+
+<pre>
+    2                         2                2
+   N  (2 N - 1) (2 N + 1) (5 N  - 5 N + 3) (5 N  + 5 N + 3)
+</pre>
+
+<a name="item125"></a>
+
+<h3>ITEM 125 (Polya):</h3>
+
+CONJECTURE: If a function has a power series with integer coefficients and
+radius of convergence 1, then either the function is rational or the unit
+circle is a natural boundary.<p>
+
+Reference: Polya, <i>Mathematics and Plausible Reasoning</i>, volume 2, page
+46.<p>
+
+<a href="topology.html">Previous</a>
+<a href="hakmem.html">Up</a>
+<a href="flows.html">Next</a>
+
+</body></html>

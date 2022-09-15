@@ -1,0 +1,137 @@
+Draft FAQ: Computing "Great Circle Distances" from latitudes and longitudes.
+This problem (and its solutions) are more than 500 years old.
+
+Henry Baker (hbaker1@pipeline.com), May 1995.
+
+Problem: Compute the great circle distance (either angular or linear)
+between the two points whose coordinates are given by
+(latitude,Longitude) pairs.  Specifically, given P1=(l1,L1),
+P2=(l2,L2), compute the angular distance d between these two points on
+the globe.  The linear distance is then r*d, where r is the radius of
+the globe (assuming that d is given in radians).
+
+Plan: Transform coordinates into Cartesian coordinates, compute the
+"dot" product, and then take the arccosine of the result.
+
+We can either perform laborious trigonometric calculations, or we can
+utilize geometric insight to realize that the great circle distance
+doesn't depend upon the actual values of the longitudes L1,L2, but
+only on their _difference_ dL=L2-L1.  We therefore translate the
+problem to P1'=(l1,0), P2'=(l2,L2-L1)=(l2,dL).
+
+ P1': x1=cos(l1), y1=0, z1=sin(l1).
+ P2': x2=cos(l2)cos(dL), y2=cos(l2)sin(dL), z3=sin(l2).
+
+ P1'.P2' = cos(d) = cos(l1)cos(l2)cos(dL) + sin(l1)sin(l2).
+
+We are now mathematically (but not computationally) done, because we
+have the following expression for the angular distance we seek:
+
+ d = arccos(cos(l1)cos(l2)cos(dL) + sin(l1)sin(l2)).
+
+Discussion: There is a problem with this formula, however.  If dL is
+very small, cos(dL) is essentially 1, and arccos(1)=0.  In other
+words, we lose all accuracy in the (common) case where dL and |l1-l2|
+are both small.
+
+The problem is that cosines and arccosines do not have the property
+that f(0)=0.  What we really want is a formula based on sines/arcsines
+or tangents/arctangents, which _do_ have this property.
+
+We therefore use the following centuries-old half-angle trick:
+
+ sin(dL/2)^2 = (1-cos(dL))/2, or equivalently, cos(dL) = 1-2sin(dL/2)^2.
+
+ cos(d) = cos(l1)cos(l2)(1 - 2 sin(dL/2)^2) + sin(l1)sin(l2)
+
+        = cos(l1)cos(l2) - 2 cos(l1)cos(l2)sin(dL/2)^2 + sin(l1)sin(l2)
+
+(recognizing the cosine difference formula)
+
+        = cos(l2-l1) - 2 cos(l1)cos(l2)sin(dL/2)^2
+
+        = cos(dl) - 2 cos(l1)cos(l2)sin(dL/2)^2           [dl = l1-l2]
+
+(using the half-angle trick again with dl)
+
+        = 1 - 2 sin(dl/2)^2 - 2 cos(l1)cos(l2)sin(dL/2)^2
+
+(using the half-angle trick a 3rd time with d)
+
+ 1 - 2 sin(d/2)^2 = 1 - 2 sin(dl/2)^2 - 2 cos(l1)cos(l2)sin(dL/2)^2
+
+ sin(d/2)^2       = sin(dl/2)^2 + cos(l1)cos(l2)sin(dL/2)^2
+
+(This now looks a lot like a Pythagorean formula, except with
+half-sines and a correction coefficient of cos(l1)cos(l2).)
+
+ sin(d/2)         = sqrt(sin(dl/2)^2 + cos(l1)cos(l2)sin(dL/2)^2)
+
+ d = 2 asin( sqrt( sin(dl/2)^2 + cos(l1)cos(l2)sin(dL/2)^2 ) )
+
+This formula is now accurate when dl and/or dL are near zero.
+
+[As a check, if l1=l2=l, this formula simplifies to:
+
+  d = 2 asin(min(1,cos(l)sin(dL/2))).  If l=0, then d = dL.
+
+ Furthermore, if dL=0, this formula simplifies to:
+
+  d = 2 asin(sin(dl/2)) = 2 (dl/2) = dl.]
+
+Furthermore, sin()^2 >=0, and cos() >=0, since -pi/2 <= l1,l2 <= pi/2,
+so the argument to the square root is always >=0.  It is also
+mathematically <=1, but errors may violate this by small amounts, so
+use min to guarantee that the argument to asin is in the range [0,1].
+
+We finally have:
+
+ d = 2 asin(min(1,sqrt(sin(dl/2)^2 + cos(l1)cos(l2)sin(dL/2)^2)))
+
+Although in current subroutine libraries this appears to be a more
+expensive calculation, classical books tabulate the function
+versine(x) = vers(x) = 2 haversine(x) = 2 sin(x/2)^2 and its inverse.
+Therefore, if you're going to do this calculation a lot, you should
+also have these specialized subroutines for versine and its inverse.
+
+Since vers(x) = 2 sin(x/2)^2 = 1 - cos(x), its Taylor series is
+
+ x^2/2! - x^4/4! + x^6/6! - x^8/8! + ... = cos(0) - cos(x),
+
+so versine is no more difficult to compute than cosine.  Versine is
+more useful, however, because it is much more accurate near zero.
+Since accuracy is hard to get and easy to lose, the primitive
+trignometric functions found in your subroutine library should be
+_versine_ and _arcversine_ instead of _cosine_ and _arccosine_, and
+those (usually inappropriately) desiring cosine and arccosine can
+easily construct them as the macros:
+
+ cos(x) = (1 - vers(x))
+
+ acos(x) = (pi/2 - asin(x)).
+
+[Also realize that the Earth is not really a sphere, but an oblate
+spheroid, so even these calculations are not accurate for the Earth.]
+
+[Historial note: The ancient mathematicians (astronomers and
+astrologers, mostly, who actually had to _compute numerically_ for a
+living instead of doing just symbolic algebra) used the function
+chord(x) = cd(x) = 2 sin(x/2) instead of sin(x).  Using cd(x), the
+Pythagoreanness of the formula above is particularly striking:
+
+ cd(d)^2 = cd(dl)^2 + cos(l1) cos(l2) cd(dL)^2
+         = cd(dl)^2 + (1-vers(l1)) (1-vers(l2)) cd(dL)^2
+
+The Arab mathematicians circa 1000 AD used the "versed sine", or
+versine, in addition to the sine and chord.  The cosine was almost
+never used, and apparently became popular much later as a result of
+Euler's identity: exp(iy) = cos(y) + i sin(y).  In other words,
+cosines are important for _algebraic manipulation_, but not for
+_numerical calculation_.  Apparently, those doing numerical
+calculations on computers still have much to learn from the ancient
+human computers.
+
+Reference: Smith, David E.  History of Mathematics, Vol. II.  Dover
+Publs, NY, 1925.]
+
+Copyright (c) 1995 by Henry Baker.  All rights reserved.

@@ -1,0 +1,295 @@
+<html><head>
+<!-- Based on MIT AI Memo 239 "HAKMEM" -->
+<!-- by M. Beeler, R.W. Gosper, and R. Schroeppel, Feb. 29, 1972. -->
+<!-- This html version Copyright (c) 1995 by Henry G. Baker. -->
+<link rev="made" href="mailto:hbaker1@pipeline.com">
+<title>HAKMEM -- GAMES -- DRAFT, NOT YET PROOFED</title>
+
+</head><body>
+
+Beeler, M., Gosper, R.W., and Schroeppel, R.  <i>HAKMEM</i>.  MIT AI
+Memo 239, Feb. 29, 1972.
+
+Retyped and converted to <i>html</i> ('Web browser format) by
+
+<a href="http://home.pipeline.com/~hbaker1/home.html">Henry Baker,</a>
+
+April, 1995.
+
+<h2>GAMES</h2>
+
+<a href="automata.html">Previous</a>
+<a href="hakmem.html">Up</a>
+<a href="proposed.html">Next</a>
+
+<a name="item67"></a>
+
+<h3>ITEM 67 (Schroeppel):</h3>
+
+Regarding "poker coins" game, whose rules are:
+
+<ol>
+
+<li>a player throws N coins; he then puts one or more aside and rethrows the rest</li>
+
+<li>this throwing is repeated until he no longer has any to throw</li>
+
+<li>highest score (dice) or maximum number of heads (coins) wins</li>
+
+</ol>
+
+For poker coins, the optimal strategy, with N coins thrown, is:<p>
+
+Z = number of zeros (tails)
+
+<ul>
+
+<li>if Z = 0, quit</li>
+
+<li>if Z = 1, throw the zero</li>
+
+<li>if 1 &lt; Z &lt; N, save one one, throw the other N-1 coins</li>
+
+<li>if Z = N, save a zero, throw the other N-1 coins</li>
+
+</ul>
+
+The optimal strategy for poker dice is hairier.
+
+<a name="item68"></a>
+
+<h3>ITEM 68 (Schroeppel):</h3>
+
+PROBLEM: Solve <i>Blackout</i>, a game as follows:<p>
+
+Two players alternate placing X's on a rectangular grid.  No two X's
+may appear adjacent along a side or across the diagonal at a corner.
+The last X wins.<p>
+
+Some theory: The "indicator" for a position is: make all possible moves from the
+given position.<p>
+
+Evaluate the indicator of each of these successor positions.<p>
+
+The indicator of the first position is the smallest number which is not the
+indicator of a successor position.  The indicator of the null position is 0.
+The second player wins iff the indicator is 0.  Example of calculating an
+indicator for the 3 x 3 board: There are 3 distinct moves possible -- corner,
+side, center.  Playing in the center leaves the null position, indicator 0.
+Playing on the side leaves a 1 x 3 line, indicator 2.  Playing in the corner
+leaves a 3 x 3 L, indicator 3.  The smallest number not appearing in our list
+is 1, so the indicator of a 3 x 3 square is 1.  For two boards (not touching)
+played simultaneously, the indicator is the XOR of the indicators for the
+separate boards.  For any position, the indicator is &lt;= the maximum game
+length.<p>
+
+PROBLEM: Find some non-exponential way to compute the indicator of a given
+position.  For lines, a period of 34 is entered after the line is about 80
+long.  For Ls: if one leg is held fixed, the indicator (as a function of the
+other leg) seems to become periodic with period 34.  The time to enter the
+period becomes greater as the fixed leg increases.<p>
+
+<ul>
+
+<li>On an odd x odd board, the 1st player wins.</li>
+
+<li>On a 4 x N board, the 2nd player wins.</li>
+
+<li>On a 6 x 6 board, the 1st player wins by playing at the center of one
+quarter.</li>
+
+</ul>
+
+This indicator analysis is similar for many other take-away games, such as <i>Nim.</i>
+
+<a name="item69"></a>
+
+<h3>ITEM 69:</h3>
+
+Berlekamp of Bell Labs has done the 9 squares (16 dots) <i>Dots</i>
+game; the 2nd player wins.
+
+<a name="item70"></a>
+
+<h3>ITEM 70:</h3>
+
+A neat chess problem, swiped from "Chess for Fun and Chess for Blood", by
+Edward Lasker:<p>
+
+white: pawns at QN3 and KN7, knight at QN4, bishop at KB8, king
+at QB2;<p>
+
+black: pawn at QN3, king at QR6.  White mates in three moves.
+
+<a name="item71"></a>
+
+<h3>ITEM 71 (Beeler):</h3>
+
+There is only one distinct solution to the commercial "Instant Insanity"
+colored-faces cubes puzzle, which is how it comes packed.  (Independently
+discovered by Dave Plumer.)  Mike Paterson has discovered a clever way to solve
+the puzzle.
+
+<a name="item72"></a>
+
+<h3>ITEM 72 (Beeler):</h3>
+
+A <i>window-dice</i> game is as follows:
+
+<ol>
+
+<li>The player starts with each of nine windows open, showing the digits 1 - 9.</li>
+
+<li>Roll two dice.</li>
+
+<li>Cover up any digits whose sum is the sum on the dice.</li>
+
+<li>Iterate throwing and closing windows until the equality of sums is
+impossible.</li>
+
+<li>Your score is the total of closed windows (highest wins).</li>
+
+</ol>
+
+An optimum strategy has been tabulated.  Usually it is best to take the largest
+digits possible, but not always; it also depends critically on the remaining
+numbers.
+
+<a name="item73"></a>
+
+<h3>ITEM 73 (Beeler):</h3>
+
+<i>Sim</i> is a game where two players alternately draw lines
+connecting six dots.  The first person can always win, and whether his
+first move connects with the first player's first move doesn't matter;
+from there on, however, the strategy branches to a relatively gruesome
+degree.<p>
+
+PROBLEM: 6 dots is minimum to ensure no stalemate with 2 players; how many dots
+are required with 3 players?
+
+<a name="item74"></a>
+
+<h3>ITEM 74 (Beeler):</h3>
+
+The 4 x 4 game of Nim, also known as <i>Tactix</i>, is a win for the second player,
+who on his first move can reply center-symmetrically unless the first player's
+first move was B1 and B2 (analyzed on RLE PDP-1).
+
+<a name="item75"></a>
+
+<h3>ITEM 75 (Gosper, Brown, Rayfield):</h3>
+
+A 1963 PDP-1 computer program gave us some interesting data on the
+traditional game of <i>peg solitaire</i> (33 holes in a plus shape).
+
+<tt><pre>
+    A B C
+    D E F
+G H I J K L M
+N P Q . S T U
+V W X Y Z 1 2
+    3 4 5
+    6 7 8
+</pre></tt>
+
+From the starting position, complement the board.  This is the ending
+position.  Now from the starting position, make one move, then
+complement the board.  This is a position one move from a win.  By
+induction, you can win from the complement of any position you can
+reach.  Thus every successful game has a dual game whose positions are
+the complements of the original ones.  This debunks the heuristic of
+emptying the arms of the plus first and then cleaning up the middle,
+because there are just as many dual games which empty out the middle
+first and then the arms!  The program found one counterintuitive win
+which at one point left the center nine empty but had ten in the arms.
+
+<tt><pre>
+    . B .
+    D E .
+. . . . . . .
+. P . . . T U
+V W . . . . .
+    . 4 .
+    . 7 .
+</pre></tt>
+
+By dualizing and permuting a solution from the folklore, we found a
+similar winning position with 20.  (T Q 4 R 1 L J H W Y M J) leaves:
+
+<tt><pre>
+    A B C
+    D E F
+G H . . . L .
+N . . . . . U
+V W . . . 1 2
+    3 . 5
+    6 7 8
+</pre></tt>
+
+then (8 V A C/B 2 6 G M F/K S 8 1 Y V 3 Q A H E).<p>
+
+Another useful observation is that the pegs and their original hole
+positions fall into four equivalence classes in which they stay
+throughout the game.  Thus the four pegs which can reach the center on
+the first move are the only ones that ever can.  Similarly, the peg
+jumped over on the last move must be in one of the two classes of
+eight members which get reduced on the first move.  The program's main
+heuristic was to reduce the larger classes first.
+
+<tt><pre>
+    a b a
+    c d c
+a b a b a b a
+c d c . c d c
+a b a b a b a
+    c d c
+    a b a
+</pre></tt>
+
+With its heuristics disabled, the program simply scanned
+lexicographically (left to right in the inner loop, then top to
+bottom) for a peg which could move.  At one point, there is a peg
+which can move two ways; it chose west.  Twelve moves from the end it
+stopped and went into an exhaustive tree search, in which it found two
+basically different wins.  (Try it yourself.)
+
+<tt><pre>
+    . . .
+    . . .
+. . . . K . .
+. . Q . . . .
+. . X Y Z 1 2
+    3 4 5
+    6 7 8
+</pre></tt>
+
+<a name="item76"></a>
+
+<h3>ITEM 76 (Beeler):</h3>
+
+Triangular <i>Hi-Q</i> (or peg solitaire) is 15 pegs in a triangle.
+One peg is removed, and thereafter pegs jump others, which are
+removed.  With pegs numbered 1 at the top, 2 and 3 in the next row,
+etc.,
+
+<tt><pre>
+REMOVE  CAN END WITH ONLY THE PEG
+1       1, 7 = 10, 13
+2       2, 6, 11, 14
+4       3 = 12, 4, 9, 15
+5       13
+</pre></tt>
+
+Removing only one, no way exists to get to either 1 + 11 + 15 (tips)
+or 4 + 6 + 13 (centers of sides).  Starting with peg 1 removed, 3,016
+positions are attainable (not turning board); the sum of ways to get
+to each of these is 10,306.  An example is: remove peg 1, then jump as
+follows: 6, 13, 10, 1, 2, 11, 14/13, 6, 12/13, 15, 7/4, 13, 4; leaving
+peg 1.<p>
+
+<a href="automata.html">Previous</a>
+<a href="hakmem.html">Up</a>
+<a href="proposed.html">Next</a>
+
+</body></html>

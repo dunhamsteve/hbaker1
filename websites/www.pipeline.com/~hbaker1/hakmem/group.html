@@ -1,0 +1,88 @@
+<html><head>
+<!-- Based on MIT AI Memo 239 "HAKMEM" -->
+<!-- by M. Beeler, R.W. Gosper, and R. Schroeppel, Feb. 29, 1972. -->
+<!-- This html version Copyright (c) 1995 by Henry G. Baker. -->
+<link rev="made" href="mailto:hbaker1@pipeline.com">
+<title>HAKMEM -- GROUP THEORY, SET THEORY -- DRAFT, NOT YET PROOFED</title>
+
+</head><body>
+
+Beeler, M., Gosper, R.W., and Schroeppel, R.  <i>HAKMEM</i>.  MIT AI
+Memo 239, Feb. 29, 1972.
+
+Retyped and converted to <i>html</i> ('Web browser format) by
+
+<a href="http://home.pipeline.com/~hbaker1/home.html">Henry Baker,</a>
+
+April, 1995.
+
+<h2>GROUP THEORY</h2>
+
+<a href="cf.html">Previous</a>
+<a href="hakmem.html">Up</a>
+<a href="quaternions.html">Next</a>
+
+<a name="item102"></a>
+
+<h3>ITEM 102 (Schroeppel):</h3>
+
+As opposed to the usual formulation of a group, where you are given
+
+<ol>
+
+<li>there exists an I such that A * I = I * A = A, and</li>
+
+<li>for all A, B and C, (A * B) * C = A * (B * C), and</li>
+
+<li>for each A there exists an A' such that A * A' = A' * A = I, and</li>
+
+<li>4 sometimes you are given that I and A' are unique.</li>
+
+</ol>
+
+If instead you are given A * I = A and A * A' = I, then the above rules can
+be derived.  But if you are given A * I = A and A' * A = I, then something
+very much like a group, but not necessarily a group, results.  For example,
+every element is duplicated.
+
+<a name="item103"></a>
+
+<h3>ITEM 103 (Gosper):</h3>
+
+The Hamiltonian paths through the N! permutations of N objects using only SWAP
+(swap any specific pair) and ROTATE (1 position) are as follows:
+
+<tt><pre>
+N       PATHS + DISTINCT REVERSES
+2       2 + 0, namely, S, R
+3       2 + 1, namely, SRRSR, RRSRR
+4       3 + 3, namely:
+        SRR RSR SRR RSR RRS RSR RSR RR
+        RSR SRR RSR RRS RSR RRS RSR RR
+        SRR RSR RRS RRS RSR RRS RRR SR
+</pre></tt>
+
+PROBLEM: A questionable program said there are none for N = 5; is this so?
+
+<a name="item104"></a>
+
+<h3>ITEM 104 (Schroeppel):</h3>
+
+Any permutation on 72 bits can be coded with a routine containing only the
+<a href="../pdp-10/pdp-10.html">PDP-6/10</a>
+instructions "ROT" and "ROTC".
+
+<h2>SET THEORY</h2>
+
+<a name="item105"></a>
+
+<h3>ITEM 105 (Komolgoroff, maybe?):</h3>
+
+Given a set of real numbers, how many sets can you get using only closure and
+complement?  Answer: 14.<p>
+
+<a href="cf.html">Previous</a>
+<a href="hakmem.html">Up</a>
+<a href="quaternions.html">Next</a><p>
+
+</body></html>

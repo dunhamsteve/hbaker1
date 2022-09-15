@@ -1,0 +1,1569 @@
+<html><head>
+<!-- This document was created from RTF source by rtftohtml version 2.7.5 -->
+
+<title>Critique of DIN Kernel Lisp Definition Version 1.2</title>
+
+<link rev="made" href="mailto:hbaker1@pipeline.com">
+
+<h1>Critique of DIN Kernel Lisp Definition Version 1.2</h1>
+
+<address>
+<a href="home.html">Henry G. Baker</a>
+</address>
+
+<address>
+Nimble Computer Corporation<a href="#fn1">[1]</a><br>
+16231 Meadow Ridge Way, Encino, CA  91436<br>
+(818) 986-1436   (818) 986-1360 (FAX)
+</address>
+
+<address>
+An earlier version of the paper appear in <i>Lisp & Symbolic Computation 4,</i> 4
+(Mar 1992), 371-398.
+</address>
+
+<hr>
+
+A critique of DIN Kernel Lisp is presented which argues for greater emphasis on
+implementation efficiency and language cleanliness, and a greater emphasis on
+<i>parallel</i> and <i>persistent</i> Lisp environments.  Specific
+recommendations include standardizing the S-expression rather than the
+character form of a program, using lexical scoping and shadowing to enhance
+subsystem modularity, relying on macros and compiler-macros for more pleasant
+syntax and greater modularity, requiring immutable/functional bindings,
+strings, vectors and lists; using object-oriented capabilities to build basic
+capabilities--e.g., generic arithmetic, streams and pathnames, relying on
+<tt>defstruct</tt> instead of <tt>defclass</tt>, and standardizing on
+<tt>defmethod</tt> for all function definitions.  A virtual/synthetic class
+mechanism is presented to solve certain technical problems analogous to those
+solved by the "virtual function" mechanism of C++.  Finally, we recommend the
+inclusion of <i>futures</i> as DKLisp's fundamental mechanism for the
+introduction of multiple parallel threads of computation.
+
+<hr>
+
+</head><body>
+
+<h2>1.  Introduction</h2>
+
+The last ten years have seen both a boom and and bust for the Lisp language.
+From its inception in 1958 until its commercialization in 1980, Lisp was
+content to live a life of academic obscurity, servicing the needs of Artificial
+Intelligence, theorem proving and symbolic algebra researchers.  In this role,
+Lisp could explore many new ideas and quickly absorb new ideas from the
+programming language "mainstream".  However, when AI became a business, Lisp
+was drawn to the money like a moth to the flame.  Lisp quickly sought to become
+"industrial strength", and ANSI Common Lisp was the result.  Unfortunately,
+"industrial" quickly became "rust belt", as the newly standardized Common Lisp
+could not quickly grow and adapt to the new, more "open" environment.<p>
+
+In Lisp's quest for industrial respect, it abandoned its traditional customers.
+Symbolic algebra developers (e.g., <i>Maple</i>, <i>Mathematica</i>) forsook
+Lisp for the more portable and efficient C.  Logicians gave up Lisp for Prolog
+and ML.  Vision researchers, seeking the highest performance from parallel
+computers, dropped Lisp in favor of C, Fortran (!) and various fringe parallel
+languages.  AI companies were forced to move their expert systems into C, C++,
+Ada and Cobol (!) because of the large size, poor performance and poor
+integration of Common Lisp systems.  Academicians teaching undergraduates chose
+Scheme and ML for their small size, portability and clean semantics.<p>
+
+Lisp now commands a smaller market share of the overall computer software field
+than it did ten years ago, before the rapid rise of commercial Lisp!  If the
+current standardization effort is to avoid "rearranging the deck chairs on the
+Titanic", <i>ISO/DIN must develop a brand new language which addresses the
+deficiencies in Common Lisp</i>, particularly those which have driven most of
+its traditional customers away.  Its goal of backwards compatibility is not
+reasonable, since existing Common Lisp programs are unlikely to be converted to
+DKLisp, and backwards compatibility loads Lisp down with too much useless
+baggage.  The goal of standardizing only non-controversial capabilities is also
+not reasonable, since the only reason why controversy surrounds certain
+capabilities is that people need them desparately!  <i>All progress is a
+process of creative destruction, wherein the hardest, but most important,
+decisions involve what must be pruned in order to free up the resources needed
+for new, more vigorous growth</i>.  Many of Common Lisp's current woes can be
+traced to the ANSI Committee's shirking of this responsibility; the ISO
+Committee must not follow in their footsteps.<p>
+
+The Lisp community must listen to the marketplace, which has shouted
+<i>small</i>, <i>small</i>, <i>small</i> and <i>efficient</i>,
+<i>efficient</i>, <i>efficient</i> for two decades.  The triumph of Pascal over
+PL/I and Algol-68, C over Pascal and Ada, ML and Scheme over Common Lisp,
+Smalltalk and C++ over Common Lisp/CLOS, and RISC over CISC, all reinforce this
+theme.  By far the largest single Lisp community is the <i>AutoLISP(r)</i>
+installed base of over 300,000 customers; AutoLISP is an interpreted,
+dynamically-scoped Lisp written in C that runs in <i>32K bytes</i> on a 640K
+IBM PC.  AutoLISP has fixnums and floats, immutable strings and immutable (!)
+list cells.  Its "virtual memory" system goes beyond autoloading, by swapping
+source code to disk.  AutoLISP is both the command language and extension
+language for the <i>AutoCAD</i> mechanical drawing system of Autodesk, Inc.,
+and the success of this product can be attributed, in part, to the elegance and
+flexibility offered by AutoLisp.
+
+<h2>2.  Goals of DKLisp</h2>
+
+Every venture must have goals to define itself and to inspire its followers.
+If DKLisp is a language worth standardizing, then it should be possible to
+characterize the strengths of the language that make it attractive to a
+potential user or potential vendor.  DKLisp has competitors, most prominently
+ANSI Common Lisp and IEEE Scheme, but logic languages and functional languages
+are growing quickly in popularity.<p>
+
+If DKLisp is going to be successful in the crowded world of computer languages,
+it must have some distinctive competence not otherwise available.  Having been
+in the position of recommending a computer language as the "command and
+extension language" for several commercial products, we carefully evaluated
+both Common Lisp and Scheme and found both to be seriously deficient; Common
+Lisp was too large and too difficult to master by non-wizards, even while it
+lacked (standardized) multiple processes, and Scheme's lack of a type system,
+object-oriented programming features, macros, EVAL, and multiple processes made
+it too inefficient and weak.  We would hope that DKLisp would become an
+alternative to Common Lisp and Scheme, so that we could wholeheartedly
+recommend a Lisp dialect to the non-wizard, non-academic community.<p>
+
+Presumably, a <i>kernel</i> language is a <i>minimal</i> language on top of
+which a larger language can be built.  <i>Since its primary function is being
+an implementation language for function libraries and a target language for
+macros</i>, a Kernel language need not be particularly "user-friendly" or
+provide a lot of flexibility in its interface.  Although it is desirable, a
+Kernel language does not have to be a strict <i>subset</i> of the full
+language, since some of its features may not be visible in the full language.
+A Kernel language should be simpler and more efficient to implement than the
+full language, however, to avoid an <i>abstraction inversion</i>,<a href="#fn2">[2]</a> in which a
+simpler notion is defined in terms of more complex notions.<p>
+
+We therefore recommend the following as desiderata for DKLisp:
+
+<ol>
+
+<li><i>Efficiency</i>.  The language should be capable of efficient execution
+on a wide variety of existing and future architectures.  It should be efficient
+enough to support a tower of abstraction levels without toppling.  Sheer
+efficiency can compensate for a number of deficiencies, because a user can
+trade execution time for luxuries.  It should not be necessary to write
+numerically-intensive subsystems in another language--i.e., it should be
+possible to achieve execution speeds for DKLisp on fixnums, characters,
+single-precision and double-precision floating point numbers and vector
+references which is within 20% of the speed of optimized C code.  It should be
+possible to tune an application without massive rewrites of the code, and
+without requiring massive use of Common Lisp's "#+/#-".</li>
+
+<li><i>Size</i>.  The language <i>definition</i> itself should be kept to 50
+pages, and the language itself should be capable of running effectively within
+the 640K limit on MSDOS machines.<a href="#fn3">[3]</a>  These
+limitations guarantee the ability to build, maintain and port the language with
+a relatively small staff.  So long as DKLisp does not waste these 50 pages on
+heavy syntax and datatyping, the language can have enormous power.</li>
+
+<li><i>Parallelism</i>.  The language should be capable of effective execution
+on SIMD and MIMD parallel architectures, supporting both the shared-memory and
+non-shared-memory (message-passing) paradigms.</li>
+
+<li><i>Persistence</i>.  The language should be capable of seamless extension
+with a model of persistence along the lines of object-oriented databases
+[Kim89].</li>
+
+<li><i>Abstract Data Types and Object-Oriented Programming</i>.  DKLisp should
+not only offer the user a mechanism for building abstract data types and using
+object-oriented programming techniques, but should also utilize these
+capabilities itself.  The ultimate goal is to make most of the functionality of
+ANSI Common Lisp--although probably not its syntax--available through libraries
+of abstract data types and subroutines, rather than having these capabilities
+"built in" [Gabriel91].</li>
+
+<li><i>Programming in the Large</i>.  DKLisp should <i>not</i> follow the
+ridiculous Unix "make" model of system-building based on large numbers of ASCII
+files linked together with chewing gum and baling wire.  The Ada library model
+(especially with Ada-9X nested libraries) is far more Lisp-like, and could be
+almost trivially done in a persistent DKLisp, since DKLisp does not have the
+type complexity of Ada.<a href="#fn4">[4]</a></li>
+
+<li><i>Clean Semantics</i>.  Language implementors and users should not have to
+become "language lawyers", nor should it be necessary for ACM <i>Lisp
+Pointers</i> to institute a "Dear John" (McCarthy) column<a
+href="#fn5">[5]</a> to explain the intricacies of obscure
+portions of DKLisp.  It should be possible to write a simple metacircular
+interpreter in a few pages, as in McCarthy's original Lisp.</li>
+
+</ol>
+
+<h2>3.  Applying these goals to DKLisp.</h2>
+
+Obtaining <i>efficient execution</i> from DKLisp requires minimizing decisions
+and operations which must be performed at run-time.  This means that
+
+<ol>
+
+<li>the number and complexity of control operations be minimized;</li>
+
+<li>the number and datatypes of arguments to primitive functions be fixed;</li>
+
+<li>the datatype of function results be fixed;</li>
+
+<li>the selection of generic function methods be done at "compile"
+(i.e., macro-expansion) time;</li>
+
+<li>copying and (heap) consing be minimized;</li>
+
+<li>opportunities for compiler/runtime optimizations be maximized; and</li>
+
+<li>portable, transparent access to traditional control and data primitives
+be provided--e.g., goto's, double-precision multiply-divide, character
+manipulations and floating point operations.</li>
+
+</ol>
+
+Meeting the efficiency requirement will require a set of non-generic
+arithmetic functions for at least the 3 datatypes: <tt>fixnum</tt>,
+<tt>single-float</tt> and <tt>double-float</tt>, which functions can
+be utilized to efficiently implement generic arithmetic.<p>
+
+Preserving a <i>small definition</i> for DKLisp requires that the standard
+ruthlessly eliminate non-primitive notions to focus on simple, efficient,
+modular primitives from which the rest of a Lisp system can be easily and
+efficiently constructed.  In other words, DKLisp primitives must be chosen not
+for their ability keep a user program small, but for their ability to keep an
+implementation small and fast.<p>
+
+Providing for <i>parallelism</i> in DKLisp means far more than specifying
+forking and synchronization primitives.  The basic data structures and binding
+models must also be compatible with parallel execution.  Since imperative
+constructs--most notably assignments--greatly interfere with the potential for
+clean and efficient parallel execution, these constructs will have to be
+severely curtailed in DKLisp.  Furthermore, DKLisp will have to indicate for
+every binding whether it is permanent (immutable) or temporary (mutable).<p>
+
+Providing for <i>persistence</i> in DKLisp means providing for
+
+<ol>
+
+<li>execution environments whose lifetimes may be measured in months
+and years, and</li>
+
+<li>execution environments some of whose data structures may be shared
+among several users.</li>
+
+</ol>
+
+Some implications of this requirement are the same as for
+parallelism, but others include a system of first-class types/classes (i.e.,
+<tt>type</tt> is a type).<p>
+
+Providing for <i>abstract data types</i> and <i>object-oriented programming</i>
+requires the ability to extend types and polymorphically extend function
+definitions.<p>
+
+Providing for <i>programming in the large</i> requires the ability to define
+and debug subsystems and then transitively compose them into larger and larger
+systems, without requiring massive changes in the components being
+incorporated.  Traditional compiled languages--e.g., Ada--make extensive use of
+a lambda-calculus-like naming visibility scheme, wherein "alpha-renaming"
+assures that semantics are independent of the spelling of identifiers, and
+wherein "lexical shadowing" assures the referential transparency of subsystems.
+Common Lisp has not yet capitalized on the full power of lexical scoping to
+achieve this goal.<p>
+
+Providing for <i>clean semantics</i> is the hardest requirement of all.  Most
+languages take a "divide and conquer" approach to simultaneously meeting a
+number of different requirements; this <i>ad hoc</i> approach uses a completely
+different mechanism for each problem to be solved.  ANSI Common Lisp is the
+biggest offender of this requirement since PL/I [Radin78].<a
+href="#fn6">[6]</a>  It has at least 12 kinds of dynamic
+binding--static variables, dynamic variables, function/macro names, block
+names, catch tags, go tags, unwind-protect forms, keyword association lists,
+property lists, hash tables, pathname/file bindings and method/function
+bindings--as well as a number of kinds of "static" binding--package,
+defconstant, defun/defmacro, readtable macro, etc.  Common Lisp has not taken
+enough advantage of the ability of lexical scoping to singlehandedly finesse
+many of these binding problems.
+
+<h2>4.  Specific Comments on DKLisp Definition Version 1.2</h2>
+
+<h3>Primitive Control Constructs</h3>
+
+The DKLisp standard document wastes valuable space on trivialities.  If certain
+concepts are not <i>primitive</i>--i.e., if they can be easily defined in terms
+of other concepts--then these non-primitive definitions should be relegated to
+an appendix.  The best examples are <tt>let</tt>, <tt>let*</tt>, <tt>null</tt>,
+<tt>and</tt>, <tt>or</tt>, <tt>cond</tt>, <tt>case</tt>, <tt>progn</tt>,
+<tt>do</tt> and <tt>do*</tt>.  Since these are all trivially defined by macros
+in terms of function calling, <tt>lambda</tt> and <tt>if</tt>, DKLisp need only
+give a macro definition for these forms in an appendix, along with words to the
+effect that any implementation must produce the same results as if they had
+utilized these macro definitions.  Since we are talking about the language
+<i>definition</i>, and not the language <i>implementation</i>, an
+implementation is free to recognize and specially handle non-primitive
+capabilities.  However, all of the above constructs, with the possible
+exception of <tt>case</tt>, have macro-expansions which can be compiled
+efficiently without having to be specially recognized.  Getting rid of these
+non-primitive concepts reduces the DKLisp standard by 5.4%.
+
+<h3>Boolean and Character Data Types</h3>
+
+Some modern languages--e.g., Ada--define the Boolean type and the character
+type by means of enumeration.  In other words, these types are defined by
+exhaustively listing their members, which types are guaranteed by the semantics
+of the language to be disjoint from all other types.  Other languages--e.g.,
+C--define the Boolean type and the character type as subranges of the integers,
+where the overlap of the types is at least tolerated, if not intentional.
+Common Lisp has no separate Boolean type, and primitively defines characters as
+a separate type.  One could define the Common Lisp characters non-primitively
+as an abstract data type whose representation utilized a subrange of the
+fixnums; if Common Lisp were then required to offer specialized vector
+representations for this subrange of the fixnums, and if the type system were
+efficient enough, this scheme would work.  In spite of its elegance, we have
+not recommended this course for DKLisp because it is not clear that the amount
+of work involved in such a definition might not be greater than simply making
+characters primitive.  On the other hand, such a scheme would generalize to
+non-ASCII character sets (e.g., ANSI-C "multibyte characters") much more easily
+than the current Common Lisp scheme.<p>
+
+We recommend that DKLisp abandon the traditional Lisp practise of unifying
+Boolean "false" with the empty list <tt>NIL</tt>, and unifying "true" with
+anything non-<tt>NIL</tt>.  In other words, we recommend that DKLisp take up
+Scheme's original suggestion of using <tt>#t</tt> and <tt>#f</tt> to mean
+Boolean "true" and "false" respectively.  There are several good reasons for
+this.  First, the practise of primitive predicates returning arbitrary values
+encourages the user to do the same, putting a needless load on the garbage
+collector to recycle this garbage.  Second, the use of specialized Boolean
+values allows the compiler to do more optimization, since it has more detailed
+information about the possible value types that may occur at run-time
+
+<a href="TInference.html">[Baker90TI].</a>
+
+Third, the use of specialized Boolean values allows for more
+error-checking at run-time, since random values will not be misinterpreted as
+true.  Finally, specialized Boolean values make a program more readable, since
+the reader doesn't have to perform mental flow analysis to determine whether a
+<tt>NIL</tt> means an empty list or a "false".  To summarize, we recommend the
+addition of a new DKLisp type <tt>boolean</tt>, whose only members are the
+objects <tt>#f </tt>and <tt>#t</tt>; these objects are not Lisp symbols, so
+they do not have, e.g., property lists.  We further recommend that
+"<tt>()</tt>" (= <tt>NIL</tt>), the empty list, <i>not</i> be a DKLisp symbol.
+With these changes, DKLisp can decommission the symbol <tt>t</tt> back to
+civilian (i.e., non-special, non-constant) status.
+
+<h3>Primitive Data Types</h3>
+
+The primitive numerical functions on integers include <tt>minusp</tt>,
+<tt>zerop</tt>, binary <tt>+</tt>, unary <tt>-</tt>, binary <tt>*</tt>, unary
+<tt>/</tt>, binary <tt>floor</tt> ("returning" 2 values--discussed later), and
+binary <tt>logand</tt>.  The non-primitive numerical functions include
+<tt>plusp</tt>, <tt>=</tt>, <tt>&gt;=</tt>, <tt>&lt;=</tt>, <tt>&gt;</tt>,
+<tt>&lt;</tt>, unary <tt>+</tt>, binary <tt>-</tt>, binary <tt>/</tt>,
+<tt>min</tt>, <tt>max</tt>, <tt>abs</tt>, <tt>mod</tt>, <tt>gcd</tt>,
+<tt>lcm</tt>, <tt>oddp</tt>, <tt>evenp</tt>.  The rational numbers are easy
+non-primitive applications of object-oriented programming to the integers; the
+complex numbers are non-primitive applications of object-oriented programming
+to the floats and rationals.<a href="#fn7">[7]</a>  The
+non-primitive character and string functions include <tt>char&lt;</tt>,
+<tt>char&gt;</tt>, <tt>string&lt;</tt>, <tt>string&gt;</tt>,
+<tt>string-upcase</tt>, <tt>string-downcase</tt>, <tt>string-less-p</tt>,
+<tt>string-greater-p</tt>.  Separate character-ordering predicates are
+redundant, since this ordering is defined in terms of the injective function
+<tt>char-int</tt>.  Strings themselves are non-primitive, since they are
+vectors of characters.  The only primitive string concepts are:
+
+<ol>
+
+<li>specialized vectors of characters exist, and</li>
+
+<li>the double-quote notation maps into them.<a
+href="#fn8">[8]</a></li>
+
+</ol>
+
+We reiterate that non-primitive does not
+imply a function call, because an implementation is free to compile
+non-primitives into a single machine instruction, if they wish, so long as the
+function has not been declared <tt>notinline</tt>.  Eliminating these
+non-primitive concepts reduces the DKLisp standard by 8%.
+
+<h3>Fixnums and Integers</h3>
+
+The primitive operations of <tt>fixnums</tt> must be slightly different from
+those of the integers, to avoid overflow problems.  Thus, binary <tt>&lt;</tt>
+and <tt>=</tt> are primitive instead of <tt>minusp</tt> and <tt>zerop</tt>, and
+binary <tt>-</tt> is primitive rather than unary <tt>-</tt>.<p>
+
+We recommend that arbitrary precision integers <i>not</i> be primitive in
+DKLisp.<a href="#fn9">[9]</a>  There are two reasons for this:
+
+<ol>
+
+<li>many primitive uses of integers--e.g., <tt>do</tt> loops--involve
+only small integers--i.e., <tt>fixnums</tt>--and must be extremely
+efficient; and</li>
+
+<li>DKLisp implementations in which large integers--i.e.,
+<tt>bignums</tt>--are programmed in DKLisp itself will be far more
+portable.</li>
+
+</ol>
+
+If the DKLisp standard
+follows the rest of our suggestions, then a DKLisp implementation of
+<tt>bignums</tt> will be as efficient as one written in C.  The primitive
+operations required for <tt>fixnums</tt> can be found in any microprocessor
+machine language manual--add-with-carry, subtract-with-carry, double-shift,
+double-multiply, double-divide, etc.  Since many of these operations produce
+two <tt>fixnum</tt> results, and since we agree with DKLisp's policy not to
+support Common Lisp's "multiple values", we must provide an efficient mechanism
+for DKLisp to accept these values.<p>
+
+We recommend the following programming style for these multiple-result
+primitives.
+
+<tt><pre>
+(fixnum-add-with-carry (the fixnum x) (the fixnum y) (the fixnum c)
+  #'(lambda (sum-low sum-high)
+       (declare (fixnum sum-low sum-high))
+       &lt;&lt; do something with low and high parts &gt;&gt;)) =&gt;
+&lt;&lt; returns (single) value returned by inner lambda expression. &gt;&gt;
+
+(defun fixnum-add-with-carry (x y c f)
+  (declare (fixnum x y c) (ftype f (fixnum fixnum) t))
+  ;;; Has these semantics, but is implemented far more efficiently.
+  (let ((n (1+ most-positive-fixnum)))
+    (funcall f (mod (+ x y c) n) (floor (+ x y c) n))))
+
+(fixnum-divide-with-remainder
+  (the fixnum dividend-low) (the fixnum dividend-high) (the fixnum divisor)
+  ;;; A decent compiler can figure out the fixnum typing itself.
+  #'(lambda (quotient remainder)
+       (declare (fixnum quotient remainder))
+       &lt;&lt; utilize quotient and remainder here &gt;&gt;)) =&gt;
+&lt;&lt; returns (single) value returned by inner lambda expression &gt;&gt;
+
+(defun fixnum-divide-with-remainder (dividend-low dividend-high divisor f)
+  (declare (fixnum dividend-low dividend-high divisor)
+           (ftype f (fixnum fixnum) t))
+  ;;; Has these semantics, but is much more efficient.
+  (let ((dividend (+ (* dividend-high (1+ most-positive-fixnum))
+                     dividend-low)))
+    (funcall f (floor dividend divisor) (mod dividend divisor))))
+</pre></tt>
+
+Since a DKLisp compiler can recognize <tt>fixnum-divide-with-remainder</tt> as
+a primitive, it can open code not only this primitive, but also the (usually
+constant) lambda-expression given as its 4th argument,<a
+href="#fn10">[10]</a> resulting in nearly optimal machine code
+(optimal code requires <tt>dividend-low</tt> and <tt>dividend-high</tt> to
+reside in adjacent machine registers).  By providing for efficient
+<tt>fixnum</tt> operations, as well as efficient <tt>simple-vectors</tt> of
+<tt>fixnums</tt>, a DKLisp <tt>bignum</tt> implementation should pay no penalty
+relative to a "native" <tt>bignum</tt> implementation.  For example, the
+Symbolics 3600 efficiently implemented <tt>bignums</tt> in Lisp in a like
+fashion, although it utilized hardware multiple values instead of our
+open-coded closures.
+
+<h3>Floats</h3>
+
+Floats of several precisions and their operations must be primitive, since IEEE
+floating point datatypes are provided by most modern hardware, and since there
+are no simple algebraic relationships among the various IEEE functions.
+DKLisp's use of the term "real" instead of the more accurate "float" is
+embarrassing and should not be tolerated in a Lisp standard, because it
+advertises to the whole world the Lisp community's ignorance of mathematics.
+We strongly recommend that DKLisp eliminate dynamic <i>floating point
+contagion</i> in favor of a statically computable coercion policy.  Floating
+point contagion is almost never what a system builder wants, and the mere
+possibility of such contagion eliminates a number of effective optimizations.
+Similarly, complex contagion--usually the result of inverse irrational
+functions such as <tt>sqrt</tt> and <tt>asin</tt>--produces similar uncertainty
+as to the result datatype.  It would be better to define <tt>sqrt</tt> and
+<tt>asin</tt> to <i>always</i> produce a complex number, and then the
+programmer can coerce it back to a <tt>float</tt> himself by throwing away its
+imaginary part when it is identically zero.  Of course, this policy requires
+that <tt>sqrt</tt> of a non-negative number have an imaginary part which is
+identically zero, and that <tt>asin</tt> of a number in the range
+[-pi,pi] have an imaginary part which is identically zero; this policy
+is as easily arranged as the current Common Lisp contagion policy.<p>
+
+The default external representation is unreasonably inefficient for the
+transmission of floating point numbers, because it requires that floating point
+numbers be converted to decimal and reconverted when read back in.  While there
+exist routines [Clinger90] [Steele90] to perform these conversions without the
+loss of even one bit, they require great subtlety and the conversions cannot be
+as efficient (i.e., O(n*logn) versus O(n)) as when a binary or hexadecimal
+external representation is used.  We therefore recommend that DKLisp define a
+non-decimal external representation for floating-point numbers,<a
+href="#fn11">[11]</a> so that efficient, lossless external
+representations can be used.
+
+<h3>Functional/Immutable CONS cells</h3>
+
+We recommend that DKLisp provide for only immutable <tt>CONS</tt> cells; i.e.,
+<tt>RPLACA</tt> and <tt>RPLACD</tt>, along with all of the "<tt>NXXX</tt>"
+destructive list functions, should be eliminated from Lisp.  Since eliminating
+these ancient capabilities from Lisp is certain to be controversial, we have
+given a thorough discussion of the issues in a 30-page paper "Equal Rights for
+Functional Objects"
+
+<a href="ObjectIdentity.html">[Baker93ER],</a>
+
+whose arguments are briefly summarized here.<p>
+
+A major issue is engineering pragmatism: if most <tt>CONS</tt> cells are
+functional, and if the mutability of <tt>CONS</tt> interferes with their
+optimization, then the majority of <tt>CONS</tt> cells are paying for the
+capabilities of the few.  The efficiency of <tt>CONS</tt> cells is paramount
+because they are intimately involved with the implementation of Lisp
+itself--Lisp programs are represented by <tt>CONS</tt> cells, and Lisp
+<tt>&amp;REST</tt> arguments are lists made of <tt>CONS</tt> cells.  The
+mutability of <tt>CONS</tt> cells exhibits itself in the treatment of source
+code expressions like <tt>(QUOTE (a b c))</tt>.  Since <tt>CONS</tt> cells are
+mutable, the compiler cannot assume that the value of this expression is truly
+constant, and cannot conclude that <tt>CAR</tt> of the expression will always
+be the symbol <tt>a</tt>.<p>
+
+The intimate relationship between <tt>CONS</tt> cells and argument lists shows
+itself in the treatment of the following Common Lisp expression:
+
+<tt><pre>
+(let ((x '(a b c))) (eq x (apply #'(lambda (&amp;rest foo) foo) x)))
+</pre></tt>
+
+If the expression is true, then the function <tt>apply</tt>'ed can side-effect
+<tt>apply</tt>'s last argument, while if it is false--i.e., either
+<tt>apply</tt> or <tt>&amp;rest</tt> (or both!) copies the list--then much
+copying is required, even when there are no side-effects.  If
+<tt>apply</tt>/<tt>&amp;rest </tt>always copies, then this is a source of
+considerable inefficiency, while if <tt>apply</tt>/<tt>&amp;rest</tt> does not
+copy, then the compiler must generate code for the worst case scenario.
+Immutable list cells allow sharing without side-effects, providing the best of
+both worlds.<p>
+
+In a parallel Lisp system, the relative costs of mutable <tt>CONS</tt> cells
+versus immutable <tt>CONS</tt> cells are much greater than in a serial system.
+Every <tt>CONS</tt> cell becomes a shared database which must be protected by a
+synchronization protocol.  Even seemingly insignificant violations of strict
+access sequentiality in a shared-memory machine<a
+href="#fn12">[12]</a> can exhibit bugs which are highly obscure
+and almost impossible to find.  A "remote procedure call" in Lisp which
+attempts to preserve Lisp semantics must either simulate a cache coherency
+protocol, or face the cost of laboriously and sequentially querying for the
+<tt>CAR</tt> and <tt>CDR</tt> of every <tt>CONS</tt> on an argument list.<p>
+
+Preserving <tt>CONS</tt> coherency in a <i>persistent</i> Lisp system involves
+the same problems as those in a parallel Lisp system--one can never copy an
+entire list in one "transaction", but must query each list element in turn.<p>
+
+The simplest and most direct solution to all of these problems is to make all
+<tt>CONS</tt> cells immutable; those wanting traditional side-effectable cells
+can "roll their own" utilizing <tt>defstruct</tt>.  Then, Lisp source code is
+constant, quoted constants are constant, list sequences are constant, argument
+lists are constant, etc.  Since we have already argued for immutable strings
+(the default) and immutable arrays (at the programmer's option), many common
+argument "lists" involving numbers and strings can be legitimately shared.
+This constancy means that lists no longer need to be constantly copied to avoid
+the small chance of a side-effect, but need be copied only when it is
+convenient.  The constancy of immutable lists means that additional
+representation tricks can be played--e.g., a list can be represented by a
+number of adjacent cells--i.e., a vector--without any worry about that
+<tt>RPLACD</tt> may spoil the scheme.<p>
+
+Immutable <tt>CONS</tt> cells cannot be used to create circular lists without
+other kinds of objects intervening--e.g., a mutable vector, and therefore
+<tt>PRINT</tt> can be somewhat simplified.  The predicate <tt>EQL</tt> becomes
+equivalent on immutable list cells to the predicate <tt>EQUAL</tt>, which never
+was well-defined on mutable list cells.  Similarly, <tt>EQL</tt> and
+<tt>EQUAL</tt> are equivalent on all immutable objects, which implies that
+<tt>EQUAL</tt> is redundant and can be eliminated.<p>
+
+We therefore have the following definition of <tt>EQL</tt> (see
+
+<a href="ObjectIdentity.html">[Baker93ER]</a>
+
+for more details):
+
+<tt><pre>
+(defun eql (x y)
+  (and (eql (type-of x) (type-of y))
+       (cond ((atom x) (eq x y))            ; symbols &amp; "immediate" values
+             ((mutablep x) (eq x y))        ; mutablep(x) iff mutablep(y)
+             (t (every #'(lambda (component)
+                       (eql (funcall component x) (funcall component y)))
+                       (components (type-of x)))))))
+</pre></tt>
+
+<h3>Vectors and Sequences</h3>
+
+We recommend that only <i>simple</i> (i.e., non-filled, non-adjustable,
+non-displaced) vectors of the primitive data types be defined by DKLisp.  In
+other words, we recommend that DKLisp define homogeneous simple vectors of
+<tt>characters</tt>, <tt>fixnums</tt>, and <tt>floats</tt> of each provided
+precision, in addition to non-homogeneous type <tt>t</tt> vectors.  Note that
+we recommend against providing primitive <tt>simple-bit-vectors</tt> as they
+can be built efficiently from <tt>character</tt> or <tt>fixnum</tt> vectors
+
+<a href="Bitvectors.html">[Baker90BV],</a>
+
+and we go further than Common Lisp in requiring <tt>fixnum</tt>
+and <tt>float</tt> vectors.<p>
+
+The more sophisticated kinds of vectors and arrays in Common Lisp can be easily
+and efficiently implemented by means of object-oriented programming and generic
+functions, so long and the rest of our recommendations are followed.  For
+example, <tt>aref</tt> becomes a generic function which dispatches on the type
+of its first argument to discover the number of dimensions which must be
+supplied; this dispatch requires that <tt>array-rank-0</tt>, <tt>vector</tt> (=
+<tt>array-rank-1</tt>), <tt>array-rank-2</tt>, <tt>array-rank-3</tt>, etc., all
+be subtypes of <tt>array</tt>.<a href="#fn13">[13]</a>  The syntax of many of the vector and array
+functions of Common Lisp must change, because they do not conform to standard
+generic function mechanisms or meet other important criteria.<a
+href="#fn14">[14]</a><p>
+
+We strongly recommend that DKLisp provide for both <i>mutable</i> and
+<i>immutable</i> vectors, which is an extension of ANSI Common Lisp.<a
+href="#fn15">[15]</a>  Mutable vectors are the traditional
+Common Lisp vectors, while immutable vectors are new to DKLisp.<a
+href="#fn16">[16]</a>  Immutable vectors of characters are most
+useful as constant strings--e.g., the strings which appear as
+<tt>symbol-names</tt>.  Since constant strings may be referenced without having
+to be copied, they can be used in a large number of places where safety would
+otherwise require copying--e.g., <tt>symbol-name</tt>, <tt>subseq</tt>.  Since
+the vast majority of strings in Common Lisp programs are never side-effected,
+the trade-off between safety and efficiency has been drawn in the wrong place,
+thus slowing down all but a small fraction of the applications of strings.<a
+href="#fn17">[17]</a>  We further recommend that character
+strings which are read in using double quotes ("") be classified as constant
+vectors of characters.  This policy solves the problem of non-constant
+constants, and eliminates any worry about whether an implementation optimizes
+the space for its character strings by sharing.  In an analogy to
+<tt>fixnums</tt> and <tt>integers</tt>, "short" functional DKLisp strings of
+perhaps 1-4 characters can even be an "immediate" datatype, in which case
+individual characters no longer need be primitive, as they are simply immediate
+strings of length 1.<p>
+
+Immutable vectors of non-characters can be extremely useful as lookup tables,
+which can be passed <i>in toto</i> without worrying about the callee
+side-effecting the table.  Since it is impossible to incrementally create
+constant vectors, they are normally created by coercion from a (non-constant)
+sequence.<p>
+
+While immutable strings and vectors are a convenience in serial systems, they
+are a necessity in parallel systems.  This is because almost all parallelism is
+lost unless one can somehow prove that there is no conflict, and these
+assurances in a totally mutable environment are almost impossible to achieve.<p>
+
+The default external representation for vectors in Common Lisp is unreasonably
+inefficient, because it requires that the entire vector be read in first into a
+temporary form of indeterminate length, which must then be copied to the final
+object once its length is known.  Worse still, the default sequence for this
+temporary form is list structure, whose small cells are relatively expensive to
+garbage collect.  DKLisp should define a syntax which optionally includes the
+vector length at the very beginning.  If this length is supplied on input, then
+the final vector can be immediately allocated and filled in without any
+additional garbage collector overhead.  If DKLisp follows our recommendation by
+providing immutable strings, then it must supply a primitive function to return
+the next n characters read from a stream as an immutable string--e.g., using
+Unix/ANSI C <tt>fread</tt> [ANSI-C].<p>
+
+There are several problems with DKLisp sequences.  It is not clear whether
+<tt>subseq</tt> applied to a list can return a portion of the list, or must
+always create a new list; for immutable lists this distinction would not
+matter.  Similarly, for immutable vectors, it would be acceptable to return a
+displaced vector, rather than a copy of the original.  The syntax of
+<tt>concatenate</tt> in DKLisp (and Common Lisp) does not conform to the
+requirements for a CLOS generic function, because CLOS generic functions can
+dispatch on an object using <tt>eql</tt>, but not on a type specifier, which
+would require a <tt>subtypep</tt> dispatch.  The syntax must therefore be
+changed, but the solution is trivial--<tt>concatenate</tt> is a generic
+function of exactly two arguments, which is initially supplied with methods for
+the simpler kinds of vectors and lists.
+
+<h3>Lambda and let bindings</h3>
+
+We recommend that variables bound with <tt>lambda</tt> and
+<tt>let</tt>/<tt>let*</tt> utilize the typing syntax of <tt>defmethod</tt>,
+since it is more obvious and less ugly than the <tt>declare</tt> syntax of
+Common Lisp.  Furthermore, it becomes clear that a function can only be called
+with arguments of the specified types.  In essence, <tt>lambda</tt> should be
+an anonymous generic function with a single method, and
+<tt>let</tt>/<tt>let*</tt> should be defined in terms of <tt>lambda</tt>.  Of
+course, if <tt>let</tt>/<tt>let*</tt> creates only immutable bindings, then
+there is no need to specify a type/class for those variables, since the
+type/class is obvious from the bound value.  Note that <tt>defun</tt> thus
+becomes a synonym for <tt>defmethod</tt>.
+
+<tt><pre>
+(defun factorial ((n integer))
+  ;;; This is so much prettier and obvious than (declare (integer n)).
+  (if (zerop n) 1 (* n (factorial (1- n)))))
+</pre></tt>
+
+We strongly agree that the function declaration <tt>defun</tt> always produce
+an immutable binding.  Lisp has other mechanisms for handling function
+<i>variables</i>, and the uncertainty surrounding the constancy of the function
+name binding inhibits many optimizations [Gabriel91].  Immutability of this
+function binding does not mean that this binding cannot be shadowed;
+<tt>labels</tt> and <tt>flet</tt> can both shadow a <tt>defun</tt>-bound
+function name.<p>
+
+We strongly recommend that the formal parameters of DKLisp lambda-expressions
+be immutably bound, and similarly for <tt>let</tt>/<tt>let*</tt> variables.  In
+other words, <tt>setq</tt>/<tt>setf</tt> should not be legal on such bindings.
+Mutable bindings should be introduced by a different syntax--perhaps
+<tt>let-mutable</tt>.  There are several reasons for this restriction.  First,
+having mutable bindings as the default legitimizes and encourages the
+gratuitous use of side-effects.  Second, a compiler or CASE tool must look at
+the entire body of the <tt>lambda-</tt> or <tt>let-expression</tt>, which
+requires expanding all macros, in order to determine if
+<tt>setq</tt>/<tt>setf</tt> is every used on the variable before it can
+determine the mutability of the binding and the types bound to the variable.<a
+href="#fn18">[18]</a>  The body of the expression must then be
+re-expanded, since this information may affect the expansion (remember, we may
+have generic functions present), and such re-expansions carried to several
+levels can blow up the compile/macro-expansion by at least O(n^2), if not
+O(2^n).  Third, a human reader of the code should not be required to scan
+through the code to determine whether the binding is mutable; the immediate
+indication of mutability is a great documentation aid.  Fourth, a mutable
+lexical binding involved in a closure requires additional overhead; the
+different syntax signals that the programmer is aware of this overhead and is
+willing to accept it.<p>
+
+We believe that DKLisp should define the order of evaluation of multiple
+arguments to a function (and the ordering of evaluation for
+<tt>let</tt>-expressions, as well).  In a language which allows side-effects,
+specifying this order is necessary to define the semantics of the nested
+composition of expressions.  While Common Lisp and many other languages (Ada,
+C) have demurred on this important point, argument ordering is far more
+important in Lisp than in other languages, since virtually all imperative
+operations take place as side-effects of nested function calling.  The usual
+reason for the lack of specificity for the argument evaluation ordering is to
+provide a compiler with more freedom for optimization.  However, if DKLisp
+accepts our other recommendations regarding more functional binding mechanisms
+and data structures, then a DKLisp compiler will already have a wide range of
+possibilities for optimization due to the Church-Rosser properties of
+completely functional expressions, and should not need the additional latitude
+of unspecified argument ordering.  We have little preference regarding which
+ordering (left-to-right or right-to-left) is chosen,<a
+href="#fn19">[19]</a> so long as DKLisp chooses only one.
+
+<h3>Macros</h3>
+
+The lack of macros in DKLisp is truly distressing.  The power of traditional
+Lisp macros is so immense and so useful, that the users and designers of other
+popular languages (C, C++, Ada) cannot begin to comprehend what their languages
+are missing without a decent macro system.  In the most modern terminology,
+<i>Lisp macros are the ultimate CASE tool</i>.  The expert Lisp programmer
+rarely writes any Lisp code himself, because his macros produce it all for him
+(see
+
+<a href="Bitvectors.html">[Baker90BV]</a>
+
+<a href="Prag-Parse.html">[Baker91PP]</a>
+
+).  In an industrial setting in which programs have
+to get written, debugged and delivered <i>in spite of system bugs and
+inefficiencies</i>, the macro is a miracle.  Bug fixes and compiler kludges can
+be hidden inside macros, instead of cluttering up the code with a large number
+of <tt>#ifdef's</tt> and <tt>#+</tt>/<tt>#-</tt>'s.  Macros can provide an
+entirely new user interface and language--without losing anything in
+efficiency.<p>
+
+Granted, many traditional uses of Lisp macros can be more cleanly handled by
+means of functions declared <tt>inline</tt>, without giving up any
+efficiency.<a href="#fn20">[20]</a>  In other cases, however,
+it is hard to imagine a compiler smart enough to perform certain optimizations,
+even after inlining.  Take the Common Lisp <tt>map</tt> sequence function, for
+example.  This function takes a function and an arbitrary number of sequences
+as arguments, and produces a new sequence as a result.  Unfortunately, one
+cannot in general determine until run-time which of the sequences are vectors
+and which are lists, and the lists and vectors can be intermixed.  All Common
+Lisp implementations include a functional implementation of sequence
+<tt>map</tt>, complete with <tt>&amp;rest</tt> arguments, but they either
+reference the sequences using <tt>elt</tt>--making them hopelessly inefficient
+on lists--or reference the sequences via functional "steppers", making them
+quite inefficient for both lists and vectors.  We know of no type
+inference/constant propagation techniques which can be applied to <tt>map</tt>
+in such a way that <tt>map</tt> <i>automatically</i> generates optimal code
+when inlined.  A macro (or more particularly a <tt>compiler-macro</tt>), on the
+other hand, can very simply <i>look</i> at the argument list for <tt>map</tt>
+at expansion time,<a href="#fn21">[21]</a> count the number of
+sequence arguments, and (most of the time) tell by looking which are vectors
+and which are lists.  In this way, the macro can easily generate nearly optimal
+code for <tt>map</tt> in a large number of common cases.<p>
+
+Of course, Common Lisp systems can achieve efficiency for <tt>map</tt> without
+utilizing macros.  However, the additional knowledge about how to expand
+<tt>map</tt> must be stored somewhere other than in the functional version of
+<tt>map</tt>; it can be stored either in spaghetti code in the compiler, or it
+can be associated with the symbol <tt>map</tt> in some way.  The more modular
+approach is to associate the expertise about <tt>map</tt> with the symbol
+<tt>map</tt>; in this case, one might as well utilize a <tt>compiler-macro</tt>
+which can be as smart about <tt>map</tt> as you please, and can also be
+compiled, so that it runs quickly during macro-expansion.<p>
+
+The Lisp tradition (at least until Common Lisp), however, is to assume that
+what is good for the implementation is probably good for the user, since many
+users of Lisp are themselves in the system building business.  Therefore, if a
+Common Lisp system achieves its own efficiency with a <tt>compiler-macro</tt>
+capability, then this capability should be offered for user functions, as
+well.<p>
+
+Of course, it is possible to write bad macros which are not referentially
+transparent and have other problems, but the solution to these problems is not
+to throw macros away.<a href="#fn22">[22]</a>  DKLisp should
+provide better alternatives such as inlining and hygienic macros [Kohlbecker86]
+rather than "throwing out the baby with the bath water".
+
+<h3>Lisp Source code consists of S-expressions, not sequences of characters</h3>
+
+DKLisp has wrongly focussed its standardization of Lisp source code as a
+<i>character string</i>, rather than as a Lisp <i>S-expression</i>; i.e.,
+<tt>(defun foo (x) (1+ x))</tt> is treated as a sequence of 22 characters
+instead of as a Lisp <i>list</i> of 4 objects, the first two of which are
+<i>symbols</i>, and the last two of which are <i>sublists</i>.<a href="#fn23">[23]</a>  The fact
+that such a list has an external representation as 22 characters is completely
+irrelevant, because there are many external representations mapping into the
+same S-expression.  Given immutable CONS cells, however, there is only one
+S-expression representation.<p>
+
+By focussing on the character string, rather than the S-expression, form,
+DKLisp forgets the importance of the S-expression form, and the fact that most
+of the S-expressions compiled or executed by DKLisp will not have been touched
+by human hands, but will have been created by macros and other
+S-expression-generating functions.  Furthermore, the S-expression form is far
+more useful for storing libraries of source code in a <i>persistent</i> DKLisp
+than is a character form.<p>
+
+The traditional means for specifying scope in Lisp programs is via
+parentheses--i.e., by means of the nesting of S-expressions themselves.
+Traditional Lisp systems violated "parenthesis-mediated scoping" only for very
+serious reasons--e.g., an early LAP (Lisp Assembly Program) format for a
+compiled function utilized a <i>sequence</i> of S-expressions terminated by
+<tt>NIL</tt> rather than a more obvious <i>list</i> due to space limitations.
+Modern Lisps have no such space limitations, and therefore they should utilize
+nested expressions exclusively.<p>
+
+DKLisp violates this nesting principle through its use of <tt>in-package</tt>
+and <tt>end-package</tt> to bracket sections of code which should be bracketed
+instead by parentheses.  The Common Lisp-84 scheme for specifying packages to
+avoid symbol name collisions in a large system was very kludgy, as the revised
+report admitted.<p>
+
+No Lisp standard has yet taken advantage of lexical scoping's ability to avoid
+name collisions, as we do in the following code:
+
+<tt><pre>
+;;; This form exports global-function1 through global-function9.
+(let-mutable
+  ((local-variable1 &lt;initial-value1&gt;) ; Some load-time initialization here.
+   (local-variable2 &lt;initial-value2&gt;)
+   ...
+   (local-variablen &lt;initial-valuen&gt;))
+ (labels
+  ((local-function1 &lt;args&gt; &lt;body&gt;)
+   (local-function2 &lt;args&gt; &lt;body&gt;)
+   ...
+   (local-functionn &lt;args&gt; &lt;body&gt;))
+  &lt;&lt; Do more load-time initialization here. &gt;&gt;
+  (defconstant global-function1 #'local-function3) ; export these functions
+  (defconstant global-function2 #'local-function5)
+  ...
+  (defconstant global-function9 #'local-function13)
+  &lt;&lt; Do more load-time initialization here. &gt;&gt;))
+
+;;; This form imports global-function1 through global-function9.
+(flet
+ ((local-function1 (&amp;rest args) (apply global-function1 args))
+  (local-function2 (&amp;rest args) (apply global-function2 args))
+  ...
+  (local-function9 (&amp;rest args) (apply global-function9 args))
+ (declare (inline local-function1 ...))
+ &lt;&lt; whatever definitions and initializations are needed here. &gt;&gt;)
+</pre></tt>
+
+Of course, these examples are only suggestions to spur the imagination, and
+their syntax could be cleaned up with a few macros, but they at least exhibit
+the appropriate semantics.  We therefore recommend that DKLisp drop the use of
+"packages"<a href="#fn24">[24]</a> and better utilize the power
+of lexical scoping to solve the name-collision problems of large-scale systems.
+
+<h3>Object System</h3>
+
+We are heartened to see an object system ("Gauss") as part of DKLisp.
+Nevertheless, we propose a number of changes, both to orthogonalize and to
+simplify this system.<p>
+
+The CLOS (Common Lisp Object System) documents never made it clear that the
+mechanism for defining polymorphic
+functions--<tt>defgeneric</tt>/<tt>defmethod</tt>--is completely independent of
+the mechanism for defining class structures--<tt>defclass</tt>.  This is
+because the operation of generic functions is controlled entirely by the
+<i>types</i> of the function's arguments, and the type system is only
+incidentally updated during the definition of a new class by <tt>defclass</tt>.
+Thus, one can conceive of a Common Lisp subset with generic functions but no
+classes, as well as a subset with classes but no generic functions.<p>
+
+In fact, we have built
+
+<a href="CLOStrophobia.html">[Baker91CLOS]</a>
+
+a single-inheritance mini-CLOS with
+generic functions, using <tt>defstruct</tt> instead of <tt>defclass</tt> to
+define "things with slots".  There are significant efficiency advantages to
+this approach, since one is not saddled with the whole "metaobject protocol"
+[Bobrow88] [desRivi&eacute;res90], as well as with the full complexity of
+<tt>defclass</tt>.  Furthermore, since <tt>defstruct</tt> can already
+incrementally extend an existing structure using single inheritance, and since
+the real power of object-oriented programming resides in generic functions, we
+gain in simplicity, while losing almost nothing in power.<p>
+
+One reason for preferring <tt>defstruct</tt> to <tt>defclass</tt> is
+<tt>defclass</tt>'s unfortunate dependence upon <tt>slot-value</tt> for its
+implementation.  Whereas <tt>defstruct</tt> defines slot accessor functions
+(which do not have to be generic functions in a single inheritance system)
+which can be expanded inline into a single machine instruction,
+<tt>defclass</tt> defines slot access in terms of <tt>slot-value</tt>, which
+takes a symbol as its second argument.  For a compiler to compile
+<tt>slot-value</tt> as efficiently as it does <tt>defstruct</tt> accessors, it
+has to know a lot more about internal data structures of the object
+system--e.g., the property list of the <tt>slot-name</tt>, or hash tables
+indexed by the <tt>slot-name</tt>--than <tt>defstruct</tt> does.  Thus,
+<tt>defclass</tt> implements a lower level concept--a slot accessor--in terms
+of a higher level concept--a complex object data structure in an <i>abstraction
+inversion</i>.  How much easier and more straightforward for a compiler to
+traffic in slot-accessor <i>functions</i> themselves (readers, writers and
+updaters<a href="#fn25">[25]</a>), and utilize the capabilities
+it already has for function inlining to achieve efficiency, rather than having
+the compiler know all sorts of specialized knowledge about the object-oriented
+system's data structures.<p>
+
+Another reason for preferring <tt>defstruct</tt> to <tt>defclass</tt> is
+<tt>defclass</tt>'s unreasonable dependence upon assignments and side-effects
+to achieve an initialized instance.  <i>There is no mechanism in CLOS for
+creating an initialized functional/immutable object.</i>  The <tt>make-xxx</tt>
+function generated by <tt>defstruct</tt>, on the other hand, performs both
+allocation and initialization together as an atomic action, making trivial the
+construction of both mutable and immutable objects.  If CLOS offered some
+mechanism such as <i>I-structures</i> [Arvind89] or <i>linear logic</i>
+
+<a href="LinearLisp.html">[Baker92LLL]</a>
+
+for protecting a newly allocated, uninitialized object from being
+referenced outside of its "nursery", then the dependence upon
+<tt>initialize-instance</tt> might be bearable, but CLOS offers no such
+assurances.  We sympathize with the problems of getting instances initialized
+in a modular fashion
+
+<a href="CLOStrophobia.html">[Baker91CLOS]</a>
+
+<a href="OOAdaLetters.html">[Baker91OOAda],</a>
+
+and the solution may be to
+generate a number of temporary sub-instances which are immediately thrown away
+after the final instance has been created.  While a straight-forward runtime
+implementation of this idea would place great demands upon a "generational"
+garbage collector, a combination of compiler optimizations and greater use of
+"lazy (stack) allocation"
+
+<a href="LazyAlloc.html">[Baker92CONS]</a>
+
+for the temporary sub-instances could
+reduce the load on the garbage collector.<a
+href="#fn26">[26]</a>  <p>
+
+CLOS generic functions depend upon a partial order of Common Lisp types, and
+utilize <tt>typep</tt> and <tt>eql</tt> to determine (at runtime) the
+applicable method.  If an implementation wishes to determine method
+applicability at compile time, however, it must utilize the <tt>subtypep</tt>
+predicate.  While an efficient decision procedure for <tt>subtypep</tt> exists
+
+<a href="Subtypep.html">[Baker92ST]</a>
+
+for the full set of Common Lisp-90 type specifiers (excluding
+<tt>satisfies</tt>), it is not necessary or desirable that DKLisp allow the
+flexibility of Common Lisp-90 type specifiers as specializers in generic
+methods.  In fact, DKLisp can utilize a relatively simple type specifier system
+which includes only class names and <tt>eql</tt> specializers, in which case
+the decision procedure for <tt>subtypep</tt> is much simplified.<p>
+
+The ability to efficiently compile CLOS generic functions depends upon the
+compiler's knowledge of the type system.  If the compiler has complete
+knowledge of the type system--i.e., it is static--then the compiler can do a
+good job of optimizing generic function application.  Common Lisp-84
+<tt>defstruct</tt> must be used in an essentially static way, since slot
+modifications are performed via <tt>setf</tt>, which requires compile-time
+knowledge of the slots.  Thus, <tt>defstruct</tt> is an ideal mechanism for
+statically defining the "things with slots".<p>
+
+There is a significant problem with <tt>defstruct</tt> (and also
+<tt>defclass</tt>), as discussed in both
+
+<a href="Subtypep.html">[Baker92ST]</a>
+
+and
+
+<a href="CLOStrophobia.html">[Baker91CLOS].</a>
+
+One is
+the inability to specify that <i>a structure type/class has no direct
+instances</i>, and is to be used only for extension--i.e., the creation
+function <tt>make-xxx</tt> must not be defined.  This class attribute is
+critical to the concept of <i>synthetic classes</i>, which have one or more
+subclasses, but no direct instances.  For example, the type/class
+<tt>integer</tt> is the synthetic union of the classes <tt>fixnum</tt> and
+<tt>bignum</tt>, yet <tt>integer</tt> has no instances of its own--every
+particular integer being either a <tt>fixnum</tt> or a <tt>bignum</tt>.  The
+predicate <tt>subtypep</tt> must be told not only of the subset relations of
+<tt>fixnum</tt> and <tt>bignum</tt> to <tt>integer</tt>, but also of the fact
+that there are no other <tt>integers</tt>, before <tt>subtypep</tt> can
+conclude that <tt>integer</tt> is a subtype of the union of <tt>fixnum</tt> and
+<tt>bignum</tt>.  <i>The ability to define synthetic classes in CLOS is
+analogous to the ability to define virtual functions in C++</i> [Stroustrup86],
+although the synthetic class concept is more elegant.<p>
+
+Below, we define the Common Lisp number classes utilizing synthetic classes.
+
+<tt><pre>
+(defsynclass number (t)      ; number has the superclass of all Lisp objects
+  )                          ; but no slots<a href="#fn27">[27]</a> and no direct instances.
+
+(defsynclass complex-rational (number) ; the exact (non-float) numbers.
+  )                          ; has no slots and no direct instances.
+
+(defclass complex-imaginary-rational (complex-rational) ; non-real rationals.
+  realpart imagpart)         ; 2 slots and presumably many instances.
+
+(defsynclass rational (complex-rational) ; real rationals.
+  )                          ; has no slots and no direct instances.
+
+(defclass ratio (rational)   ; non-integral real rationals.
+  numerator denominator) ; 2 slots and presumably many instances.
+
+(defsynclass integer (rational) ; integer real rationals.
+  )                          ; has no slots and no direct instances.
+
+(defclass bignum (integer)   ; integers of large absolute value.
+  rep-vector)   ; has a representation vector and presumably many instances.
+
+(defbuiltinclass fixnum (integer) ; integers of small absolute value.
+  )       ; this definition is used only for the sake of subtypep/subclassp.
+</pre></tt>
+
+Our static implementation of a generic function
+
+<a href="CLOStrophobia.html">[Baker91CLOS]</a>
+
+translates it
+into a set of nested <tt>typecase</tt> expressions<a
+href="#fn28">[28]</a> which dispatch on the various required
+arguments.  An optimizing compiler capable of good type inference will be able
+to eliminate some or all of the arms of the <tt>typecase</tt> expression
+utilizing a precise <tt>subtypep</tt> predicate.  If only one arm of a
+<tt>typecase</tt> remains, then no runtime dispatch is necessary, and the
+generic function has been "resolved" to a single method.<a
+href="#fn29">[29]</a>  The net result of good static type
+inference and a static type system (compliments of <tt>defstruct</tt>) is the
+ability to statically resolve many methods at compile-time and obtain generic
+function efficiency similar to C++.
+
+<h3>Streams, Files and Pathnames</h3>
+
+One of the attractive innovations of Common Lisp is its large number of
+<tt>with-xxx</tt> macros.  These expressions initialize an object, perform some
+user-specified operations on the object, and then finalize the object.  These
+"with" forms are particularly useful when dealing with streams--especially I/O
+streams--because the form of their nesting guarantees that an object (e.g.,
+file stream) will always be initialized and finalized when it is used.  Since
+the opening and closing of a file object is a dynamical action analogous to the
+binding of a dynamical variable, it is not clear what purpose is served by
+unpaired operations (<tt>open</tt>, <tt>close</tt>) on files.  As a result, we
+recommend that DKLisp define only <tt>with-open-file</tt> and its friends, and
+not provide for separate creation, opening and closing operations for file
+objects.  Not only does this simplify DKLisp, but it also eliminates a
+significant source of bugs (see
+
+<a href="LPprogram.html">[Baker91SP]</a>
+
+for a similar capability in Ada).<p>
+
+We recommend defining <tt>with-open-file</tt> as a <i>function</i>, rather than
+a macro, as in the following code:
+
+<tt><pre>
+(with-open-file "/usr/foo.bar" :input
+  #'(lambda (input)
+       (declare (stream input))
+       &lt;&lt; read from input and do things &gt;&gt;)) =&gt;
+&lt;&lt; returns value returned from lambda-expression. &gt;&gt;
+</pre></tt>
+
+In a multithreaded environment, the side-effects of stream operations can
+become an embarrassment.  We therefore recommend a lower-level notion of
+stream--perhaps called <tt>primitive-stream</tt>--which does not incorporate a
+stream position pointer.  A read operation on a <tt>primitive-stream</tt> takes
+both the primitive-stream and a stream index, and "returns" (using a kind of
+continuation-passing described earlier under <tt>fixnum</tt> arithmetic) both
+an object and a new stream index.  Under this protocol, a read-only stream has
+no state at all and is completely functional, while a write/update/append
+<tt>primitive-stream</tt> has only the state of the stream bits, and not a
+position pointer.<p>
+
+While we are on the subject of I/O, we should point out the abject obsolescence
+of global variables (e.g., <tt>*package*</tt>, <tt>*print-base*</tt>) to
+control the operation of <tt>read</tt>, <tt>print</tt> and <tt>format</tt>.  In
+an environment with multiple read streams and multiple write streams, the use
+of these global variables was already a nightmare, but they are truly
+disastrous in a multithreaded environment.  The context controlling the
+operation of each stream must be unique, which can only happen if the
+information is passed to these functions explicitly in the form of arguments,
+or implicitly as attributes of the I/O stream itself.  The elimination of these
+global variables will not only simplify DKLisp, but make it a more bug-free
+programming environment.<p>
+
+The definition of DKLisp pathnames is a trivial application of
+<tt>defstruct</tt>, and should be relegated to an appendix.
+
+<h3>Futures</h3>
+
+We recommend that DKLisp standardize on <i>futures</i>
+
+<a href="Futures.html">[Baker77]</a>
+
+as a mechanism
+for programmer-specified multithreaded tasking.  Futures have been implemented
+in several different Lisp systems [Gabriel84] [Halstead85] [Allen87]
+[Swanson88] [Ito90], and have been shown to provide for most of the standard
+forms of parallelism with a simple structured form.  Futures and continuations
+seem not to get along very well [Katz90], but we feel that the problem lies in
+a continuation's ability to linearize the march of time and defeat
+parallelism.<a href="#fn30">[30]</a>  DKLisp should have no
+such problems with <tt>future</tt>, since it does not provide continuations.
+
+<h2>5.  Conclusions</h2>
+
+We have presented some criteria on which to evaluate a modern Lisp system, and
+have critiqued DKLisp against these criteria.  While the existing DKLisp
+proposal comes much closer to meeting these criteria than does ANSI Common
+Lisp, we find that DKLisp still requires a large amount of work.  The major
+areas of concern involve preparing DKLisp for a clean insertion into a modern
+MIMD parallel architecture, whether shared-memory or not.  The most
+controversial of these changes involve converting DKLisp into a "mostly
+functional" language [Knight86], so that parallel threads will not interfere
+with one another.  We advocate the use of the <i>future</i> as the basic
+threading primitive.<p>
+
+Other significant changes involve making a smaller portion of the language
+primitive--especially in the area of numbers--and in integrating generic
+functions into the basic fabric of the language.  We estimate that 35-50% of
+the current DKLisp document can be relegated to appendices describing libraries
+of datatypes, functions and macros based on more primitive concepts.  We find
+that <tt>defstruct</tt> provides a more efficient and convenient data
+structuring primitive than does <tt>defclass</tt> for the purposes of a
+single-inheritance object-oriented hierarchy.<p>
+
+We strongly disagree with the standardization of the external character form of
+a program, rather than the internal S-expression form.  Since many Lisp systems
+are constructed largely by Lisp macros, and since persistent Lisp systems are
+on the horizon, the internal S-expression form is far more convenient and
+efficient than is a character form.  Similarly, we strongly disagree with the
+lack of macros in DKLisp, since they are one of the single most powerful CASE
+tools ever invented, and productivity for building large Lisp systems would be
+crippled by their loss.
+
+<h2>References</h2>
+
+Ada83.  <i>Reference Manual for the Ada(r) Programming Language.</i>
+ANSI/MIL-STD-1815A-1983, U.S. Gov't Printing Office, Wash., DC, 1983.<p>
+
+Allen, D.C., <i>et al.</i>  "Recent Developments in Butterfly(TM) Lisp".
+<i>AAAI-87</i>, Seattle, WA, July, 1987, 2-6.<p>
+
+ANSI-C.  <i>Draft Proposed American National Standard Programming Language
+C</i>.  ANSI, New York, 1988.<p>
+
+Arvind, and Nikhil, R.S.  "I-Structures: Data Structures for Parallel
+Computing".  <i>ACM TOPLAS 11</i>,4 (Oct. 1989), 598-632.<p>
+
+Autodesk, Inc.  "AutoLISP(r) Release 10 Programmer's Reference".  Publ.
+TD111-005.2, Dec. 1988.<p>
+
+Backus, J.  "Can programming be liberated from the von Neumann style?  A
+functional style and its algebra of programs".  <i>CACM 21</i>,8 (Aug.
+1978),613-641.<p>
+
+<a href="Futures.html">[Baker77]</a>
+
+Baker, H.G., and Hewitt, C.  "The Incremental Garbage Collection of Processes".
+<i>Proc. ACM Symp. on AI &amp; Prog. Langs., Sigplan Not. 12</i>,8 (Aug.
+1977),55-59.<p>
+
+<a href="RealTimeGC.html">[Baker78]</a>
+
+Baker, H.G.  "List Processing in Real Time on a Serial Computer".  <i>CACM 21,4
+</i>(April 1978), 280-294.<p>
+
+<a href="Bitvectors.html">[Baker90BV]</a>
+
+Baker, H.G.  "Efficient Implementation of Bit-vector Operations in Common
+Lisp".  <i>ACM Lisp Pointers 3</i>,2-4 (April-June 1990),8-22.<p>
+
+Baker, H.G.  "The NIMBLE Project-An Applications Compiler for Real-Time Common
+Lisp".  <i>Proc. InfoJapan'90 Conf.</i>, Tokyo, Japan, Oct. 1990, Info. Proc.
+Soc. of Japan.<p>
+
+<a href="TInference.html">[Baker90TI]</a>
+
+Baker, H.G.  "The Nimble Type Inferencer for Common Lisp-84".  
+Tech. Report.  Nimble Computer Corporation, 1990.<p>
+
+<a href="Share-Unify.html">[Baker90UC]</a>
+
+Baker, H.G.  "Unify and Conquer (Garbage, Updating, Aliasing, ...) in
+Functional Languages".  <i>Proc. 1990 ACM Conf. on Lisp and Functional
+Progr.</i>, June 1990,218-226.<p>
+
+Baker, H.G.  "Requiem for a Heavyweight Lisp; or, If It Ain't Baroque, Fix It".
+Unpubl. manuscript, June 1990.<p>
+
+<a href="ObjectIdentity.html">[Baker93ER]</a>
+
+Baker, H.G.  "Equal Rights for Functional Objects".  ACM <i>OOPS Messenger
+4</i>,4 (Oct. 1993), 2-27.<p>
+
+<a href="Prag-Parse.html">[Baker91PP]</a>
+
+Baker, H.G.  "Pragmatic Parsing in Common Lisp".  ACM <i>Lisp Pointers IV</i>,2
+(April-June 1991),3-15.<p>
+
+<a href="LPprogram.html">[Baker91SP]</a>
+
+Baker, H.G.  "Structured Programming with Limited Private Types in Ada: Nesting
+is for the Soaring Eagles".  ACM <i>Ada Letters XI</i>,5 (July/Aug.
+1991),79-90.<p>
+
+<a href="ShallowArrays.html">[Baker91SB]</a>
+
+Baker, H.G.  "Shallow Binding Makes Functional Arrays Fast".  <i>ACM Sigplan
+Not. 26</i>,8 (Aug. 1991),145-147.<p>
+
+<a href="OOAdaLetters.html">[Baker91OOAda]</a>
+
+Baker, H.G.  "Object-Oriented Programming in Ada83--Genericity Rehabilitated".
+ACM <i>Ada Letters XI</i>,9 (Nov/Dec. 1991),116-127.<p>
+
+<a href="CLOStrophobia.html">[Baker91CLOS]</a>
+
+Baker, H.G.  "CLOStrophobia: Its Etiology and Treatment".  ACM <i>OOPS
+Messenger</i> 2,4 (Oct. 1991), 4-15.<p>
+
+<a href="LazyAlloc.html">[Baker92CONS]</a>
+
+Baker, H.G.  "CONS Should not CONS its Arguments, or, A Lazy Alloc is a Smart
+Alloc".  ACM <i>Sigplan Not. 27</i>,3 (Mar. 1992), 24-34.<p>
+
+<a href="Subtypep.html">[Baker92ST]</a>
+
+Baker, H.G.  "A Decision Procedure for Common Lisp's SUBTYPEP Predicate".
+<i>Lisp &amp; Symb. Comp.</i> 5 (1992), 157-190.<p>
+
+<a href="LinearLisp.html">[Baker92LLL]</a>
+
+Baker, H.G.  "Lively Linear Lisp--'Look Ma, No Garbage!'".  ACM <i>Sigplan Not.
+27</i>,8 (Aug. 1992), 89-98.<p>
+
+Bobrow, D.G., and Kiczales, G.  "The Common Lisp Object System Metaobject
+Kernel: A Status Report".  <i>Proc. 1988 ACM Conf. on Lisp &amp; Funct.
+Progr.</i>, Snowbird, UT, July1988, 309-315.<p>
+
+Brand, Heiner, <i>et al</i>.  "An approach to the DIN Kernel Lisp Definition,
+Version 1.0".  Subm. to SIO WG16, June, 1991.<p>
+
+Clark, D.W., and Green, C.C.  "An Empirical Study of List Structure in LISP".
+<i>CACM 20</i>,2 (Feb. 1977),78-87.<p>
+
+Clinger, William D.  "How to Read Floating Point Numbers Accurately".  ACM
+<i>PLDI'90, Sigplan Not. 25</i>,6 (June 1990),92-101.<p>
+
+Cointe, Pierre.  "Metaclasses are First Class: the ObjVlisp Model".  <i>Proc.
+OOPSLA'87, Sigplan Not. 22</i>,12 (Dec. 1987),156-167.<p>
+
+Cyphers, D.S., and Moon, D.  "Optimizations in the Symbolics CLOS
+Implementation".  <i>Proc. 3rd CLOS Users and Implementors Workshop,
+OOPSLA'90</i> (Oct. 1990),18-23.<p>
+
+des Rivi&eacute;res, J., and Kiczales, G.  "The Art of the Metaobject Protocol:
+A backstage look at CLOS implementations".  Unpubl. man., Xerox PARC, Oct. 15,
+1990, 203p.<p>
+
+Gabriel, R.P., and McCarthy, J.  "Queue-Based Multi-Processing Lisp".  <i>Proc.
+1984 ACM Symp. on Lisp &amp; Funct. Prog.</i>, (Aug. 1984),25-44.<p>
+
+Gabriel, R.P.  <i>Performance and Evaluation of Lisp Systems</i>.  MIT Press,
+Camb., MA, 1985.<p>
+
+Gabriel, R.P.  "Lisp: Good News, Bad News, How to Win Big".  Unpublished memo,
+Lucid, Inc., Feb. 1991.<p>
+
+Goldberg, A., and Robson, D.  <i>Smalltalk-80: The Language and Its
+Implementation</i>.  McGraw-Hill, New York, 1983.<p>
+
+Halstead, R.  "MultiLisp: A language for concurrent symbolic processing".
+<i>ACM TOPLAS 7</i>,4 (Oct. 1985),501-538.<p>
+
+Harper, R., <i>et al</i>.  "Standard ML".  Tech. Rept. ECS-LFCS-86-2, Comp.
+Sci. Dept., Edinburgh, UK, March, 1986.<p>
+
+IEEE-Scheme.  <i>IEEE Standard for the Scheme Programming Language</i>.
+IEEE-1178-1990, IEEE, NY, Dec. 1990.<p>
+
+Ito, T., and Halstead, R.H.Jr.  <i>Parallel Lisp: Languages and Systems</i>.
+Springer LNCS-441, 1990.<p>
+
+Katz, M., and Weise, D.  "Continuing into the Future: On the Interaction of
+Futures and First-Class Continuations".  <i>Proc. 1990 ACM Conf. on Lisp and
+Funct. Progr.</i>, Nice, France, June 1990, 176-184.<p>
+
+Keene, S.E.  <i>Object-Oriented Programming in Common Lisp</i>.
+Addison-Wesley, Reading, MA, 1989.<p>
+
+Kim, W., and Lochovsky, F.H., <i>eds</i>.  <i>Object-Oriented Concepts,
+Databases and Applications</i>.  Addison-Wesley, Reading, MA, 1989.<p>
+
+Knight, T.  "An Architecture for Mostly Functional Languages".  <i>Proc. 1986
+ACM Conf. on Lisp and Funct. Prog.</i>, (Aug. 1986), 105-112.<p>
+
+Kohlbecker, Eugene E., Jr.  <i>Syntactic Extensions in the Programming Language
+Lisp</i>.  Ph.D. Thesis, TR-199, CS Dept., Indiana Univ., Aug. 1986.<p>
+
+Lieberman, H., and Hewitt, C.  "A Real-Time Garbage Collector Based on the
+Lifetimes of Objects".  <i>CACM 26</i>, 6 (June 1983),419-429.<p>
+
+MacLane, Saunders, and Birkhoff, Garrett.  <i>Algebra</i>.  Macmillan, 1967.<p>
+
+MacLennan, B.J.  "Values and Objects in Programming Languages".  <i>Sigplan
+Not. 17</i>,12 (Dec. 1982),70-79.<p>
+
+McAllester, D., and Zabih, R.  "Boolean Classes".  <i>Proc. OOPSLA'86, Sigplan
+Not. 21</i>,11 (Nov. 1986),417-423.<p>
+
+Moon, D.  <i>MacLisp Reference Manual, Rev. 0</i>.  Proj. MAC, MIT, April
+1974.<p>
+
+Moon, D.  "Garbage Collection in a Large Lisp System".  <i>ACM Symp. on Lisp
+and Functional Prog.</i>, Austin, TX, 1984, 235-246.<p>
+
+Novak, G.S.Jr.  "Data Abstraction in GLISP".  <i>Proc. SIGPLAN'83, Sigplan Not.
+18</i>,6 (June 1983),170-177.<p>
+
+Queinnec, C., and Cointe, P.  "An Open-Ended Data Representation Model for
+Eu_Lisp".  <i>Proc. 1988 ACM Lisp &amp; Funct. Progr. Conf.</i>, Snowbird, UT,
+1988, 298-308.<p>
+
+Radin, George.  "The Early History and Characteristics of PL/I".  <i>ACM
+Sigplan History of Prog. Langs. Conf., Sigplan Not. 13</i>,8 (Aug.
+1978),227-241.<p>
+
+Rees, J. and Clinger, W., <i>et al</i>.  "Revised Report on the Algorithmic
+Language Scheme".  <i>Sigplan Notices 21</i>,12 (Dec. 1986),37-79.<p>
+
+Steele, G.L.Jr.  <i>Common Lisp, the Language</i>.  Digital Press, Burlington,
+MA, 1984.<p>
+
+<a href="http://www.cs.cmu.edu:8001/Web/Groups/AI/html/cltl/cltl2.html">[Steele90]</a>
+
+Steele, G.L.Jr.  <i>Common Lisp, the Language: Second Edition</i>.  Digital
+Press, Bedford, MA, 1990.<p>
+
+Steele, G.L.Jr., and White, J.L.  "How to Print Floating-Point Numbers
+Accurately".  <i>ACM PLDI'90, Sigplan Not. 25</i>,6 (June 1990), 112-126.<p>
+
+Stroustrup, Bjarne.  <i>The C++ Programming Language</i>.  Addison-Wesley,
+Reading, MA, 1986.<p>
+
+Swanson, M.R., <i>et al</i>.  "An Implementation of Portable Standard Lisp on
+the BBN Butterfly".  <i>Proc. 1988 ACM Conf. on Lisp and Funct. Progr.</i>,
+Snowbird, UT, July 1988, 132-141.<p>
+
+Swinehart, D., <i>et al</i>.  "A Structural View of the Cedar Programming
+Environment".  <i>ACM TOPLAS 8</i>,4 (Oct. 1986),419-490.<p>
+
+Taft, Tucker, <i>et al.  [Ada-9X] DRAFT Mapping Document</i>.  Ada-9X Proj.
+Rept., Feb. 1991.<p>
+
+Taft, Tucker, <i>et al.  [Ada-9X] DRAFT Mapping Rationale Document</i>.  Ada-9X
+Proj. Rept., Feb. 1991.<p>
+
+Wand, M.  "A Semantic Prototyping System".  <i>Proc. ACM Sigplan '84 Symp. on
+Compiler Constr., Sigplan Not. 19</i>,6 (June 1984),213-221.<p>
+
+Yuasa, T., and Hagiya, M.  <i>Kyoto Common Lisp Report</i>.  Research Inst. for
+Math. Sci., Kyoto U., 1985.<p>
+
+<a name="fn1">[1]</a>
+
+The opinions here expressed are those of the author, and do not represent the
+policies of Nimble Computer Corporation.<p>
+
+<a name="fn2">[2]</a>
+
+This term comes from critiques of the Ada programming language
+<i>rendezvous</i> mechanism.<p>
+
+<a name="fn3">[3]</a>
+
+These size restrictions are not due to any love for the
+Intel 8088 architecture or MSDOS, but because a language of this size is also
+compatible with the short attention span of non-wizards.<p>
+
+<a name="fn4">[4]</a>
+
+For example, Fortran-90 seems to have picked up some of
+the better Ada module features.<p>
+
+<a name="fn5">[5]</a>
+
+Analogous to ACM <i>Ada Letters</i>' "Dear Ada" column.<p>
+
+<a name="fn6">[6]</a>
+
+The Ada language has far fewer <i>ad hoc</i> features than
+a cursory perusal would indicate.<p>
+
+<a name="fn7">[7]</a>
+
+"Die ganzen Zahlen hat der liebe Gott gemacht, alles
+andere is Menschenwerk" ("Integers are God's creation, all else is the work of
+Man") -- Leopold Kronecker.<p>
+
+<a name="fn8">[8]</a>
+
+The external mapping is non-primitive and depends upon the
+primitive concept of <tt>readtable</tt>.<p>
+
+<a name="fn9">[9]</a>
+
+"Die ganzen Fixnumen hat der liebe McCarthy gemacht, alles
+andere ist Hackerenwerk"--Baker.<p>
+
+<a name="fn10">[10]</a>
+
+Ada compilers routinely open-code "generic" subprograms
+like these.<p>
+
+<a name="fn11">[11]</a>
+
+Ada [Ada83] defines a syntax for floating point numbers
+that utilizes an arbitrary radix.<p>
+
+<a name="fn12">[12]</a>
+
+E.g., in the newest generation of workstations.<p>
+
+<a name="fn13">[13]</a>
+
+Common Lisp's syntax allowing arrays of arbitrary rank is elegant but
+impractical.  Common Lisp requires the support of ranks 0-7, but it is a very
+rare program that utilizes ranks 0,4,5,6,7.<p>
+
+<a name="fn14">[14]</a>
+
+E.g., Common Lisp screwed up in its definition of
+<tt>:initial-contents</tt>, in that a multidimensional array cannot be copied
+by the straight-forward expression:<p>
+
+<tt>(make-array (array-dimensions x) :element-type (array-element-type x)
+:initial-contents x)</tt>.<p>
+
+<a name="fn15">[15]</a>
+
+ANSI-C provides the <tt>const</tt> modifier to indicate
+immutability of (a portion of) a variable.<p>
+
+<a name="fn16">[16]</a>
+
+MacLisp [Moon74] provided a function <tt>purcopy</tt> to
+coerce vectors to immutability.<p>
+
+<a name="fn17">[17]</a>
+
+See the Gabriel "browse" benchmark [Gabriel85] for a
+typical example of excess string consing.<p>
+
+<a name="fn18">[18]</a>
+
+At least mutability for lexical variables is decidable;
+mutability for "special" variables is not.<p>
+
+<a name="fn19">[19]</a>
+
+We have found
+
+<a href="LazyAlloc.html">[Baker92CONS]</a>
+
+that efficiency may be
+slightly better with a right-to-left ordering, but some may object that
+programs written in this style are counter-intuitive, unless operations like
+<tt>reverse-funcall </tt>are defined.<p>
+
+<a name="fn20">[20]</a>
+
+Traditional Lisp macros can provide very nearly the
+correct semantics for function inlining when variables are dynamically-scoped,
+but fail miserably for lexically-scoped variables.<p>
+
+<a name="fn21">[21]</a>
+
+Of course, if <tt>map</tt> is <tt>apply</tt>'ed to an
+argument list known to the mapping function, side-effects can produce havoc;
+this is one reason for our recommendation for functional/immutable lists.<p>
+
+<a name="fn22">[22]</a>
+
+According to one cynical grey beard, "macros are good
+for me, but not for you".<p>
+
+<a name="fn23">[23]</a>
+
+Common Lisp-84 was also bitten by this error--e.g., there was no
+S-expression equivalent for the "<tt>#,</tt>" notation for load-time
+evaluation.  Sensibly, Common Lisp-90 eliminated "<tt>#,</tt>" in favor of the
+<tt>load-time-value</tt> special form.<p>
+
+<a name="fn24">[24]</a>
+
+Packages were originally an implementation kludge of
+MacLisp, where they were called "multiple obarrays", and their semantics never
+advanced beyond the kludge stage.<p>
+
+<a name="fn25">[25]</a>
+
+In a parallel system, readers and writers are not
+enough; atomic updaters are also important.<p>
+
+<a name="fn26">[26]</a>
+
+Other operations on immutable objects also place a
+greater load on the garbage collector; e.g., functional arrays use the garbage
+collector to perform their side-effects for them
+
+<a href="ShallowArrays.html">[Baker91SB].</a>
+
+<p>
+
+<a name="fn27">[27]</a>
+
+Synthetic classes may have slots, although we do not
+show an example here.<p>
+
+<a name="fn28">[28]</a>
+
+<tt>case</tt> expressions must also be used in the
+presence of eql specializers.<p>
+
+<a name="fn29">[29]</a>
+
+The actual scheme is somewhat more complex due to CLOS
+<i>method combinations</i>--e.g., <tt>next-method-p</tt> and
+<tt>call-next-method</tt> must be removed by inlining--but the principle is
+clear.<p>
+
+<a name="fn30">[30]</a>
+
+Continuations are also known to interact poorly with
+Scheme's <tt>letrec</tt>.
+
+</body></html>

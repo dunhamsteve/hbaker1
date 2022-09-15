@@ -1,0 +1,293 @@
+<html><head>
+<!-- Based on MIT AI Memo 239 "HAKMEM" -->
+<!-- by M. Beeler, R.W. Gosper, and R. Schroeppel, Feb. 29, 1972. -->
+<!-- This html version Copyright (c) 1995 by Henry G. Baker. -->
+<link rev="made" href="mailto:hbaker1@pipeline.com">
+<title>HAKMEM -- GEOMETRY, ALGEBRA, CALCULUS -- DRAFT, NOT YET PROOFED</title>
+
+</head><body>
+
+Beeler, M., Gosper, R.W., and Schroeppel, R.  <i>HAKMEM</i>.  MIT AI
+Memo 239, Feb. 29, 1972.
+
+Retyped and converted to <i>html</i> ('Web browser format) by
+
+<a href="http://home.pipeline.com/~hbaker1/home.html">Henry Baker,</a>
+
+April, 1995.
+
+<h2>GEOMETRY, ALGEBRA, CALCULUS</h2>
+
+<a href="hakmem.html">Up</a>
+<a href="recurrence.html">Next</a>
+
+<a name="item1"></a>
+
+<h3>ITEM 1 (Schroeppel):</h3>
+
+(1/3)! and (2/3)! are interexpressible.<br>
+(1/4)! and (3/4)! are interexpressible.<p>
+
+Thus these two pairs are of dimensionality one.<p>
+
+(1/10)! and (2/10)! are sufficient to express (N/10)! for all N.<br>
+(1/12)! and (2/12)! are sufficient to express (N/12)! for all N.<br>
+(1/3)! and (1/4)! are sufficient to express (N/12)! for all N.<p>
+
+Thus the three cases above are of dimensionality two.<p>
+
+PROBLEM:  Find some order to this dimensionality business.<p>
+
+The reflection and multiplication formulas:
+
+<pre>
+             pi Z
+Z! (-Z)! = ---------
+           sin(pi Z)
+
+
+      (N-1)/2  -NZ-1/2
+(2 pi)        N        (NZ)! = Z! (Z-1/N)! (Z-2/N)! ... (Z-(N-1)/N)!
+</pre>
+
+<a name="item2"></a>
+
+<h3>ITEM 2 (Jan Kok):</h3>
+
+Problem: Given a regular n-gon with all diagonals drawn, how many
+regions are there?  In particular, how many triple (or N-tuple)
+concurrences of diagonals are there?
+
+<a name="item3"></a>
+
+<h3>ITEM 3 (Schroeppel):</h3>
+
+Regarding convergence of Newton's method for quadratic equations: Draw the
+perpendicular bisector of the line connecting the two roots.  Points on either
+side converge to the closest root.<p>
+
+On the line:
+
+<ol>
+
+<li>they do not converge</li>
+
+<li>there is a dense set of points which involve division by zero</li>
+
+<li>there is a dense set of points which loop, but roundoff error
+propagates so all loops are unstable</li>
+
+<li>being on the line is also unstable<br>(if the roots are imaginary and
+you are on the real axis, you may be doing exact computation of the
+imaginary part (0), hence stay on the line.  Example: X^2 + 1 = 0, X0 =
+random real floating point number.)</li>
+
+</ol>
+
+<a name="item4"></a>
+
+<h3>ITEM 4 (Schroeppel):</h3>
+
+By Mathlab, the <i>discriminant</i> of
+
+<pre>
+ 4      3      2
+X  + F X  + G X  + H X + I  is (as the discriminant of
+
+   2                 2
+A X  + B X + C  is  B  - 4 A C):
+
+
+           4           3      3  3      3  2    2  2  2
+     - 27 H  + 18 F G H  - 4 F  H  - 4 G  H  + F  G  H
+
+                   2      2  2         2         3           4      2  3
+     + I * [144 G H  - 6 F  H  - 80 F G  H + 18 F  G H + 16 G  - 4 F  G ]
+
+        2                     2        2         4
+     + I  * [- 192 F H - 128 G  + 144 F  G - 27 F ]
+
+            3
+     - 256 I
+</pre>
+
+<a name="item5"></a>
+
+<h3>ITEM 5:</h3>
+
+In general, the discriminant of an n-th degree polynomial is
+
+<pre>
+ /===\
+  ! !                 2
+  ! !  (ROOT  - ROOT )   =  square of determinant whose i,j element is
+  ! !       i       j
+ i < j
+
+
+    i-1
+ROOT    .
+    j
+</pre>
+
+ (The <i>discriminant</i> is the lowest degree symmetric function of the
+roots which is 0 when any two are equal.)
+
+<a name="item6"></a>
+
+<h3>ITEM 6 (Schroeppel):</h3>
+
+If A is the first <i>symmetric function</i> of N variables
+
+<tt><pre>
+= X + Y + Z + ...
+</pre></tt>
+
+and B is the second symmetric function of N variables
+
+<tt><pre>
+= X Y + X Z + ... + Y Z + ...
+</pre></tt>
+
+(B = sum of pairs), then
+
+<tt><pre>
+ 2    2    2          2
+X  + Y  + Z  + ... = A  - 2 B.
+
+ 3    3    3          3
+X  + Y  + Z  + ... = A  - 3 A B + 3 C.
+
+ 4    4    4          4      2        2
+X  + Y  + Z  + ... = A  - 4 A  B + 2 B  + 4 A C - 4 D.
+</pre></tt>
+
+<a name="item7"></a>
+
+<h3>ITEM 7 (Gosper):</h3>
+
+If f(I;X,Y,...) is the Ith symmetric function on N variables,
+
+<tt><pre>
+               /   0                                if I &gt; N
+f(I;X,Y,...) = !   1                                if I = 0
+               \   X*f(I-1;Y,Z...) + f(I;Y,Z,...)   (N-1 variables)
+</pre></tt>
+
+The generating function is simply
+
+<pre>
+        N
+       ====
+       \                    I
+        >    F(I; X, Y, Z) S  = (1 + S X) (1 + S Y) (1 + S Z) ...
+       /
+       ====
+       I=0
+</pre>
+
+<a name="item8"></a>
+
+<h3>ITEM 8 (Schroeppel):</h3>
+
+Solutions to
+
+<pre>
+        3        2
+F(X) = X  - 3 B X  + C X + D = 0
+</pre>
+
+are
+
+<pre>
+             ------------------------------
+            /            ------------------
+           / F(B)       / F(B) 2    F'(B) 3
+B - K *  3/  ----  +   / [----]  + [-----]
+         V    2       V    2          3
+
+
+             ------------------------------
+            /            ------------------
+    2      / F(B)       / F(B) 2    F'(B) 3
+ - K  *  3/  ----  -   / [----]  + [-----]
+         V    2       V    2          3
+</pre>
+
+where K is one of the three cuberoots of 1:<p>
+
+1, (-1+sqrt(-3))/2, (-1-sqrt(-3))/2.
+
+<a name="item9"></a>
+
+<h3>ITEM 9 (Schroeppel &amp; Salamin):</h3>
+
+If
+
+<pre>
+ 4      2    
+X  + B X  + C X + D = 0,
+</pre>
+
+then 2 X = sqrt(Z1) + sqrt(Z2) + sqrt(Z3), where Z1, Z2, Z3 are roots of
+
+<pre>
+ 3        2     2             2
+Z  + 2 B Z  + (B  - 4 D) Z - C  = 0.
+</pre>
+
+The choices of square roots must satisfy<p>
+
+sqrt(Z1) sqrt(Z2) sqrt(Z3) = -C.
+
+<a name="item10"></a>
+
+<h3>ITEM 10 (Salamin):</h3>
+
+An easy solution of
+
+<pre>
+    3
+-4 X  + 3 X - a = 0
+</pre>
+
+is X = sin((arcsin a)/3).<p>
+
+In a similar manner, the general
+
+<a href="http://mathsource.wri.com/quintic/main.html"><i>quintic</i></a>
+
+can be solved exactly by use of the elliptic modular function and its
+inverse.  See Davis: <i>Intro. to Nonlinear Differential and Integral
+Equations</i> (Dover), p. 172.  Unfortunately, there exists &gt;= 1
+typo, since his eqs. (7) and (13) are inconsistent.
+
+<a name="item11"></a>
+
+<h3>ITEM 11 (Salamin):</h3>
+
+The following operations generate one-to-one conformal mappings of Euclidean N-space
+onto itself.
+
+<ol>
+
+<li>Translate N-space.</li>
+
+<li>Expand N-space about one of its points.</li>
+
+<li>Stereographically project N-space onto an N-sphere, rotate the
+sphere, then project back onto N-space.</li>
+
+</ol>
+
+PROBLEMS:<p>
+
+Show that all such conformal maps are generated by these operations for any N.
+If the one-to-one and onto conditions are removed, then for N = 2, conformal
+maps can be obtained by analytic functions.  Show that for N &gt; 2, no new
+conformal maps exist.<p>
+
+<a href="hakmem.html">Up</a>
+<a href="recurrence.html">Next</a>
+
+</body></html>

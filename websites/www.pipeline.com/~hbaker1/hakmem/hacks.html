@@ -1,0 +1,666 @@
+<html><head>
+<!-- Based on MIT AI Memo 239 "HAKMEM" -->
+<!-- by M. Beeler, R.W. Gosper, and R. Schroeppel, Feb. 29, 1972. -->
+<!-- This html version Copyright (c) 1995 by Henry G. Baker. -->
+<link rev="made" href="mailto:hbaker1@pipeline.com">
+<title>HAKMEM -- PROGRAMMING HACKS -- DRAFT, NOT YET PROOFED</title>
+
+</head><body>
+
+Beeler, M., Gosper, R.W., and Schroeppel, R.  <i>HAKMEM</i>.  MIT AI
+Memo 239, Feb. 29, 1972.
+
+Retyped and converted to <i>html</i> ('Web browser format) by
+
+<a href="http://home.pipeline.com/~hbaker1/home.html">Henry Baker,</a>
+
+April, 1995.
+
+<h2>PROGRAMMING HACKS</h2>
+
+<a href="pi.html">Previous</a>
+<a href="hakmem.html">Up</a>
+<a href="algorithms.html">Next</a><p>
+
+WARNING: Numbers in this section are <i>octal</i> (and occasionally
+<i>binary</i>) unless followed by a decimal point.  105=69..  (And
+105.=69 hexadecimal.)
+
+[<a href="../pdp-10/pdp-10.html">PDP-10 Info</a>]
+
+<a name="item145"></a>
+
+<h3>ITEM 145 (Gosper):</h3>
+
+Proving that short programs are neither trivial nor exhausted yet,
+there is the following:
+
+<tt><pre>
+0/      TLCA 1,1(1)
+1/      see below
+2/      ROT 1,9
+3/      JRST 0
+</pre></tt>
+
+This is a display hack (that is, it makes pretty patterns) with the
+low 9 bits = Y and the 9 next higher = X; also, it makes interesting,
+related noises with a stereo amplifier hooked to the X and Y signals.
+Recommended variations include:
+
+<tt><pre>
+      CHANGE:         GOOD INITIAL CONTENTS OF 1:
+        none            377767,,377767; 757777,,757757; etc.
+        TLC 1,2(1)      373777,,0; 300000,,0
+        TLC 1,3(1)      -2,,-2; -5,,-1; -6,,-1
+        ROT 1,1         7,,7; A0000B,,A0000B
+        ROTC 1,11       ;Can't use TLCA over data.
+        AOJA 1,0
+</pre></tt>
+
+<a name="item146"></a>
+
+<h3>ITEM 146: MUNCHING SQUARES</h3>
+
+Another simple display program.  It is thought that this was
+discovered by Jackson Wright on the RLE PDP-1 circa 1962.
+
+<tt><pre>
+        DATAI 2
+        ADDB 1,2
+        ROTC 2,-22
+        XOR 1,2
+        JRST .-4
+</pre></tt>
+
+2=X, 3=Y.  Try things like 1001002 in data switches.  This also does
+interesting things with operations other than XOR, and rotations other
+than -22.  (Try IOR; AND; TSC; FADR; FDV(!); ROT -14, -9, -20, ...)
+
+<a name="item147"></a>
+
+<h3>ITEM 147 (Schroeppel):</h3>
+
+Munching squares is just views of the graph Y = X XOR T for consecutive values
+of T = time.
+
+<a name="item148"></a>
+
+<h3>ITEM 148 (Cohen, Beeler):</h3>
+
+A modification to munching squares which reveals them in frozen states through
+opening and closing curtains: insert FADR 2,1 before the XOR.  Try data
+switches =
+
+<tt><pre>
+4000,,4         1000,,2002      2000,,4        0,,1002
+</pre></tt>
+
+(Notation: &lt;left half&gt;,,&lt;right half&gt;)<p>
+
+Also try the FADR after the XOR, switches = 1001,,1.
+
+<a name="item149"></a>
+
+<h3>ITEM 149 (Minsky): CIRCLE ALGORITHM</h3>
+
+Here is an elegant way to draw almost circles on a point-plotting display:<p>
+
+NEW X = OLD X - <i>epsilon</i> * OLD Y<br>
+
+NEW Y = OLD Y + <i>epsilon</i> * NEW(!) X<p>
+
+This makes a very round ellipse centered at the origin with its size
+determined by the initial point.  <i>epsilon</i> determines the angular
+velocity of the circulating point, and slightly affects the
+eccentricity.  If <i>epsilon</i> is a power of 2, then we don't even need
+multiplication, let alone square roots, sines, and cosines!  The
+"circle" will be perfectly stable because the points soon become
+periodic.<p>
+
+The circle algorithm was invented by mistake when I tried to save one
+register in a display hack!  Ben Gurley had an amazing display hack
+using only about six or seven instructions, and it was a great wonder.
+But it was basically line-oriented.  It occurred to me that it would
+be exciting to have curves, and I was trying to get a curve display
+hack with minimal instructions.
+
+<a name="item150"></a>
+
+<h3>ITEM 150 (Schroeppel):</h3>
+
+PROBLEM: Although the reason for the circle algorithm's stability is
+unclear, what is the number of distinct sets of radii?  (Note:
+algorithm is invertible, so all points have predecessors.)
+
+<a name="item151"></a>
+
+<h3>ITEM 151 (Gosper):</h3>
+
+Separating X from Y in the above recurrence,<p>
+
+X(N+1) = (2 - <i>epsilon</i>^2) * X(N) - X(N-1)<br>
+
+Y(N+1) = (2 - <i>epsilon</i>) * Y(N) - Y(N-1).<p>
+
+These are just the Chebychev recurrence with cos <i>theta</i> (the angular
+increment) = 1-<i>epsilon</i>^2/2.  Thus X(N) and Y(N) are expressible in the
+form R cos(N <i>theta</i> + <i>phi</i>).  The <i>phi</i>'s and R for X(N) and Y(N) can be
+found from N=0,1.  The <i>phi</i>'s will differ by less than <i>pi</i>/2 so that the
+curve is not really a circle.  The algorithm is useful nevertheless,
+because it needs no sine or square root function, even to get
+started.<p>
+
+X(N) and Y(N) are also expressible in closed form in the algebra of
+ordered pairs described under linear recurrences, but they lack the
+remarkable numerical stability of the "simultaneous" form of the
+recurrence.
+
+<a name="item152"></a>
+
+<h3>ITEM 152 (Salamin):</h3>
+
+With exact arithmetic, the circle algorithm is stable iff |<i>epsilon</i>| &lt; 2.  In
+this case, all points lie on the ellipse<p>
+
+X^2 - <i>epsilon</i> X Y + Y^2 = constant,<p>
+
+where the constant is determined by the initial point.  This ellipse
+has its major axis at 45 degrees (if <i>epsilon</i> &gt; 0) or 135 degrees
+(if <i>epsilon</i> &lt; 0) and has eccentricity<p>
+
+sqrt(<i>epsilon</i>/(1 + <i>epsilon</i>/2)).
+
+<a name="item153"></a>
+
+<h3>ITEM 153 (Minsky):</h3>
+
+To portray a 3-dimensional solid on a 2-dimensional display, we can
+use a single circle algorithm to compute orbits for the corners to
+follow.  The (positive or negative) radius of each orbit is determined
+by the distance (forward or backward) from some origin to that corner.
+The solid will appear to wobble rigidly about the origin, instead of
+simply rotating.
+
+<a name="item154"></a>
+
+<h3>ITEM 154 (Gosper):</h3>
+
+The myth that any given programming language is machine independent is
+easily exploded by computing the sum of powers of 2.
+
+<ul>
+
+<li>If the result loops with period = 1 with sign +, you are on a
+sign-magnitude machine.</li>
+
+<li>If the result loops with period = 1 at -1, you are on a
+twos-complement machine.</li>
+
+<li>If the result loops with period &gt; 1, including the beginning, you
+are on a ones-complement machine.</li>
+
+<li>If the result loops with period &gt; 1, not including the beginning,
+your machine isn't binary -- the pattern should tell you the base.</li>
+
+<li>If you run out of memory, you are on a string or Bignum system.</li>
+
+<li>If arithmetic overflow is a fatal error, some fascist pig with a
+read-only mind is trying to enforce machine independence.  But the
+very ability to trap overflow is machine dependent.</li>
+
+</ul>
+
+By this strategy, consider the universe, or, more precisely, algebra:<p>
+
+let X = the sum of many powers of two = ...111111<br>
+
+now add X to itself; X + X = ...111110<br>
+
+thus, 2X = X - 1 so X = -1<br>
+
+therefore algebra is run on a machine (the universe) which is twos-complement.
+
+<a name="item155"></a>
+
+<h3>ITEM 155 (Liknaitzky):</h3>
+
+To subtract the right half of an accumulator from the left (as in restarting an
+AOBJN counter):
+
+<tt><pre>
+        IMUL A,[377777,,1]
+</pre></tt>
+
+<a name="item156"></a>
+
+<h3>ITEM 156 (Mitchell):</h3>
+
+To make an AOBJN pointer when the origin is fixed and the length is a variable
+in A:
+
+<tt><pre>
+        HRLOI A,-1(A)
+        EQVI A,ORIGIN
+</pre></tt>
+
+<a name="item157"></a>
+
+<h3>ITEM 157 (Freiberg):</h3>
+
+If instead, A is a pointer to the last word
+
+<tt><pre>
+        HRLOI A,-ORIGIN(A)
+        EQVI A,ORIGIN
+</pre></tt>
+
+Slightly faster: change the HRLOIs to MOVSIs and the EQVI addresses to
+-ORIGIN-1.  These two routines are clearly adjustable for BLKOs and
+other fenceposts.
+
+<a name="item158"></a>
+
+<h3>ITEM 158 (Gosper, Salamin, Schroeppel):</h3>
+
+A miniature (recursive) sine and cosine routine follows.
+
+<tt><pre>
+COS:    FADR A,[1.57079632679]  ;<i>pi</i>/2
+SIN:    MOVM B,A        ;ARGUMENT IN A
+        CAMG B,[.00017] ; &lt;= 3^(1/3) / 2^13
+        POPJ P,         ;sin X = X, within 27. bits
+        FDVRI A,(-3.0)
+        PUSHJ P,SIN     ;sin -X/3
+        FMPR B,B
+        FSC B,2
+        FADRI B,(-3.0)
+        FMPRB A,B       ;sin X = 4(sin -X/3)^3 - 3(sin -X/3)
+        POPJ P,         ;sin in A, sin or |sin| in B
+;|sin| in B occurs when angle is smaller than end test
+</pre></tt>
+
+Changing both -3.0's to +3.0's gives sinh:<p>
+
+sinh X = 3 sinh X/3 + 4 (sinh X/3)^3.<p>
+
+Changing the first -3.0 to a +9.0, then inserting PUSHJ P,.+1 after
+PUSHJ P,SIN gains about 20% in speed and uses half the pushdown space
+(&lt; 5 levels in the first 4 quadrants).  PUSHJ P,.+1 is a nice way
+to have something happen twice.  Other useful angle multiplying
+formulas are<p>
+
+tanh X = (2 tanh X/2) / (1 + (tanh X/2)^2)<p>
+
+tan X = (2 tan X/2) / (1 - (tan X/2)^2),<p>
+
+if infinity is handled correctly.  For cos and cosh, one can use<p>
+
+cos X = 1 - 2 (sin X/2)^2, cosh X = 1 + 2 (sinh X/2)^2.<p>
+
+In general, to compute functions like <i>e</i>^X, cos X, elliptic functions, etc. by
+iterated application of double and triple argument formulas, it is necessary to
+subtract out the constant in the Taylor series and transform the range
+reduction formula accordingly.  Thus:<p>
+
+F(X) = cos(X)-1<br>
+F(2 X) = 2 F*(F+2)<br>
+F(<i>epsilon</i>) = -<i>epsilon</i>^2/2<p>
+
+G(X) = <i>e</i>^X - 1<br>
+G(2 X) = G*(G+2)<br>
+G(<i>epsilon</i>) = <i>epsilon</i><p>
+
+This is to prevent the destruction of the information in the
+range-reduced argument by the addition of a quantity near 1 upon the
+success of the <i>epsilon</i> test.  The addition of such a quantity
+in the actual recurrences is OK since the information is restored by
+the multiply.  In fact, a cheap and dirty test for F(<i>epsilon</i>)
+sufficiently small is to see if the addition step has no effect.
+People lucky enough to have a square root instruction can get
+<i>natural log</i> by iterating<p>
+
+X &lt;- X/(sqrt(1+X) + 1) until 1+X = 1.<p>
+
+Then multiply by 2^(number of iterations).  Here, a LSH or FSC would work.
+
+<a name="item159"></a>
+
+<h3>ITEM 159 (Gosper, Schroeppel):</h3>
+
+(Numbers herein are decimal.)<p>
+
+The correct <i>epsilon</i> test in such functions as the foregoing SIN are
+generally the largest argument for which addition of the second term
+has no effect on the first.  In SIN, the first term is x and the
+second is -x^3/6, so the answer is roughly the x which makes the ratio
+of those terms 1/2^27; so x = sqrt(3) / 2^13.  But this is not exact,
+since the precise cutoff is where the neglected term is the power of 2
+whose 1 bit coincides with the first neglected (28th) bit of the
+fraction.  Thus, x^3/6 = 1/2^27 * 1/2^13, so x = 3^(1/3) / 2^13.
+
+<a name="item160"></a>
+
+<h3>ITEM 160 (Gosper):</h3>
+
+Here is a way to get <i>log base 2</i>.  A and B are consecutive.  Call by PUSHJ
+P,LOG2 with a floating point argument in A.
+
+<tt><pre>
+LOG2:   LSHC A,-33
+        MOVSI C,-201(A)
+        TLC C,211000    ;Speciner's bum
+        MOVI A,200      ;exponent and sign sentinel
+LOGL:   LSH B,-9
+REPEAT 7, FMPR B,B      ;moby flunderflo
+        LSH B,2
+        LSHC A,7
+        SOJG A,LOGL     ;fails on 4th try
+        LSH A,-1
+        FADR A,C
+        POPJ P,         ;answer in A
+</pre></tt>
+
+Basically you just square seven times and use the low seven bits of the
+exponent as the next seven bits of the log.
+
+<a name="item161"></a>
+
+<h3>ITEM 161 (Gosper):</h3>
+
+To swap the contents of two locations in memory:
+
+<tt><pre>
+        EXCH A,LOC1
+        EXCH A,LOC2
+        EXCH A,LOC1
+</pre></tt>
+
+Note: LOC1 must not equal LOC2!  If this can happen use
+MOVE-EXCH-MOVEM, clobbering A.
+
+<a name="item162"></a>
+
+<h3>ITEM 162 (Gosper):</h3>
+
+To swap two bits in an accumulator:
+
+<tt><pre>
+        TRCE A,BITS
+        TRCE A,BITS
+        TRCE A,BITS
+</pre></tt>
+
+Note (Nelson): last TRCE never skips, and used to be a TRC, but TRCE
+is less forgettable.  Also, use TLCE or TDCE if the bits are not in
+the right half.
+
+<a name="item163"></a>
+
+<h3>ITEM 163 (Sussman):</h3>
+
+To exchange two variables in LISP without using a third variable:<p>
+
+(SETQ X (PROG2 0 Y (SETQ Y X)))
+
+<a name="item164"></a>
+
+<h3>ITEM 164 (Samson):</h3>
+
+To take MAX in A of two byte pointers (where A and B are consecutive
+accumulators):
+
+<tt><pre>
+        ROTC A,6
+        CAMG A,B
+        EXCH A,B
+        ROTC A,-6
+</pre></tt>
+
+<a name="item165"></a>
+
+<h3>ITEM 165 (Freiberg):</h3>
+
+A byte pointer can be converted to a character address &lt; 2^18 by
+MULI A,&lt;# bytes/word&gt; followed by SUBI B,1-&lt;# b/w&gt;(A).  To
+get full word character address, use SUB into a magic table.
+
+<a name="item166"></a>
+
+<h3>ITEM 166 (Gosper, Liknaitzky):</h3>
+
+To rotate three consecutive accumulators N &lt; 37.  places:
+
+<tt><pre>
+        ROTC A,N
+        ROT B,-N
+        ROTC B,N
+</pre></tt>
+
+Thus M AC's can be ROTC'ed in 2M-3 instructions.  (Stallman): For 73.
+&gt; N &gt; 35.:
+
+<tt><pre>
+        ROTC A,N-36.
+        EXCH A,C
+        ROT B,36.-N
+        ROTC A,N-72.
+</pre></tt>
+
+<a name="item167"></a>
+
+<h3>ITEM 167 (Gosper, Freiberg):</h3>
+
+<tt><pre>
+;B gets 7 bit character in A with even parity
+        IMUL A,[2010040201]     ;5 adjacent copies
+        AND A,[21042104377]     ;every 4th bit of left 4 copies + right copy
+        IDIVI A,17&lt;-7           ;casting out 15.'s in hexadecimal shifted 7
+
+;odd parity on 7 bits (Schroeppel)
+        IMUL A,[10040201]       ;4 adjacent copies
+        IOR A,[7555555400]      ;leaves every 3rd bit+offset+right copy
+        IDIVI A,9&lt;-7            ;powers of 2^3 are +-1 mod 9
+;changing 7555555400 to 27555555400 gives even parity
+
+;if A is a 9 bit quantity, B gets number of 1's (Schroeppel)
+        IMUL A,[1001001001]     ;4 copies
+        AND A,[42104210421]     ;every 4th bit
+        IDIVI A,17              ;casting out 15.'s in hexadecimal
+
+;if A is 6 bit quantity, B gets 6 bits reversed (Schroeppel)
+        IMUL A,[2020202]        ;4 copies shifted
+        AND A,[104422010]       ;where bits coincide with reverse repeated base 2^8
+        IDIVI A,377             ;casting out 2^8 - 1's
+
+;reverse 7 bits (Schroeppel)
+        IMUL A,[10004002001]    ;4 copies sep by 000's base 2 (may set arith. o'flow)
+        AND A,[210210210010]    ;where bits coincide with reverse repeated base 2^8
+        IDIVI A,377             ;casting out 377's
+
+;reverse 8 bits (Schroeppel)
+        MUL A,[100200401002]    ;5 copies in A and B
+        AND B,[20420420020]     ;where bits coincide with reverse repeated base 2^10
+        ANDI A,41               ;"
+        DIVI A,1777             ;casting out 2^10 - 1's
+</pre></tt>
+
+<a name="item168"></a>
+
+<h3>ITEM 168 (PDP-1 hackers):</h3>
+
+<tt><pre>
+foo,    lat       /DATAI switches
+        adm a     /ADDB
+        and (707070
+        adm b
+        iot 14    /output AC sign bit to a music flip-flop
+        jmp foo
+</pre></tt>
+
+Makes startling chords, arpeggios, and slides, with just the sign of the AC.
+This translates to the PDP-6 (roughly) as:
+
+<tt><pre>
+FOO:    DATAI 2
+        ADDB 1,2
+        AND 2,[707070707070]     ;or 171717171717, 363636363636, 454545454545, ...
+        ADDB 2,3
+        LDB 0,[360600,,2]
+        JRST FOO
+</pre></tt>
+
+Listen to the square waves from the low bits of 0.
+
+<a name="item169"></a>
+
+<h3>ITEM 169 (in order of one-ups-manship: Gosper, Mann, Lenard, [Root and
+Mann]):</h3>
+
+To count the ones in a <a href="../pdp-10/pdp-10.html">PDP-6/10</a> word:
+
+<tt><pre>
+        LDB B,[014300,,A]      ;or MOVE B,A then LSH B,-1
+        AND B,[333333,,333333]
+        SUB A,B
+        LSH B,-1
+        AND B,[333333,,333333]
+        SUBB A,B               ;each octal digit is replaced by number of 1's in it
+        LSH B,-3
+        ADD A,B
+        AND A,[070707,,070707]
+        IDIVI A,77             ;casting out 63.'s
+</pre></tt>
+
+These ten instructions, with constants extended, would work on word lengths up
+to 62.; eleven suffice up to 254..
+
+<a name="item170"></a>
+
+<h3>ITEM 170 (Jensen):</h3>
+
+Useful strings of non-digits and zeros can arise when carefully chosen negative
+numbers are fed to unsuspecting decimal print routines.  Different sets arise
+from different methods of character-to-digit conversion.  Example (Gosper):
+
+<tt><pre>
+DPT:    IDIVI F,12
+        HRLM G,(P)      ;tuck remainder on pushdown list
+        SKIPE F
+        PUSHJ P,DPT
+        LDB G,[220600,,(P)]   ;retrieve low 6 bits of remainder
+        TRCE G,"0       ;convert digit to character
+        SETOM CCT       ;that was no digit!
+
+TYO:    .IOT TYOCHN,G   ;or DATA0 or IDPB ...
+        AOS G,CCT
+        POPJ P,
+</pre></tt>
+
+This is the standard recursive decimal print of the positive number in
+F, but with a LDB instead of a HLRZ.  It falls into the typeout
+routine which returns in G the number of characters since the last
+carriage return.  When called with a -36., DPT types carriage return,
+line feed, and resets CCT, the character position counter.
+
+<a name="item171"></a>
+
+<h3>ITEM 171 (Gosper):</h3>
+
+Since integer division can never produce a larger quotient than
+dividend, doubling the dividend and divisor beforehand will
+distinguish division by zero from division by 1 or anything else, in
+situations where division by zero does nothing.
+
+<a name="item172"></a>
+
+<h3>ITEM 172 (Gosper):</h3>
+
+The fundamental operation for building list structure, called CONS, is
+defined to: find a free cell in memory, store the argument in it,
+remove it from the set of free cells, return a pointer to it, and call
+the garbage collector when the set is empty.  This can be done in two
+instructions:
+
+<tt><pre>
+CONS:   EXCH A,[EXCH A,[...[PUSHJ P,GC]...]]
+        EXCH A,CONS
+</pre></tt>
+
+Of course, the address-linked chain of EXCH's indicated by the nested
+brackets is concocted by the garbage collector.  This method has the
+additional advantage of not constraining an accumulator for the free
+storage pointer.
+
+<tt><pre>
+UNCONS: HRLI A,(EXCH A,)
+        EXCH A,CONS
+        EXCH A,@CONS
+</pre></tt>
+
+Returns cell addressed by A to free storage list; returns former cell
+contents in A.
+
+<a name="item173"></a>
+
+<h3>ITEM 173 (Gosper):</h3>
+
+The incantation to fix a floating number is usually
+
+<tt><pre>
+        MULI A,400            ;exponent to A, fraction to A+1
+        TSC A,A               ;1's complement magnitude of excess 200 exponent
+        ASH A+1,-200-27.-8(A) ;answer in A+1
+</pre></tt>
+
+If number is known positive, you can omit the TSC.<p>
+
+On the <a href="../pdp-10/pdp-10.html">PDP-10</a>
+
+<tt><pre>
+        UFA A,[+-233000,,]    ;not in PDP-6 repertoire
+        TLC A+1,233000        ;if those bits really bother you
+</pre></tt>
+
+When you know the sign of A, and |A| &lt; 2^26, you can
+
+<tt><pre>
+        FAD A,[+-233400,,]    ;or FADR for rounded fix!
+        TLC A,233400          ;if those bits are relevant
+</pre></tt>
+
+where the sign of the constant must match A's.  This works on both
+machines and doesn't involve A+1.  On the 10, FADRI saves a cycle and
+a constant, and rounds.
+
+<a name="item174"></a>
+
+<h3>ITEM 174 (Gosper, Nelson):</h3>
+
+21963283741. = 243507216435 is a fixed point of the float function on
+the <a href="../pdp-10/pdp-10.html">PDP-6/10</a>, i.e., it is the only positive number whose floating
+point representation equals its fixed.
+
+<a name="item175"></a>
+
+<h3>ITEM 175 (Gosper):</h3>
+
+To get the next higher number (in A) with the same number of 1 bits:
+(A, B, C, D do not have to be consecutive)
+
+<tt><pre>
+        MOVE B,A
+        MOVN C,B
+        AND C,B
+        ADD A,C
+        MOVE D,A
+        XOR D,B
+        LSH D,-2
+        IDIVM D,C
+        IOR A,C
+</pre></tt><p>
+
+<a href="pi.html">Previous</a>
+<a href="hakmem.html">Up</a>
+<a href="algorithms.html">Next</a><p>
+
+</body></html>

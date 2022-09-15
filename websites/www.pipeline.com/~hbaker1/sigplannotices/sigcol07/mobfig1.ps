@@ -1,0 +1,187 @@
+%%BoundingBox: 100 100 300 200
+save
+50 dict begin
+% -- Copyright (c) 1995 by Henry G. Baker.  All rights reserved.
+/make-closure	% p1 ... pn proc n make-closure closure	% Make fn closure.
+{exch aload length dup 2 add -1 roll add array astore cvx}
+bind def
+/pi 3.14159265 def			% - pi pi
+/pid2 pi 2 div def			% - pid2 pi/2
+/pi2 pi 2 mul def				% - pi2 pi*2
+
+/deg2rad					% degrees deg2rad radians
+pi 180 div {mul} 1 make-closure
+bind def
+
+/rad2deg					% radians rad2deg degrees
+180 pi div {mul} 1 make-closure
+bind def
+
+/atanr				% y x atanr atanr(y/x)	% atan(y/x) in radians.
+{atan deg2rad}
+bind def
+
+/sinr					% x sinr sinr(x)	% sin(x), x in radians.
+{rad2deg sin}
+bind def
+
+/cosr					% x cosr cosr(x)	% cos(x), x in radians.
+{rad2deg cos}
+bind def
+% --
+% -- Complex number operations on pairs of stack locations x,y.
+% --
+
+/mzerop			% x y mzerop x=0&y=0
+{abs exch abs add 0 le}
+bind def
+
+/mconjugate		% x y mconjugate x -y
+{neg}
+bind def
+
+/madd			% x1 y1 x2 y2 madd x1+y1 x2+y2
+{exch 4 -1 roll add 3 1 roll add}
+bind def
+
+/msub			% x1 y1 x2 y2 msub x1-y1 x2-y2
+{4 -1 roll 3 -1 roll sub 3 1 roll sub}
+bind def
+
+/mneg			% x y mneg -x -y
+{exch neg exch neg}
+bind def
+
+/mmul			% a b c d
+{3 index 2 index mul 3 index 2 index mul sub 5 1 roll
+ 4 -1 roll mul 3 1 roll mul add}
+bind def
+
+/msqr		% x y
+{1 index dup mul 1 index dup mul sub 3 1 roll mul 2 mul}
+bind def
+
+/mcube			% x y
+{2 copy msqr mmul}
+bind def
+
+/mnorm			% x y mnorm x^2+y^2
+{dup mul exch dup mul add}
+def
+
+/mabs			% x y mabs sqrt(x^2+y^2)
+{mnorm sqrt}
+def
+
+/mscale			% x y r mscale xr yr
+{dup 4 -1 roll mul 3 1 roll mul}
+def
+
+/minv			% x y minv	x/(x^2+y^2) -y/(x^2+y^2)
+{2 copy mnorm 1 exch div mscale mconjugate}
+def
+
+/mdiv			% x1 y1 x2 y2 mdiv x3 y3
+{minv mmul}
+def
+
+/msignum		% x1 y1 msignum x2 y2
+{2 copy mabs 1 div mscale}
+def
+
+/mphase			% x y mphase
+{exch atanr}
+def
+
+/mcis			% t cis cos(t) sin(t)
+{rad2deg dup cos exch sin}
+def
+
+/mlog			% x1 y1 mlog x2 y2
+{2 copy mnorm ln 0.5 mul 3 1 roll mphase}
+def
+
+/mexp			% x1 y1 mexp x2 y2
+{mcis 3 -1 roll expr mscale}
+def
+
+/msqrt			% x1 y1 msqrt x2 y2
+{2 copy mzerop
+ {}
+ {mlog 0.5 mscale mexp} ifelse}
+def
+
+/mcross	% x1 y1 x2 y2 mcross (x1,y1)x(x2,y2)
+{4 -1 roll mul 3 1 roll mul sub}
+bind def
+
+/mabs		% x y mabs
+{dup mul exch dup mul add sqrt}
+bind def
+
+/min			% x y min
+{2 copy lt {pop} {exch pop} ifelse}
+bind def
+
+% -- Determine diameter of largest circle entirely within 1 device pixel.
+/resolution
+{1 0 idtransform 0 1 idtransform		% x1 y1 x2 y2
+ 3 index 3 index mabs				% x1 y1 x2 y2 d1
+ 5 1 roll						% d1 x1 y1 x2 y2
+ 2 copy mabs					% d1 x1 y1 x2 y2 d2
+ 5 1 roll						% d1 d2 x1 y1 x2 y2
+ mcross abs						% d1 d2 cross12
+ dup 4 -1 roll div				% d2 cross12 cross12/d1
+ exch							% d2 cross12/d1 cross12
+ 3 -1 roll div min}
+bind def
+ 
+/plot-circle-fn	% f x y r plot-circle-fn	% plot f(circle) at dev res.
+{3 copy 3 -1 roll add exch 5 index exec moveto
+ resolution						% f x y r res
+ 1 index atan					% f x y r dangle
+ 0 exch 360						% f x y r 0 dangle 360
+ {% x y r angle
+  dup cos 2 index mul				% f x y r angle rca
+  4 index add					% f x y r angle x'
+  exch						% f x y r x' angle
+  sin 2 index mul 3 index add			% f x y r x' y'
+  5 index exec
+  2 copy lineto stroke moveto} for
+ pop pop pop pop
+ closepath stroke}
+def
+/plot-cross	% x y size plot-cross
+{3 copy 3 1 roll moveto 0 rlineto stroke
+ 3 copy 3 1 roll moveto neg 0 rlineto stroke
+ 3 copy 3 1 roll moveto 0 exch rlineto stroke
+ 3 1 roll moveto neg 0 exch rlineto stroke}
+bind def
+
+/wp$x 200 def
+/wp$y 100 def
+
+/initplot
+{100 100 translate
+ wp$x 2 div wp$y 2 div translate
+ 0 setlinewidth
+ wp$x 2 div neg 0 moveto wp$x 2 div 0 lineto stroke
+ 0 wp$y 2 div neg moveto 0 wp$y 2 div lineto stroke
+ wp$y 2 div dup scale 0 setlinewidth}
+def
+
+initplot
+-2 0 0.05 plot-cross
+-1 0 0.05 plot-cross
+0 0 0.04 plot-cross
+1 0 0.04 plot-cross
+2 0 0.05 plot-cross
+0 -1 0.05 plot-cross
+0 1 0.05 plot-cross
+1 0 2 3 div 0 360 arc stroke
+-1 0 2 3 div 0 360 arc stroke
+{2 copy minv madd 0.5 mscale} 1 0 2 3 div plot-circle-fn
+{2 copy minv madd 0.5 mscale} -1 0 2 3 div plot-circle-fn
+%showpage
+end
+restore

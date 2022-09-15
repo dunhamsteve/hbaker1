@@ -1,0 +1,181 @@
+<html><head>
+<!-- Based on MIT AI Memo 239 "HAKMEM" -->
+<!-- by M. Beeler, R.W. Gosper, and R. Schroeppel, Feb. 29, 1972. -->
+<!-- This html version Copyright (c) 1995 by Henry G. Baker. -->
+<link rev="made" href="mailto:hbaker1@pipeline.com">
+<title>HAKMEM -- POLYOMINOS, ETC. -- DRAFT, NOT YET PROOFED</title>
+
+</head><body>
+
+Beeler, M., Gosper, R.W., and Schroeppel, R.  <i>HAKMEM</i>.  MIT AI
+Memo 239, Feb. 29, 1972.
+
+Retyped and converted to <i>html</i> ('Web browser format) by
+
+<a href="http://home.pipeline.com/~hbaker1/home.html">Henry Baker,</a>
+
+April, 1995.
+
+<h2>POLYOMINOS, ETC.</h2>
+
+<a href="quaternions.html">Previous</a>
+<a href="hakmem.html">Up</a>
+<a href="topology.html">Next</a>
+
+<a name="item108"></a>
+
+<h3>ITEM 108:</h3>
+
+See the <a href="proposed.html#108">PROPOSED COMPUTER
+PROGRAMS</a> section for counts of polyominos of orders &lt; 19.
+
+<a name="item109"></a>
+
+<h3>ITEM 109 (Schroeppel):</h3>
+
+Tessellating the plane with polyominos:<p>
+
+Through all hexominos, the plane can be tessellated with each piece (without
+even flipping any over).  All but the four heptominos below can tessellate the
+plane, again without being flipped over.  Thus, flipping does not buy you
+anything through order 7.  (There are 108 heptominos).
+
+<tt><pre>
+H   H   HHH     H      H 
+HHHHH   H H   HHHH   HHHH
+         HH     H       H
+                H       H
+</pre></tt>
+
+<a name="item110"></a>
+
+<h3>ITEM 110 (Schroeppel):</h3>
+
+PROBLEM: What rectangles are coverable by various polyominos?  For example,
+
+<tt><pre>
+XX      can cover rectangles which are 3N x M,
+X       except if N = 1, then M must be even.
+YYYY    can be shown by coloring to cover only rectangles
+        having at least one side divisible by four.
+</pre></tt>
+
+<a name="item111"></a>
+
+<h3>ITEM 111 (Schroeppel):</h3>
+
+PROBLEM:  Find a necessary and sufficient condition for an arbitrary shape in
+the plane to be domino coverable.
+
+<a name="item112"></a>
+
+<h3>ITEM 112 (Beeler):</h3>
+
+"Iamonds" are made of equilateral triangles, like diamonds.<p>
+
+"(Poly-)ominos" are made of squares, like dominos.<p>
+
+"Hexafrobs" are made of hexagons.<p>
+
+"Soma-like" pieces are made of cubes.<p>
+
+See also "Polyiamonds", Math. Games, <i>Sci. Am.,</i> December 1964.
+Left and right 3-dimensional forms are counted as distinct.
+
+<tt><pre>
+ORDER   IAMONDS OMINOS  HEXA'S  SOMA-LIKE
+ 1        1      1       1       1
+ 2        1      1       1       1
+ 3        1      2       3       2
+ 4        3      5       7       8
+ 5        4     12      22      29
+ 6       12     35
+ 7       24
+ 8       66
+ 9      160
+10      448
+</pre></tt>
+
+Polyominos of order 1, 2 and 3 cannot form a rectangle.  Orders 4 and
+6 can be shown to form no rectangles by a checkerboard coloring.
+Order 5 has several boards and its solutions are documented
+(<i>Communications of the ACM,</i> October 1965):
+
+<tt><pre>
+BOARD   DISTINCT SOLUTIONS
+3 X 20     2
+4 X 15   368
+5 X 12  1010
+6 X 10  2339 (verified)
+two 5 x 6 -- 2
+8 x 8 with 2 x 2 hole in center -- 65
+</pre></tt>
+
+CONJECTURE (Schroeppel): If the ominos of a given order form rectangles of
+different shapes, the rectangle which is more nearly square will have more
+solutions.<p>
+
+Order-4 hexafrob boards and solution counts:
+
+<ul>
+
+<li>side 7 triangle -- no solutions</li>
+
+<li>parallelogram, base 7, side 4 -- 9 distinct solutions, e.g.,
+
+<tt><pre>
+A A A A B C C
+ D E B B C F C
+  D E E B F G G
+   D D E F F G G
+</pre></tt></li>
+
+</ul>
+
+Order-6 iamond boards and solution counts (see
+<a href="Figure5.html">illustration</a>):
+
+<ul>
+
+<li>side 9 triangle with inverted side 3 triangle in center removed -- no
+solutions</li>
+
+<li>trapezoid, side 6, bases 3 and 3+6 -- no solutions</li>
+
+<li>two triangles of side 6 -- no solutions</li>
+
+<li>trapezoid, side 4, bases 7 and 7+4 -- 76 distinct solutions</li>
+
+<li>parallelogram, base 6, side 6 -- 156 distinct solutions</li>
+
+<li>parallelogram, base 4, side 9 -- 37 distinct solutions</li>
+
+<li>parallelogram, base 3, side 12 --- no solutions</li>
+
+<li>triangle of side 9 with triangles of side 1, 2 and 2 removed from its corners
+(a commercial puzzle) -- 5885 distinct solutions</li>
+
+</ul>
+
+With Soma-like pieces, orders 1, 2 and 3 do not have interesting boxes.  Order
+4 has 1390 distinct solutions for a 2 x 4 x 4 box.  1124 of these have the
+four-in-a-row on an edge; the remaining 266 have that piece internal.  320
+solutions are due to variations of ten distinct solutions decomposable into two
+2 x 2 x 4 boxes.  A soma-like 2 x 4 x 4 solution:
+
+<tt><pre>
+AAAA    BBHH
+BCCC    BHHC
+DDDE    FGGE
+FDGE    FFGE
+</pre></tt>
+
+The commercial <i>Soma</i> has 240 distinct solutions; the booklet
+which comes with it say this was found years ago on a 7094.  Verified
+by both Beeler and Clements.<p>
+
+<a href="quaternions.html">Previous</a>
+<a href="hakmem.html">Up</a>
+<a href="topology.html">Next</a>
+
+</body></html>

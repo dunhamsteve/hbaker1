@@ -1,0 +1,421 @@
+<html><head>
+<!-- Based on MIT AI Memo 239 "HAKMEM" -->
+<!-- by M. Beeler, R.W. Gosper, and R. Schroeppel, Feb. 29, 1972. -->
+<!-- This html version Copyright (c) 1995 by Henry G. Baker. -->
+<link rev="made" href="mailto:hbaker1@pipeline.com">
+<title>HAKMEM -- CONTENTS -- DRAFT, NOT YET PROOFED</title>
+
+</head><body>
+
+<address>
+<a href="http://web.mit.edu/">Massachusetts Institute of Technology</a><br>
+<a href="http://www.ai.mit.edu/">A. I. Laboratory</a><br>
+Artificial Intelligence Memo No. 239<br>
+February 29, 1972<p>
+</address>
+
+<h1>HAKMEM</h1>
+
+<a href="#contents">contents</a> <a href="index.html">index</a><p>
+
+<address>
+M. Beeler [beeler@bbn.com]<br>
+R. W. Gosper [rwg@newton.macsyma.com]<br>
+<a href="http://www.cs.arizona.edu/xkernel/www/people/rich.html">R. Schroeppel</a> [rcs@cs.arizona.edu]<p>
+</address>
+
+[Retyped and formatted in
+
+<a href="http://www.cc.ukans.edu/lynx_help/HTML_quick.html">'html'</a>
+
+('Web browser format) by
+
+<a href="http://home.pipeline.com/~hbaker1/home.html">Henry Baker,</a>
+
+April, 1995.  The goal of this 'html' document is to make HAKMEM
+available to the widest possible audience -- including those without
+bitmapped graphics browsers.  Therefore, equations have been formatted
+to be readable even on ASCII browsers such as
+<a href="http://www.cc.ukans.edu/about_lynx/about_lynx.html">'lynx'</a>.  Click
+<a href="ftp://publications.ai.mit.edu/ai-publications/0-499/AIM-239.tiff.tar.gz">here</a>
+to get original AI Memo 239 in 400 dots/inch, 1 bit/pixel, Group 4 facsimile
+<a href="ftp://ftp.sgi.com/graphics/tiff/README">TIFF</a>
+format (a single 5 megabyte
+<a href="ftp://prep.ai.mit.edu/pub/gnu/README-about-.gz-files">gzip</a>
+compressed tar file, AIM-239.tiff.tar.gz).]<p>
+
+Work reported herein was conducted at the Artificial Intelligence
+Laboratory, a Massachusetts Institute of Technology research program
+supported in part by the
+
+<a href="http://www.arpa.mil/">Advanced Research Projects Agency</a>
+
+of the Department of Defense and monitored by the Office of Naval
+Research under Contract Number N00014-70-A-0362-0002.<p>
+
+Reproduction of this document, in whole or in part, is permitted for any
+purpose of the United States Government.<p>
+
+Compiled with the hope that a record of the random things people do around here
+can save some duplication of effort -- except for fun.<p>
+
+Here is some little known data which may be of interest to computer hackers.
+The items and examples are so sketchy that to decipher them may require more
+sincerity and curiosity than a non-hacker can muster.  Doubtless, little of
+this is new, but nowadays it's hard to tell.  So we must be content to give you
+an insight, or save you some cycles, and to welcome further contributions of
+items, new or used.<p>
+
+The classification of items into sections is even more illogical than
+necessary.  This is because later elaborations tend to shift perspective on
+many items, and this elaboration will (hopefully) continue after publication,
+since this text is retained in "machinable" form.  We forgive in advance anyone
+deterred by this wretched typography.<p>
+
+People referred to are from the A. I. Lab:
+
+<tt><pre>
+Marvin Minsky        [minsky@ai.mit.edu]
+Bill Gosper          [rwg@newton.macsyma.com]
+Michael Beeler       [beeler@bbn.com]
+Joe Cohen
+Jerry Freiberg
+John Roe
+Rich Schroeppel      [rcs@cs.arizona.edu]
+David Silver
+Michael Speciner     [ms@color_age.com]
+Richard Stallman     [rms@ai.mit.edu]
+<a href="http://www.swiss.ai.mit.edu/~gjs/gjs.html">Gerald Sussman</a>       [gjs@ai.mit.edu]
+David Waltz
+</pre></tt>
+
+Once at the A. I. Lab but now elsewhere:
+
+<tt><pre>
+Jan Kok                  William Henneman
+Rici Liknaitzky          George Mitchell
+Peter Samson             Stuart Nelson
+Roger Banks              Rollo Silver
+<a href="http://www.dcs.warwick.ac.uk/dcs/people/staff/academic/msp/">Mike Paterson</a>            [Mike.Paterson@dcs.warwick.ac.uk]
+</pre></tt>
+
+at <a href="http://www.digital.com/">Digital Equipment Corporation:</a>
+
+<tt><pre>
+Jud Leonard     [leonard@tlw.com]
+Dave Plumer              Ben Gurley (deceased)
+Steve Root
+</pre></tt>
+
+elsewhere at M.I.T.:
+
+<tt><pre>
+Gene Salamin    [Gene_Salamin@cohr.com]
+Eric Jensen              Frances Yao
+Edward Fredkin           PDP-1 hackers
+</pre></tt>
+
+once at M.I.T., but now elsewhere:
+
+<tt><pre>
+Jackson Wright           Steve Brown
+Malcolm Rayfield
+</pre></tt>
+
+in France:
+
+<tt><pre>
+Marco Schutzenberger     Henry Cohen
+</pre></tt>
+
+at Computer Corporation of America:
+
+<tt><pre>
+Bill Mann
+</pre></tt>
+
+at <a href="http://www.bbn.com/">BBN:</a>
+
+<tt><pre>
+Robert Clements
+</pre></tt>
+
+CAVEATS:<p>
+
+Some of this material is very inside -- many readers will have to excuse
+cryptic references.<p>
+
+The label "PROBLEM" does not always mean exercise; if no solution is given, it
+means we couldn't solve it.  If you solve a problem in here, let us know.<p>
+
+Unless otherwise stated, all computer programs are in
+<a href="../pdp-10/pdp-10.html">PDP-6/10</a> assembly language.
+
+<a name="contents"></a>
+
+<h2>CONTENTS, HAKMEM 140</h2>
+
+<ul>
+
+<li><a href="geometry.html">Geometry, Algebra, Calculus</a><ul>
+<li><a href="geometry.html#item1">Item 1</a> Fractional factorials</li>
+<li><a href="geometry.html#item2">Item 2</a> N-gon diagonals</li>
+<li><a href="geometry.html#item3">Item 3</a> Convergence of Newton's square roots</li>
+<li><a href="geometry.html#item4">Item 4</a> Quartic discriminant</li>
+<li><a href="geometry.html#item5">Item 5</a> General discriminant</li>
+<li><a href="geometry.html#item6">Item 6</a> Symmetric functions</li>
+<li><a href="geometry.html#item7">Item 7</a> Symmetric functions</li>
+<li><a href="geometry.html#item8">Item 8</a> Cubic solution</li>
+<li><a href="geometry.html#item9">Item 9</a> Quartic solution</li>
+<li><a href="geometry.html#item10">Item 10</a> Trigonometric cubic solution</li>
+<li><a href="geometry.html#item11">Item 11</a> Conformal mappings of N-space</li>
+</ul></li>
+<li><a href="recurrence.html">Recurrence Relations</a><ul>
+<li><a href="recurrence.html#item12">Item 12</a> Fast Fibonacci Transform</li>
+<li><a href="recurrence.html#item13">Item 13</a> Linear Recurrence Relations</li>
+<li><a href="recurrence.html#item14">Item 14</a> Rapid Recurrences</li>
+<li><a href="recurrence.html#item15">Item 15</a> Chebychev polynomials</li>
+<li><a href="recurrence.html#item16">Item 16</a> Tangents and arctangents</li>
+</ul></li>
+<li><a href="boolean.html">Boolean Algebra</a><ul>
+<li><a href="boolean.html#item17">Item 17</a> Minimize AND's</li>
+<li><a href="boolean.html#item18">Item 18</a> Count monotonic Boolean functions</li>
+<li><a href="boolean.html#item19">Item 19</a> 2-NOT's</li>
+<li><a href="boolean.html#item20">Item 20</a> Venn Diagrams</li>
+<li><a href="boolean.html#item21">Item 21</a> Cover character raster</li>
+<li><a href="boolean.html#item22">Item 22</a> Binary masks</li>
+<li><a href="boolean.html#item23">Item 23</a> Plus and XOR</li>
+<li><a href="boolean.html#item24">Item 24</a> Venn Diagrams</li>
+</ul></li>
+<li><a href="random.html">Random Numbers</a><ul>
+<li><a href="random.html#item25">Item 25</a> Random number generators</li>
+<li><a href="random.html#item26">Item 26</a> Gaussian distribution</li>
+<li><a href="random.html#item27">Item 27</a> Random unit vectors in N-space</li>
+</ul></li>
+<li><a href="number.html">Number Theory, Primes, Probability</a><ul>
+<li><a href="number.html#item28">Item 28</a> Mersenne 125 is composite</li>
+<li><a href="number.html#item29">Item 29</a> Probability of largest prime factor</li>
+<li><a href="number.html#item30">Item 30</a> Twin Primes</li>
+<li><a href="number.html#item31">Item 31</a> A Ramanujan problem</li>
+<li><a href="number.html#item32">Item 32</a> Distribution of fractions</li>
+<li><a href="number.html#item33">Item 33</a> Russian doll primes</li>
+<li><a href="number.html#item34">Item 34</a> Factorial and integer square root</li>
+<li><a href="number.html#item35">Item 35</a> Arithmetic progressions</li>
+<li><a href="number.html#item36">Item 36</a> Squares with no zero digits</li>
+<li><a href="number.html#item37">Item 37</a> Numbers with each digit</li>
+<li><a href="number.html#item38">Item 38</a> Forward differences</li>
+<li><a href="number.html#item39">Item 39</a> Sequences of digits</li>
+<li><a href="number.html#item40">Item 40</a> Variance of a sum</li>
+<li><a href="number.html#item41">Item 41</a> Number of primes less than 2^18</li>
+<li><a href="number.html#item42">Item 42</a> Probability of PingPong winner</li>
+<li><a href="number.html#item43">Item 43</a> Multinomial coefficients</li>
+<li><a href="number.html#item44">Item 44</a> Recurrences for multinomial coefficients</li>
+<li><a href="number.html#item45">Item 45</a> Locus of steps</li>
+<li><a href="number.html#item46">Item 46</a> Distribution of bridge hands</li>
+<li><a href="number.html#item47">Item 47</a> Fibonacci series mod P</li>
+<li><a href="number.html#item48">Item 48</a> Visibility on 2D lattice</li>
+<li><a href="number.html#item49">Item 49</a> Magic hexagon</li>
+<li><a href="number.html#item50">Item 50</a> No magic cubes of order 4</li>
+<li><a href="number.html#item51">Item 51</a> No magic tesseract of order 5</li>
+<li><a href="number.html#item52">Item 52</a> Relatively prime probability</li>
+<li><a href="number.html#item53">Item 53</a> Lack of common divisors</li>
+<li><a href="number.html#item54">Item 54</a> Probability of even denominators</li>
+<li><a href="number.html#item55">Item 55</a> Gaussian integers</li>
+<li><a href="number.html#item56">Item 56</a> "Length" of a number</li>
+<li><a href="number.html#item57">Item 57</a> Zero digits in powers of two</li>
+<li><a href="number.html#item58">Item 58</a> Sum of cubes</li>
+<li><a href="number.html#item59">Item 59</a> Interesting square</li>
+<li><a href="number.html#item60">Item 60</a> Perfect numbers</li>
+<li><a href="number.html#item61">Item 61</a> Amicable pairs</li>
+<li><a href="number.html#item62">Item 62</a> Amicable pairs</li>
+<li><a href="number.html#item63">Item 63</a> Joys of 239</li>
+</ul></li>
+<li><a href="automata.html">Automata Theory</a><ul>
+<li><a href="automata.html#item64">Item 64</a> 2-counter machines</li>
+<li><a href="automata.html#item65">Item 65</a> Complexity of pi(X)</li>
+<li><a href="automata.html#item66">Item 66</a> Space-filling curves</li>
+</ul></li>
+<li><a href="games.html">Games</a><ul>
+<li><a href="games.html#item67">Item 67</a> "Poker coins"</li>
+<li><a href="games.html#item68">Item 68</a> <i>Blackout</i></li>
+<li><a href="games.html#item69">Item 69</a> <i>Dots</i></li>
+<li><a href="games.html#item70">Item 70</a> Chess problem</li>
+<li><a href="games.html#item71">Item 71</a> <i>Instant Insanity</i></li>
+<li><a href="games.html#item72">Item 72</a> <i>Window-dice</i></li>
+<li><a href="games.html#item73">Item 73</a> <i>Sim</i></li>
+<li><a href="games.html#item74">Item 74</a> <i>Tactix</i></li>
+<li><a href="games.html#item75">Item 75</a> <i>Peg solitaire</i></li>
+<li><a href="games.html#item76">Item 76</a> <i>Hi-Q</i></li>
+</ul></li>
+<li><a href="proposed.html">Proposed Computer Programs</a></li><ul>
+<li><a href="proposed.html#item77">Problem 77</a> Counting polyominos</li>
+<li><a href="proposed.html#item78">Problem 78</a> Solve <i>minichess</i></li>
+<li><a href="proposed.html#item79">Problem 79</a> Solve the <i>tiger puzzle</i></li>
+<li><a href="proposed.html#item80">Problem 80</a> Find smallest <i>squared square</i></li>
+<li><a href="proposed.html#item81">Problem 81</a> Counting <i>magic squares</i></li>
+<li><a href="proposed.html#item82">Problem 82</a> Counting semigroups</li>
+<li><a href="proposed.html#item83">Problem 83</a> Counting inscribed circles</li>
+<li><a href="proposed.html#item84">Problem 84</a> Solve pentominos</li>
+<li><a href="proposed.html#item85">Problem 85</a> Geometric dissections</li>
+<li><a href="proposed.html#item86">Problem 86</a> Domino coverings</li>
+<li><a href="proposed.html#item87">Problem 87</a> Analyze <i>giveaway chess</i></li>
+<li><a href="proposed.html#item88">Problem 88</a> Analyze <i>escalation chess</i></li>
+<li><a href="proposed.html#item89">Problem 89</a> Analyze "4 pawns"</li>
+<li><a href="proposed.html#item90">Problem 90</a> Solve Scarne's game <i>Teeko</i></li>
+<li><a href="proposed.html#item91">Problem 91</a> Solve "five-in-a-row"</li>
+<li><a href="proposed.html#item92">Problem 92</a> Solve 4x4x4 <i>Tic-Tac-Toe</i></li>
+<li><a href="proposed.html#item93">Problem 93</a> Solve <i>checkers</i></li>
+<li><a href="proposed.html#item94">Problem 94</a> Solve <i>Hex</i></li>
+<li><a href="proposed.html#item95">Problem 95</a> Solve <i>chess</i></li>
+<li><a href="proposed.html#item96">Problem 96</a> Solve <i>Go</i></li>
+</ul></li>
+<li><a href="cf.html">Continued Fractions</a><ul>
+<li><a href="cf.html#item97">Item 97</a> Sqrt(2), Sqrt(3)</li>
+<li><a href="cf.html#item98">Item 98</a> Minimum of factorial function</li>
+<li><a href="cf.html#item99">Item 99</a> Partial quotients in arithmetic progression</li>
+<li><a href="cf.html#item100">Item 100</a> Product</li>
+<li><a href="cf.html#item101a">Item 101A</a> Continued fraction representation</li>
+<li><a href="cf.html#item101b">Item 101B</a> Continued fraction arithmetic</li>
+<li><a href="cf.html#item101c">Item 101C</a> Rationals in intervals</li>
+</ul></li>
+<li><a href="group.html">Group Theory</a><ul>
+<li><a href="group.html#item102">Item 102</a> Group-like definitions</li>
+<li><a href="group.html#item103">Item 103</a> Hamiltonian paths</li>
+<li><a href="group.html#item104">Item 104</a> Permuting bits on PDP-6/10</li>
+</ul></li>
+<li><a href="group.html#item105">Set Theory</a><ul>
+<li><a href="group.html#item105">Item 105</a> Closure and complement</li>
+</ul></li>
+<li><a href="quaternions.html">Quaternions</a><ul>
+<li><a href="quaternions.html#item107">Item 107</a> Quaternions</li>
+</ul></li>
+<li><a href="polyominos.html">Polyominos, etc.</a><ul>
+<li><a href="polyominos.html#item108">Item 108</a> Counting polyominos</li>
+<li><a href="polyominos.html#item109">Item 109</a> Tessellating the plane</li>
+<li><a href="polyominos.html#item110">Item 110</a> Covering rectangles</li>
+<li><a href="polyominos.html#item111">Item 111</a> Domino covering</li>
+<li><a href="polyominos.html#item112">Item 112</a> Polyiamonds</li>
+</ul></li>
+<li><a href="topology.html">Topology</a><ul>
+<li><a href="topology.html#item113">Item 113</a></li>
+<li><a href="topology.html#item114">Item 114</a></li>
+<li><a href="topology.html#item115">Item 115</a></li>
+</ul></li>
+<li><a href="series.html">Series</a><ul>
+<li><a href="series.html#item116">Item 116</a></li>
+<li><a href="series.html#item117">Item 117</a> Gamma</li>
+<li><a href="series.html#item118">Item 118</a> N^N</li>
+<li><a href="series.html#item119">Item 119</a> Pi series</li>
+<li><a href="series.html#item120">Item 120</a> Accelerating series</li>
+<li><a href="series.html#item121">Item 121</a> Bernoulli polynomials</li>
+<li><a href="series.html#item122">Item 122</a> Parity number</li>
+<li><a href="series.html#item123">Item 123</a> Fourier clocks</li>
+<li><a href="series.html#item124">Item 124</a></li>
+<li><a href="series.html#item125">Item 125</a> Radius of convergence</li>
+</ul></li>
+<li><a href="flows.html">Flows and Iterated Functions</a><ul>
+<li><a href="flows.html#item126">Item 126</a> Flow for Newton's square root</li>
+<li><a href="flows.html#item127">Item 127</a> Polynomial functions which commute</li>
+<li><a href="flows.html#item128">Item 128</a> Binary/negative binary radix flow</li>
+<li><a href="flows.html#item129">Item 129</a> Flow power series</li>
+<li><a href="flows.html#item130">Item 130</a> Flow power series</li>
+<li><a href="flows.html#item131">Item 131</a> Arithmetic geometric mean</li>
+<li><a href="flows.html#item132">Item 132</a> Loop detector</li>
+<li><a href="flows.html#item133">Item 133</a> 3 N + 1 problem</li>
+<li><a href="flows.html#item134">Item 134</a> Numbers to English words flow</li>
+<li><a href="flows.html#item135">Item 135</a> The "C" Curve</li>
+</ul></li>
+<li><a href="pi.html">Pi</a><ul>
+<li><a href="pi.html#item136">Item 136</a> Gaussian integers</li>
+<li><a href="pi.html#item137">Item 137</a> Arctangent formulas for pi</li>
+<li><a href="pi.html#item138">Item 138</a> Arctangent formulas for pi</li>
+<li><a href="pi.html#item139">Item 139</a> Ramanujan formulas for pi</li>
+<li><a href="pi.html#item140">Item 140</a> Continued fraction for pi</li>
+<li><a href="pi.html#item141">Item 141</a> Pi digits</li>
+<li><a href="pi.html#item142">Item 142</a> Pi from fast trig functions</li>
+<li><a href="pi.html#item143">Item 143</a> AGM for elliptic integrals, log, and pi</li>
+<li><a href="pi.html#item144">Item 144</a> AGM for pi</li>
+</ul></li>
+<li><a href="hacks.html">Programming Hacks</a><ul>
+<li><a href="hacks.html#item145">Item 145</a> Display/sound</li>
+<li><a href="hacks.html#item146">Item 146</a> Munching squares</li>
+<li><a href="hacks.html#item147">Item 147</a> Munching squares</li>
+<li><a href="hacks.html#item148">Item 148</a> Munching squares</li>
+<li><a href="hacks.html#item149">Item 149</a> Circle algorithm</li>
+<li><a href="hacks.html#item150">Item 150</a> Circle algorithm</li>
+<li><a href="hacks.html#item151">Item 151</a> Circle algorithm</li>
+<li><a href="hacks.html#item152">Item 152</a> Circle algorithm</li>
+<li><a href="hacks.html#item153">Item 153</a> 3D solids on 2D display</li>
+<li><a href="hacks.html#item154">Item 154</a> Twos-complement arithmetic</li>
+<li><a href="hacks.html#item155">Item 155</a> Subtract right from left</li>
+<li><a href="hacks.html#item156">Item 156</a> Make AOBJN pointer</li>
+<li><a href="hacks.html#item157">Item 157</a> Make AOBJN pointer</li>
+<li><a href="hacks.html#item158">Item 158</a> Recursive SIN/COS</li>
+<li><a href="hacks.html#item159">Item 159</a> Recursive SIN/COS</li>
+<li><a href="hacks.html#item160">Item 160</a> Log base 2</li>
+<li><a href="hacks.html#item161">Item 161</a> Swap two locations</li>
+<li><a href="hacks.html#item162">Item 162</a> Swap two bits</li>
+<li><a href="hacks.html#item163">Item 163</a> Exchange two Lisp variables</li>
+<li><a href="hacks.html#item164">Item 164</a> Max of byte pointers</li>
+<li><a href="hacks.html#item165">Item 165</a> Byte pointers</li>
+<li><a href="hacks.html#item166">Item 166</a> Rotate 3 accumulators</li>
+<li><a href="hacks.html#item167">Item 167</a> Parity, count, reverse bits</li>
+<li><a href="hacks.html#item168">Item 168</a> PDP-1 sounds</li>
+<li><a href="hacks.html#item169">Item 169</a> Count ones</li>
+<li><a href="hacks.html#item170">Item 170</a> Decimal print routines</li>
+<li><a href="hacks.html#item171">Item 171</a> Division by zero</li>
+<li><a href="hacks.html#item172">Item 172</a> Two word Lisp CONS</li>
+<li><a href="hacks.html#item173">Item 173</a> Fix float</li>
+<li><a href="hacks.html#item174">Item 174</a> Fix point of float function</li>
+<li><a href="hacks.html#item175">Item 175</a> Next higher</li>
+</ul></li>
+<li><a href="algorithms.html">Programming Algorithms, Heuristics</a><ul>
+<li><a href="algorithms.html#item176">Item 176</a> BANANA Phenomenon</li>
+<li><a href="algorithms.html#item177">Item 177</a> Drawing Curves Incrementally</li>
+<li><a href="algorithms.html#item178">Item 178</a> Evaluating Functions</li>
+<li><a href="algorithms.html#item179">Item 179</a> Searching Character Strings</li>
+<li><a href="algorithms.html#item180">Item 180</a> Finding Corners in Images</li>
+</ul></li>
+<li><a href="hardware.html">Hardware</a><ul>
+<li><a href="hardware.html#item181">Item 181</a> Floating Point</li>
+<li><a href="hardware.html#item182">Item 182</a> Voltage regulators</li>
+<li><a href="hardware.html#item183">Item 183</a> Current mirrors</li>
+<li><a href="hardware.html#item184">Item 184</a> One-shot</li>
+<li><a href="hardware.html#item185">Item 185</a> Oscillators</li>
+<li><a href="hardware.html#item186">Item 186</a> FM Radio Link</li>
+<li><a href="hardware.html#item187">Item 187</a> Phone Line XMTR, RCVR</li>
+<li><a href="hardware.html#item188">Item 188</a> DC Motor Velocity Servo</li>
+<li><a href="hardware.html#item189">Item 189</a> Optical Coupler</li>
+<li><a href="hardware.html#item190">Item 190</a> Photocathode Current Oscillator</li>
+<li><a href="hardware.html#item191">Item 191</a> Deflection Amplifier</li>
+</ul></li>
+
+</ul>
+
+<h3>Figures</h3>
+
+<ul>
+
+<li><a href="Figure1a.html">1a</a>, <a href="Figure1b.html">1b</a>
+Binary integers radix <i>i</i>-1, <i>i</i>+1.</li>
+
+<li><a href="Figure2.html">2</a> Radix <i>i</i>-1 fraction parts (Knuth).</li>
+
+<li><a href="Figure3a.html">3a</a>, <a href="Figure3b.html">3b</a>
+Squared square, rectangle.</li>
+
+<li><a href="Figure4.html">4</a> Square, hexagon dissection.</li>
+
+<li><a href="Figure5.html">5</a> Hexiamond solutions.</li>
+
+<li><a href="Figure6a.html">6a</a>, <a href="Figure6b.html">6b</a> "clock hands" series.</li>
+
+<li><a href="Figure7.html">7</a> Binary numbers radix -2.</li>
+
+<li><a href="Figure8.html">8</a> "C" curves.</li>
+
+<li><a href="Figure9.html">9</a> Incremental curve drawing.</li>
+
+</ul>
+
+</body></html>

@@ -1,0 +1,721 @@
+<html><head>
+<!-- This document was created from RTF source by rtftohtml version 2.7.5 -->
+
+<title>ACM Lisp Pointers V, 2 (Apr/Jun 1992), 11-19.</title>
+
+<link rev="made" href="mailto:hbaker1@pipeline.com">
+
+<h1>
+The Buried Binding and Dead<a href="#fn0">[1]</a> Binding Problems of Lisp 1.5:
+Sources of Incomparability in Garbage Collector Measurements
+</h1>
+
+<address>
+<a href="home.html">Henry G. Baker</a><br>
+June, 1976<a href="#fn1">[2]</a>
+</address>
+
+<address>
+Laboratory for Computer Science<a href="#fn2">[3]</a><br>
+Massachusetts Institute of Technology<br>
+545 Technology Square<br>
+Cambridge, MA  02139
+</address>
+
+<address>
+This research was supported by the Advanced Research Projects Agency of the
+Department of Defense, and was monitored by the Office of Naval Research under
+contract number N00014-75-C-0661.
+</address>
+
+<h2>Abstract</h2>
+
+Lisp has become the language of choice for many applications such as artificial
+intelligence programs or symbol manipulation.  The original implementation of
+Lisp 1.5 was a concise, elegant statement of the semantics of the language.
+Although production Lisp systems have undergone significant development and
+evolution since Lisp 1.5, including the development of sophisticated compilers,
+there have been few significant theoretical improvements in the implementations
+of these systems.  Most improvements, such as arrays or shallow-binding, have
+been made more for the sake of speed than for the sake of storage.  A notable
+exception to this is the technique of tail recursion, which can save more than
+just stack space.<p>
+
+We believe that more can be done to reduce the storage requirements of Lisp
+programs.  Although in many instances, the Lisp programmer can reduce the
+storage requirements of his program by deleting unneeded pointers as soon as
+possible, there is nothing he can do about systematic inefficiencies of the
+Lisp interpreter.  This paper addresses itself to two sources of inefficiency
+in Lisp's variable binding mechanism--one of which is easy to detect--which
+prevent storage from being garbage collected long after its last reference.
+Implementations of Lisp which eliminate these situations should result in more
+economical execution for almost all Lisp programs which use a lot of storage,
+due to a lighter marking load on the garbage collector.
+
+</head><body>
+
+<h2>Introduction</h2>
+
+Much work has been done to optimize the interpretation and compilation of Lisp
+programs.  However, most of the work has involved the minimization of running
+time (exclusive of garbage collection time) and the minimization of the number
+of CONS'es.  Let us define the <i>running time</i> of a Lisp program to be the
+execution time exclusive of garbage collection, <i>garbage collect time</i> to
+be the time spent garbage collecting, and <i>running space</i> to be the number
+of CONS'es.  Each of these quantities refer to the amount of time or number of
+CONS'es since the program started.  Let us define the <i>net space</i> at a
+point in a program to be the number of cells marked by the garbage collector if
+it were run at that point in the program.  When discussing the total time or
+space taken by a Lisp program, we mean the running time, garbage collect time,
+or running space at the termination of the program; <i>maximal net space</i>
+will refer to the net space maximized over the life of the program, i.e., the
+"high water mark".<p>
+
+This paper discusses ways to reduce the net space of a program and hence its
+maximal net space.  This is important because the garbage collect mark phase
+time for a single garbage collection is proportional to the net space at that
+point in the program.  Reducing the average net space of a program will reduce
+the total garbage collect time; reducing the maximal net space will allow
+larger programs to be run in a limited address space.<p>
+
+We assume a paradigm Lisp interpreter similar to that found in the appendix of
+[McCarthy65] for the purposes of discussion.  This is because most Lisp
+interpreters are virtually isomorphic to this one (with the possible exception
+of shallow-binding, which does not affect our arguments), and this interpreter
+is already familiar to more people than any other.
+
+<h2>Environments and the Buried Binding Problem</h2>
+
+An environment is intuitively an object in which the value of a variable can be
+looked up.  In order to be more precise, however, we must enumerate all the
+functions which can operate on environments.  The function <tt>(lookup <i>x</i>
+<i>e</i>)</tt> produces the current value of the variable <tt><i>x</i></tt> in
+the environment <tt><i>e</i></tt>, if there is one, and <tt>UNDEFINED</tt>,
+otherwise.  There is a unique environment, called <tt>NULL-ENVIRONMENT</tt>,
+which produces <tt>UNDEFINED</tt> for every variable.  New environments are
+created from old ones by the function <tt>(bind <i>x y e</i>)</tt>, which
+creates an environment <tt><i>e'</i></tt> in which the variable
+<tt><i>x</i></tt> is bound to the value <tt><i>y</i></tt> and the values of all
+other variables are inherited from <tt><i>e</i></tt>.  The value of the
+variable <tt><i>x</i></tt> in an environment <tt><i>e</i></tt> can be changed
+to <tt><i>z</i></tt> by the function <tt>(rebind <i>x z e</i>)</tt>.
+<tt>rebind</tt> returns the "same" environment it was given, except that
+<tt>(lookup <i>x e</i>)</tt> will now produce <tt><i>z</i></tt> instead of
+whatever it produced before.  (Models differ on whether rebinding a variable
+<tt><i>x</i></tt> in an environment <tt><i>e</i></tt> can affect the value of
+<tt><i>x</i></tt> in any other environment or not.)  Environments can be
+compared by <tt>(equal <i>e1 e2</i>)</tt>; <tt><i>e1 </i></tt>and
+<tt><i>e2</i></tt> are equal just when <tt>(eq (lookup <i>x e1</i>) (lookup
+<i>x e2</i>))</tt> is <tt>t</tt> for all variables <tt><i>x</i></tt>.
+
+<h2>Implementing Environments--The Tree Representation</h2>
+
+A non-null environment <tt><i>e</i></tt> can be represented by a pair
+&lt;<i>bind</i>[<tt><i>e</i></tt>], <i>parent</i>[<tt><i>e</i></tt>]&gt;,
+called a <i>node</i>, where <i>bind</i>[<tt><i>e</i></tt>]=<tt><i>p</i></tt> is
+a <i>binding post</i>, i.e. a pair &lt;<i>variable</i>[<tt><i>p</i></tt>],
+<i>value</i>[<tt><i>p</i></tt>]&gt;, in which <i>value</i>[<tt><i>p</i></tt>]
+can be updated.  The above structure is created by the function call <tt>(bind
+</tt><i>variable</i>[<tt><i>e</i></tt>] <i>value</i>[<tt><i>e</i></tt>]
+<i>parent</i>[<tt><i>e</i></tt>]<tt>)</tt>.  (Here, <i>variable</i>,
+<i>value</i>, <i>bind</i>, and <i>parent</i> are meta functions for decomposing
+bindings and environments and are not available to the programmer.)<p>
+
+<tt>lookup</tt> and <tt>rebind</tt> can be defined relatively easily:
+
+<tt><pre>
+(lookup x e) =	 let e'=search[x, e] in
+		  if e'=NULL-ENVIRONMENT then UNDEFINED
+		  else value[bind[e']]
+
+(rebind x z e) = let e'=search[x, e] in
+		  if e'=NULL-ENVIRONMENT then ERROR
+		  else value[bind[e']]:=z;
+		 e
+
+search[x, e] =	 if e=NULL-ENVIRONMENT then e
+		  else if x=variable[bind[e]] then e
+		  else search[x, parent[e]]
+</pre></tt>
+
+If an environment <tt><i>e'</i></tt> can be reached from an environment
+<tt><i>e</i></tt> by following a finite series of <i>parent</i> pointers, then
+we say that <tt><i>e'</i></tt> is an <i>ancestor</i> of <tt><i>e</i></tt> and
+that <tt><i>e</i></tt> is a <i>descendant</i> of <tt><i>e'</i></tt>.  We make
+the reasonable assumption that the null environment is an ancestor of every
+environment (excepting the null environment, itself).  This constraint is
+automatically satisfied by any finite program, given only our primitives for
+interacting with environments.  With these assumptions, a group of environments
+forms a <i>tree</i> having the null environment as its root.  The unique path
+from an environment to the root we will call its <i>search path</i>.<p>
+
+We have defined the tree representation for environments; we now investigate
+its properties.  First of all, <tt>lookup</tt> and <tt>rebind</tt> terminate
+for every environment due to the null-environment-ancestor condition.
+Secondly, <tt>lookup</tt> and <tt>rebind</tt> find only the first occurrence of
+a variable in the search path from a particular node; any other binding of that
+variable in an ancestor environment will not be seen.  Therefore, the tree
+representation could lead to the "buried binding problem": a binding of a
+variable <tt><i>x</i></tt> in a node <tt><i>e</i></tt> cannot be referenced
+because 1) the only direct pointers to <tt><i>e</i></tt> are parent pointers
+from other environments; and 2) all paths of pointers to <tt><i>e</i></tt> from
+outside the environment tree go through environment nodes in which
+<tt><i>x</i></tt> is previously bound.  Thus, <tt>search</tt> can never be
+called with the arguments <tt>[x, e]</tt>.<p>
+
+Buried bindings can be a problem if space is at a premium because the garbage
+collector will refuse to collect the value of the buried variable even though
+it cannot be referenced by <tt>lookup</tt> or <tt>rebind</tt>.  This is because
+the garbage collector cannot distinguish between environment and other
+structures and it must assume that the parent pointer chains can be followed.
+There are two possible solutions to this problem: modify the garbage collector,
+or change the representation.  We will investigate both of these
+possibilities.<p>
+
+A natural question arises before we delve into the details of possible
+modifications.  Do buried bindings actually occur in real programming
+situations, such as in Lisp?  The answer is paradoxical in that Lisp
+interpreters<a href="#fn3">[4]</a> which have been optimized
+in certain ways<a href="#fn4">[5]</a> exhibit more buried
+bindings than unoptimized interpreters!
+
+<h2>Modifying the Garbage Collector</h2>
+
+Suppose that we wish to modify the garbage collector to reclaim buried
+bindings.  What must be changed?  First, the buried bindings must be identified
+during the mark phase.  Then, buried bindings must be deleted or spliced out of
+the environment during the collect phase.<p>
+
+In order to identify buried bindings in the mark phase, the garbage collector
+must know when it is marking an environment node, and give it special
+treatment.  Upon encountering an unmarked environment node <tt><i>e</i></tt> by
+chasing other than a <i>parent</i> pointer, the garbage collector must first
+run along its parent path from the node to the root, accumulating a <i>defined
+variable set</i> for <tt><i>e</i></tt> which indicates which variables occur in
+the path.  If the garbage collector tries to add a variable which is already in
+the defined variable set, it knows that the binding is buried as far as the
+environment <tt><i>e</i></tt> is concerned.  However, it might be accessible
+through some other pointer.  Therefore, the best thing the garbage collector
+can do is mark the bindings which are certainly accessible.  If at the end of
+the mark phase of garbage collection, a binding is still not marked, it is
+either totally inaccessible (would not be marked by an unmodified garbage
+collector) or it represents a buried binding and should be reclaimed.<p>
+
+In order to accumulate the defined variable set for an environment during the
+scanning of the parent path for an environment <tt><i>e</i></tt>, one bit per
+atom (variable) is allocated which is normally in the <i>off</i> state.  As
+each binding is encountered on the scan, the variable's bit is tested.  If it
+is <i>off</i>, the variable is not yet in the set and must be added.  The bit
+is set to <i>on</i>, that binding is marked as accessible, and its <i>value</i>
+is put onto the stack for further marking.  If, on the other hand, the bit was
+<i>on</i>, then nothing is done to that binding.  In either case, the scan then
+proceeds with the <i>parent</i> of the current node.  When the root is reached,
+a variable's bit will be <i>on</i> if and only if it is in the defined variable
+set for <tt><i>e</i></tt>.  However, since the bits must all be <i>off</i>
+before the next environment node is marked, we must make one more pass and turn
+all of the bits <i>off</i>.  Finally, the environment node <tt><i>e</i></tt>
+itself is marked.<p>
+
+This scheme is not as efficient as one might hope because environments close to
+the root will be scanned many times in the course of garbage collection,
+whereas in normal garbage collection, a cell can be marked (and its pointers
+followed) only once.  It remains to be seen if more clever methods of garbage
+collection can solve this problem.<p>
+
+Buried bindings, once identified, can be either nullified or spliced out of the
+environment tree.  Nullifying the binding at node <tt><i>e</i></tt> means
+simply calling <tt>(rebind </tt><i>variable</i>[<tt><i>e</i></tt>]<tt> nil
+<i>e</i>)</tt>; i.e., rebinding the variable at <tt><i>e</i></tt> to something
+harmless, so that the old value can be collected.  This method does not require
+another phase in the garbage collector but does have the disadvantage that the
+storage used by the node <tt><i>e</i></tt> itself cannot be reclaimed.
+However, <tt>lookup</tt> could be modified to splice out nullified bindings
+whenever they are encountered, so that they can be picked up during the next
+garbage collection.  Thus, this additional storage use is only temporary.<p>
+
+Splicing out buried bindings during the garbage collection in which they are
+identified might seem to require another mark-type phase.  However, Guy Steele
+[Steele76] has suggested a clever method whereby the buried bindings can be
+spliced out during the collect phase.  Every marked environment node
+encountered is checked to see if its parent is unmarked.  If it is, the parent
+pointer is reset to the parent's parent.  That node itself is checked for a
+marking, and so on, until the parent pointer points to a marked environment or
+<tt>nil</tt>.  The collector then goes onto the next node in address order.  If
+the node is unmarked, it is put onto the free node list.  This simple scheme
+will work, <u>provided only that the free list link cell is not the same as the
+</u><cite>parent</cite><u> cell in the environment node</u>.  This is because
+nodes may be placed onto the free list before their parent pointers have been
+used and we wouldn't want the parent pointer to be clobbered prematurely.
+Since this state of affairs can easily be arranged (e.g., link the free lists
+by <tt>CAR</tt>'s in our prototype), this method is very nearly as efficient as
+a normal collect phase.
+
+<h2>The Functional Representation for an Environment<a href="#fn5">[6]</a></h2>
+
+The tree representation for environments can be thought of as a <i>shared</i>
+representation in the sense that a particular environment node stores only one
+binding; it gets all other bindings from another environment.  Another
+possibility would be a <i>non-shared</i> representation, one in which each
+environment stores all the bindings defined for that environment.<p>
+
+We now present such a non-shared environment representation which we call the
+<i>functional representation</i>.  In this representation, an environment is
+simply a <i>set</i> of binding posts with no more than one binding post per
+variable.  In other words, an environment is a set of ordered pairs which forms
+a single-valued relation, i.e., a <i>function</i>.  The definitions of each of
+the primitives dealing with environments is trivial.  <tt>(lookup <i>x
+e</i>)</tt> finds the binding post for <tt><i>x</i></tt> in <tt><i>e</i></tt>
+and returns the associated value, or <tt>UNDEFINED</tt>, if none exists.
+<tt>NULL-ENVIRONMENT</tt> is the empty set.  <tt>(rebind <i>x z e</i>)</tt>
+finds the binding post for <tt><i>x</i></tt> in <tt><i>e</i></tt> and replaces
+the associated value with <tt><i>z</i></tt>.  A big change between the
+representations is in <tt>bind</tt>.  <tt>(bind <i>x y e</i>)</tt> =
+<tt><i>e'</i></tt> has two cases: 1) if <tt><i>x</i></tt> is undefined in
+<tt><i>e</i></tt>, then <tt><i>e'</i></tt> is <tt><i>e</i></tt><i>
+</i> union &lt;<tt><i>x</i></tt>,<tt><i>y</i></tt>&gt;;  2) if
+<tt><i>x</i></tt> is bound to <tt><i>w</i></tt> in <tt><i>e</i></tt>, then
+<tt><i>e'</i></tt> is (<tt><i>e</i></tt><i> </i>-
+&lt;<tt><i>x</i></tt>,<tt><i>w</i></tt>&gt;) union
+&lt;<tt><i>x</i></tt>,<tt><i>y</i></tt>&gt;.  Thus, <tt>bind</tt> preserves the
+functionality of environments.<p>
+
+There are several possible implementations of the functional representation.
+The set of binding posts can be stored as a list, an array, or something more
+complex like a binary search tree or trie.  It seems that all of these
+representations require O(|S|) time and space to perform <tt>bind</tt>, while
+for some of them, <tt>lookup</tt> or <tt>rebind</tt> can be done in time
+O(log|S|), where |S| is the cardinality of the set.  For certain restricted
+sets of variables, the time for <tt>lookup</tt> is O(1), i.e., constant.  This
+is to be contrasted with the tree representation, where <tt>bind</tt> requires
+constant time and space, but <tt>lookup</tt> can require time much greater than
+O(|S|)!  This is because some trees bind the same variable many times in a
+search path, which slows down accesses to other variables.<p>
+
+This discussion must also be tempered by the knowledge that the tree
+representation can be augmented with <i>value cells</i> to give a
+<i>shallow-binding representation</i>
+
+<a href="ShallowBinding.html">[Baker76]</a>
+
+which can reduce
+<tt>lookup</tt> time to a constant at the expense of yet another
+time--<i>context switching time</i>, which is constant for either the unadorned
+tree representation or the functional representation.  We note that the tree
+representation has a buried binding problem if and only if the shallow-binding
+tree representation has it; therefore, we will not discuss shallow-binding any
+further.<p>
+
+The functional representation cannot exhibit the buried binding problem because
+any environment binds a variable to only one value.  However, it has serious
+efficiency problems.  First, it may not be any faster to access than the tree
+representation.  Second, creating new environments is no longer a trivial
+operation, as it is in the tree representation.  Finally, the storage for the
+sets themselves is not insignificant, and since it is not shared, as it is in
+the tree representation, it may take up more room in some cases than the tree
+representation.<p>
+
+The $64,000<a href="#fn6">[7]</a> question is: can a
+representation for environments be found which has good creation and access
+times and which solves the buried-binding problem?
+
+<h2>Hacking Environments</h2>
+
+Any solution to the buried binding problem depends upon the programmer adhering
+to certain constraints in accessing and modifying environments.  For example,
+some "a-list" Lisp systems give the programmer access to the current
+environment and allow him to apply <tt>CDR</tt> to that environment to get its
+parent environment.  This kind of hacking can expose buried bindings and
+prohibits any attempt at there elimination.<p>
+
+To insure the inviolability of environments, we advocate the creation of a new
+Lisp datatype, the <i>environment</i>.  The Lisp programmer would have access
+to environments only through the functions: <tt>null-environment</tt>,
+<tt>bind</tt>, <tt>rebind</tt>, and <tt>eval</tt>.  <tt>(null-environment)</tt>
+would produce an environment with no bindings; <tt>(bind <i>x y e</i>)</tt>
+would produce a new environment which had the same bindings as
+<tt><i>e</i></tt> except that the atom <tt><i>x</i></tt> would be bound to
+<tt><i>y</i></tt>; <tt>(rebind <i>x z e</i>)</tt> would change the binding of
+<tt><i>x</i></tt> in the environment <tt><i>e</i></tt> to the value
+<tt><i>z</i></tt> using a side-effect, and would return the changed environment
+<tt><i>e</i></tt>; <tt>(eval <i>x</i>)</tt> would evaluate the expression
+<tt><i>x</i></tt> in the current environment and <tt>(eval <i>x e</i>)</tt>
+would evaluate the expression <tt><i>x</i></tt> in the environment
+<tt><i>e</i></tt>.
+
+<h2>Dead<a href="#fn7">[8]</a> Bindings</h2>
+
+A binding of a variable to a value at a point in the interpretation of a
+program is said to be <i>dead</i> if it will never be referenced again, yet it
+would not be reclaimed by a normal garbage collection at that point.  By this
+definition, we can see that buried bindings are also dead bindings.  There are
+many other instances of dead bindings, however.<p>
+
+A trivial example of a dead binding is that of a subroutine having one
+parameter which never references it.  In this case, the binding of the
+parameter to the argument need never occur, since it would be immediately dead.
+A less trivial case would be a subroutine of one parameter, which parameter was
+used to determine one of a set of alternative bodies for that subroutine.  If
+none of the alternative bodies referenced the parameter, the parameter binding
+would become dead immediately after the choice of alternatives had been made.
+Dead bindings tie up a lot of space by holding onto storage that could
+otherwise be reclaimed by the garbage collector.  If the bindings were
+nullified or spliced out as soon as they were no longer needed, rather than at
+the end of interpretation of the form in which they were bound, the space
+savings could be significant.<p>
+
+The primary producer of dead bindings, however, is the <i>functional value</i>
+or <i>upward funarg</i>.  A functional value is a pair consisting of a
+lambda-expression and an environment.  Functional values are created by
+evaluating a <tt>(function ... )</tt> form in Lisp.  The environment of the
+functional values is the environment at the time the form was evaluated.
+Intuitively, this environment is to be used for finding the values of the free
+variables in the lambda-expression.  Usually, however, there are only a few
+free variables, whereas the environment structure can define a large number.<p>
+
+The more trivial examples of dead bindings discussed earlier do not cause as
+much trouble as functional values because the binding usually becomes dead only
+a short time before it is released, at subroutine return time, when it can be
+garbage-collected.  Functional values, on the other hand, can be created at
+large return-stack depths, yet can be passed back all the way to be invoked at
+a very shallow stack depth.  In this way, extremely large environment
+structures can be in effect at very shallow return point stack depths.  In most
+cases, only a very small part of these large environment structures will ever
+be referenced.<p>
+
+A worst-case situation for dead bindings produced by functional values can be
+imagined.  It is well known that Lisp's CONS cells can be exactly simulated by
+functional values; actually doing so in Lisp 1.5 will cause any by the most
+trivial program to quickly run out of storage.  This is not because the number
+of Lisp cells used to implement functional values is excessive; in fact, the
+simulation below requires just 7 CONS cells (in our paradigm interpreter,
+anyway) for one simulated CONS cell.  What is wrong is that the functional
+values keep pointers not only to the simulated cell's CAR and CDR, but also to
+the value of every other variable which existed in the context in which the
+cell was created!  It is this storage inefficiency caused by dead bindings
+rather than the constant factor inefficiency which makes functional values so
+useless in Lisp that some Lisp's do not even support them.
+
+<tt><pre>
+(defun cons (x y)
+  (function
+   (lambda (fn new me)
+     (cond ((eq fn 'car) x)
+           ((eq fn 'cdr) y)
+           ((eq fn 'rplaca) (prog2 (setq x new) me))
+           ((eq fn 'rplacd) (prog2 (setq y new) me))))))
+
+(defun car (x) (x 'car nil x))
+
+(defun cdr (x) (x 'cdr nil x))
+
+(defun rplaca (x y) (x 'rplaca y x))
+
+(defun rplacd (x y) (x 'rplacd y x))
+
+Simulation of Lisp's CONS cell by a FUNARG
+</pre></tt>
+
+The difficulty with dead bindings is in realizing when they have become dead.
+In lexically-scoped languages like Algol or PL/I, the free/bound status of a
+variable in an expression gives a good fail-safe method for proving that a
+variable binding is dead.  If there are no more free occurrences of that
+variable in the rest of the expression being evaluated, any binding of that
+variable in the current environment is dead.  On the other hand, a variable
+binding may be dead and yet the variable may still occur free in the
+expression--e.g., within a conditional arm that will not be executed.<p>
+
+The whole concept of "free/bound" loses its meaning in a dynamically-scoped
+language like Lisp, because the scope of a variable binding changes with every
+different invocation of a subroutine.  No purely syntactic test can determine
+whether a variable is in the scope of a binding or not.<p>
+
+In general, the deadness of a binding at a point in the interpretation of an
+expression is undecidable, regardless of whether lexical or dynamic scoping is
+used.  Therefore, heuristics have to be developed which eliminate as many dead
+bindings as possible (without, of course, eliminating non-dead ones!).
+
+<h2>Tail Recursion</h2>
+
+<i>Tail recursion</i> is the name given to a programming technique which is
+used to reduce the size of the return-point stack and marginally decrease
+execution time in Lisp-type interpreters.  Tail recursion works by noticing
+that the machine language sequence "<tt>push <i>e</i>, pc and jump to
+<i>x</i></tt>; <tt>pop <i>e</i>, pc</tt>", where <tt><i>e</i></tt> is the
+current environment pointer and <tt>pc</tt> is the current program counter, can
+be replaced by the single instruction "<tt>jump to <i>x</i></tt>", for all
+programs which satisfy stack (LIFO) discipline.  The idea is that if the last
+thing a subroutine A does is to call subroutine B, then simply jumping to B
+will make B return directly to A's caller when it returns instead of back to A.
+Stack space is saved by not having to push the pair &lt;A's environment, return
+address to A&gt; onto the stack.<p>
+
+The most dramatic use of tail recursion is in certain recursive programs which
+call themselves as the last part of their body.  In this case, no return-point
+stack space is used at all--the program <i>iterates</i> instead of recursing.<p>
+
+Consider the following trivial Lisp 1.5 program:
+
+<tt><pre>
+((label<a href="#fn8">[9]</a> f
+   (lambda (x)
+     (cond ((zerop x) x)
+           (t (f (sub1 x))))))
+ n)
+</pre></tt>
+
+This program recursively decrements <tt>x</tt> from <tt>n</tt> to zero and
+returns the value <tt>0</tt>.  A tail-recursing interpreter would use only a
+bounded (independent of <tt>n</tt>) amount of return stack space in executing
+this program, because when <tt>f</tt> recurses, the value returned by the lower
+level will be that returned by the upper levels, so only one return address is
+ever pushed onto the stack.<p>
+
+The size of the environment used in the interpretation is another matter.  At
+the bottom level of the recursion, when <tt>x</tt> is equal to 0, the tree
+environment will have <tt>n</tt> and <tt>f</tt> bound and <tt>n+1</tt> bindings
+of <tt>x</tt>, each one burying the previous one.  Thus, doing tail recursion
+does not save environment space, only return-point stack space.<p>
+
+However, the tail-recursing interpreter has still helped us solve the problem
+of the extra dead bindings of <tt>x</tt> in the previous problem piling up.
+Whereas the normal interpreter would put pointers to all the intermediate
+environments onto the return-point stack, the tail-recursing interpreter builds
+the environment without keeping pointers to all the ancestor environments.  In
+this way, the extra bindings of <tt>x</tt> are converted from being simply dead
+to being buried.  Since buried bindings are easier to detect than other kinds
+of dead bindings, the technique of tail recursion has helped us make progress
+towards a solution in this case.<p>
+
+In general, the techniques of tail-recursion and buried-binding reclamation,
+consistently applied, will allow "iterative style" programs to be interpreted
+with a bounded net use of storage.  In other words, these techniques allow
+iterative-style programs to recurse to an unbounded depth while holding onto
+only a bounded number of free storage cells.  (This statement is actually false
+as it stands, because a terminating program which runs for <i>n</i> steps must
+use O(log <i>n</i>) space.  However we are assuming that data types like
+integers take only one free storage cell--a good approximation for most Lisp
+programs.)<p>
+
+It is well known that recursion is a stronger programming technique than
+iteration; any iterative program can be rewritten in a uniform way to use
+recursion instead, while the reverse is not true.  However, we would like a
+stronger reducibility than simple expressibility--we would like to say that
+recursion requires no more than a constant factor more in running time or net
+space than iteration.  This is why tail recursion and the elimination of buried
+bindings is so important; they allow us to claim this stronger reducibility.<p>
+
+Tail recursion and dead binding elimination would allow a Lisp program which
+has been converted by Fischer's algorithm [Fischer72] to a continuation-passing
+style to use no more than a constant factor more maximal net space than the
+original program.  This would strengthen the expressibility equivalence that
+Fischer claims to a maximal net space as well as running time equivalence.  It
+is not clear what would happen to garbage collect time.
+
+<h2>The EVAL Problem</h2>
+
+If the function <tt>eval</tt> is used with a single argument in Lisp 1.5, that
+argument is interpreted as an S-expression which is to be interpreted in the
+"current" environment.  The value computed by this interpretation becomes the
+value of the application of <tt>eval</tt>.  The problem with this construct is
+that the S-expression can be created at run-time, thus eliminating the
+possibility of pre-computing its list of free variables.  To be semantically
+correct, then, the interpreter must keep bindings for all variables which might
+be referenced in the argument to <tt>eval</tt>.  The number of different
+variables which might be needed is bounded by the number of different variables
+used in the program, assuming that <tt>eval</tt> is not being called from
+inside another <tt>eval</tt>!  Buried bindings can thus be deleted from the
+environment without harm, but no other binding can be proven dead a priori
+because it might possibly be referenced in an S-expression which will be
+<tt>eval</tt>'ed.<p>
+
+<tt>eval</tt> is not the only construct which prevents us from determining free
+variables and therefore dead bindings.  <tt>apply</tt> with two arguments,
+i.e., with an implied environment, has the same troubles.  This is because
+<tt>(apply <i>f a</i>)</tt> is essentially the same as <tt>(eval (cons <i>f
+a</i>))</tt>.  However, there is one more construct which can cause the
+problem.  This is the implied <tt>eval</tt> that takes place when the
+<tt>CAR</tt> of a form cannot be recognized as either a primitive function, a
+lambda-expression, a label-expression, or a closure.  In these cases, <tt>(f a1
+a2 ... an)</tt> reduces to <tt>((eval f) a1 a2 ... an)</tt>.  Here, the
+expression <tt>f</tt> can compute a lambda-expression having any free
+variables, whatsoever.
+
+<h2>Lexical versus Dynamic Scoping of Variables</h2>
+
+In a lexically-scoped language, the depth (height?) of the environment tree is
+bounded by the depth of lexical nesting of the program text.  Hence, the buried
+binding problem in these languages cannot grow to the vast proportions that can
+be achieved in dynamically-scoped languages.  In particular, the variables from
+one invocation of a recursive routine do not stack on top of one another,
+burying their previous incarnations, but stack "beside" one another.
+Therefore, if the intermediate environments are not pointed to by the
+return-point stack, they can be reclaimed by a normal garbage collection.  As a
+result, tail recursion in lexically-scoped languages is enough to allow bounded
+storage interpretation of iterative style programs without requiring a
+reclamation scheme for buried bindings.<p>
+
+We do not know the reasons why the architects of Lisp chose dynamic rather than
+lexical variable scoping.  If it was to save time or the storage required to
+hold the environment needed for functional arguments or values, these small
+savings are gained at the likely expense of many dead bindings and the large
+time lost in tracing over them at garbage collect time.<p>
+
+The side-stacking feature, together with the ease of identifying free
+variables, would seem to make lexically-scoped languages far superior to
+dynamically-scoped languages.  There are several advantages of dynamic scoping
+which have been overlooked, however.  Dynamic scoping allows an extremely
+flexible coupling of independent modules at execution time.  Flipping the coin
+over, lexical scoping ignores the problems of hooking together independent
+modules.  The simplest lexical scoping model assumes one large, complete
+program text; linking is required to resolve external names of multiple modules
+before execution can proceed.  The problem of correctly associating mutually
+recursive functions is not straight-forward in these languages.  These
+requirements lead to a read-resolve-evaluate-print style of interpretation
+rather than Lisp's read-evaluate-print style.<p>
+
+The resolution phase is not a problem in systems with a clean break between
+program text and data.  However, many artificial intelligence programs attach
+pieces of program to data and these pieces are dynamically linked together at
+run time by Lisp's dynamic variable scoping.<p>
+
+Thus, for systems requiring the utmost in linking flexibility, dynamic scoping
+can be very valuable.  It is for these systems that solutions to the dead
+binding problem are important.
+
+<h2>XLisp -- leXically scoped Lisp</h2>
+
+<blockquote>
+<i>For people who like this sort of thing,
+This is the sort of thing they
+will like.</i></blockquote>
+
+We would like to describe a variant of Lisp which is as close to Lisp 1.5 as
+possible for a lexically-scoped language.  In other words, it makes the
+smallest deviation from Lisp 1.5 while being lexically-scoped.<p>
+
+People may complain that dynamic scoping is an inherent quality of Lisp; that
+Lisp wouldn't be Lisp without it.  We believe that the essential qualities of
+Lisp are its trivial syntax, its S-expressions formed from CONS cells, its
+garbage collector, its atoms and property lists, and its representation of
+programs as S-expressions.  A language with all of these features would be more
+Lisp-like than a language with only dynamic scoping (e.g., APL).<p>
+
+You may have thought that we would proceed to describe yet another language,
+complete with an exhaustive listings of functions, etc.  However, that is not
+necessary--it has already been done.  For XLisp is just our name for
+<i>Scheme</i> [Sussman75]!<a href="#fn9">[10]</a>
+
+<h2>Future Work</h2>
+
+The buried binding problem is a precisely defined problem for which an elegant
+representation and/or garbage collector can probably be devised.<p>
+
+The general dead binding problem will require a formalism to state more
+precisely the timing and mechanism of the binding of variables and their
+reclamation.  What Reynolds did for the order of interpretation issue using
+continuations [Reynolds72] needs to be done for the precise timing of binding
+and reclamation.  Either a new formalism for specifying bindings, or a stronger
+interpretation on previous formalisms, must be used to pin down more precisely
+the semantics of the meta-circular interpreter of Lisp.  Once this is done, the
+language will be strong enough to distinguish between classical and
+tail-recursing interpreters; between interpreters with dead binding problems
+and those without.  When the language is strong enough to state the problem,
+solutions will not be far away.<a href="#fn10">[11]</a>
+
+<h2>References</h2>
+
+Aho, A.V., Sethi, R., and Ullman, J.D.  <i>Compilers: Principles, Techniques
+and Tools</i>.  Addison-Wesley, Reading, MA, 1986.<p>
+
+<a href="ShallowBinding.html">[Baker76]</a>
+
+Baker, H.G.  "Shallow Binding in Lisp 1.5".  Manuscript, April, 1976.
+Subsequently published in <i>Comm. ACM 21</i>,7 (July 1978),565-569.<p>
+
+Fischer, M.J.  "Lambda Calculus Schemata".  <i>Proc. ACM Conf. on Proving
+Asserts. about Programs, Sigplan Not.</i> (Jan. 1972).<p>
+
+Hewitt, C., and Baker, H.G.  "Actors and continuous functionals".  In Neuhold,
+E.J., <i>ed</i>.  <i>Proc. IFIP Working Conf. on Formal Desc. of Progr.
+Concepts</i>, IFIP, Aug. 1977, 367-387.<p>
+
+McCarthy, John, <i>et al</i>.  <i>LISP 1.5 Programmer's Manual</i>.  MIT Press,
+Cambridge, 1965.<p>
+
+Reynolds, John C.  "Definitional Interpreters for Higher Order Programming
+Languages".  <i>ACM Conference Proceedings</i>, 1972.<p>
+
+Steele, G.L.  Personal communication, June, 1976.<p>
+
+Steele, G.L.  <i>RABBIT: A Compiler for SCHEME</i>.  AI-TR-474, AI Lab., MIT,
+May 1978.<p>
+
+Sussman, G.J., and Steele, G.L.  "SCHEME--An Interpreter for Extended Lambda
+Calculus".  AI Memo 349, MIT AI Lab., Dec. 1975.<p>
+
+<a name="fn0">[1]</a>
+
+"Stale" was used in the original paper, but "dead" is more consistent with
+modern usage [Aho86].<p>
+
+<a name="fn1">[2]</a>
+
+The date is correct; this manuscript was never published
+due to the pressure of the author's thesis work.  The present version has been
+formatted and edited, but not revised, except where noted.<p>
+
+<a name="fn2">[3]</a>
+
+Author's current address: <i>16231 Meadow Ridge Way, Encino, CA 91436, (818) 986-1436, FAX: (818)
+986-1360</i>.<p>
+
+<a name="fn3">[4]</a>
+
+Interpreted code is easier to analyze for storage
+utilization, but compiled code has analogous problems.<p>
+
+<a name="fn4">[5]</a>
+
+E.g., through <i>closure-sharing</i> [Steele78].<p>
+
+<a name="fn5">[6]</a>
+
+A modern term for this representation is "acquaintance
+list/vector", after its use in Hewitt's <i>Actor</i> model [Hewitt77].<p>
+
+<a name="fn6">[7]</a>
+
+From a TV quiz show which was popular when circuits were
+still segregated.<p>
+
+<a name="fn7">[8]</a>
+
+"Stale" was the term which appeared in the original paper;
+"dead" is more consistent with modern usage [Aho86].<p>
+
+<a name="fn8">[9]</a>
+
+In Common Lisp, this expression would be written as
+follows:
+
+<tt><pre>
+(labels ((f (x)
+           (cond ((zerop x) x)
+                 (t (f (1- x))))))
+ (f n))
+</pre></tt>
+
+<a name="fn9">[10]</a>
+
+But without <i>reified continuations</i>.<p>
+
+<a name="fn10">[11]</a>
+
+Steele was aware of this paper when he wrote his
+Master's Thesis [Steele78]; indeed, he made valuable suggestions for its
+improvement [Steele76].  Nevertheless, Steele's <i>closure-sharing</i> analysis
+[Steele78,p.60-63] often creates buried bindings where none existed before; if
+the goal of minimum "maximal net space" is desired, closure-sharing can be a
+"pessimization" rather than an optimization.
+
+</body></html>

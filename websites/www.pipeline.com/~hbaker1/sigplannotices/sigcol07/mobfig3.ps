@@ -1,0 +1,1006 @@
+%%BoundingBox: 216 288 414 504
+% -- PostScript code for 'March Mobius Madness with a Polynomial PostScript'.
+% --
+% -- Basic utility operations.
+% --
+save
+200 dict begin
+/make-closure	% p1 ... pn proc n make-closure closure	% Make fn closure.
+{exch aload length dup 2 add -1 roll add array astore cvx}
+bind def
+
+/pi 3.14159265 def			% - pi pi
+/pid2 pi 2 div def			% - pid2 pi/2
+/pi2 pi 2 mul def				% - pi2 pi*2
+
+/mzerop			% x y mzerop x=0&y=0
+{abs exch abs add 0 le}
+bind def
+
+/mconjugate		% x y mconjugate x -y
+{neg}
+bind def
+
+/mmul			% a b c d
+{3 index 2 index mul 3 index 2 index mul sub 5 1 roll
+ 4 -1 roll mul 3 1 roll mul add}
+bind def
+
+/mnorm			% x y mnorm x^2+y^2
+{dup mul exch dup mul add}
+bind def
+
+/mscale			% x y r mscale xr yr
+{dup 4 -1 roll mul 3 1 roll mul}
+bind def
+
+/minv			% x y minv	x/(x^2+y^2) -y/(x^2+y^2)
+{2 copy mnorm 1 exch div mscale mconjugate}
+bind def
+
+/mdiv			% x1 y1 x2 y2 mdiv x3 y3
+{minv mmul}
+bind def
+
+/deg2rad					% degrees deg2rad radians
+pi 180 div {mul} 1 make-closure
+bind def
+
+/rad2deg					% radians rad2deg degrees
+180 pi div {mul} 1 make-closure
+bind def
+
+/atanr				% y x atanr atanr(y/x)	% atan(y/x) in radians.
+{atan deg2rad}
+bind def
+
+/mphase			% x y mphase
+{exch atanr}
+bind def
+
+/mcis			% t cis cos(t) sin(t)
+{rad2deg dup cos exch sin}
+bind def
+
+/mlog			% x1 y1 mlog x2 y2
+{2 copy mnorm ln 0.5 mul 3 1 roll mphase}
+bind def
+
+/mexp			% x1 y1 mexp x2 y2
+{mcis 3 -1 roll expr mscale}
+bind def
+
+/msqrt			% x1 y1 msqrt x2 y2
+{2 copy mzerop
+ {}
+ {mlog 0.5 mscale mexp} ifelse}
+bind def
+
+/arct {arcto pop pop pop pop} bind def	% May need Level 2 command.
+
+/make-vector % e n make-vector % make vector of length n from element e.
+{mark 3 1 roll % mark e n
+ {dup} repeat % mark e e ... e (n+1 times)
+ pop ]}
+bind def
+
+/rev1 % oa na i rev1 % move i'th elt of a to (n-i)'th elt of na.
+{1 index length 1 index sub 1 sub % oa na i n-i.
+ 4 -1 roll 3 -1 roll get put}
+bind def
+
+/reverse % reverse the order of the elements of an array a.
+{dup dup length array copy % oa; a.
+ 0 1 2 index length 1 sub % oa; a; 0; 1; l.
+ {% oa; a; i;
+  2 index 2 index 3 -1 roll rev1} for
+ exch pop}
+bind def
+
+/copy-array
+{mark exch aload pop ]}
+bind def
+
+/zip-array % array1 array2
+{dup dup length array copy % a1 a2 a3
+ dup length 0 1 3 -1 roll 1 sub
+ {% a1 a2 a3 i
+  3 index 1 index get % a1 a2 a3 i a1i
+  3 index 2 index get % a1 a2 a3 i a1i a2i
+  mark 3 1 roll ] % a1 a2 a3 i [a1i a2i]
+  2 index % a1 a2 a3 i [...] a3
+  3 1 roll put} for
+  % a1 a2 a3
+  3 1 roll pop pop
+} bind def
+
+/e 2.718281828 def	% - e e			% constant 'e'.
+/expr {e exch exp} bind def	% x expr exp(x)		% exponential function.
+
+/add1 {1 add} bind def
+/sub1 {1 sub} bind def
+/add-n {{add} 1 make-closure} bind def
+/iota {0 1 3 -1 roll {} for array astore} bind def
+/map1 {[ 3 1 roll forall ]} bind def
+/map2
+{exch dup dup length array copy dup length 1 sub 0 1 3 -1 roll
+ {4 index 1 index get 3 index 2 index get 5 index exec 2 index 3 1 roll put} for
+ 4 1 roll pop pop pop} bind def
+
+
+/complex			% x y complex z		% construct a complex #.
+{2 array astore}
+bind def
+
+/cri {aload pop} bind def	% z cri real imag	% complex destruct.
+
+/realpart			% z realpart x		% real part of z.
+{aload pop pop}
+bind def
+
+/imagpart			% z imagpart y		% imaginary part of z.
+{aload pop exch pop}
+bind def
+
+
+/czero 0 0 complex def	% - czero [0 0]		% complex zero.
+
+/cone 1 0 complex def	% - cone [1 0]		% complex one.
+
+/ctwo 2 0 complex def	% - ctwo [2 0]		% complex two.
+
+/cmone -1 0 complex def	% - cmone [-1 0]	% complex minus one.
+
+/cmhalf -0.5 0 complex def	% - cmhalf [-1/2 0]
+
+/ci 0 1 complex def	% - ci [0 1]		% complex 'i'.
+
+/cmi 0 -1 complex def	% - cmi [0 -1]		% complex '-i'.
+
+
+/czerop			% z czerop z==[0 0]	% true iff z=0.
+{dup type /arraytype eq {cri 0 eq exch 0 eq and} {pop false} ifelse}
+bind def
+
+/cequalp		% z1 z2 cequalp z1==z2	% true iff z1=z2.
+{cri 3 -1 roll cri				% x2 y2 x1 y1
+ 3 -1 roll eq					% x2 x1 y1==y2
+ 3 1 roll eq and}
+bind def
+
+
+/cadd				% z1 z2 cadd z1+z2			% complex add.
+{cri				% z1 x2 y2
+ 3 -1 roll cri			% x2 y2 x1 y1
+ exch 4 -1 roll add		% y2 y1 x1+x2
+ exch 3 -1 roll add		% x1+x2 y1+y2
+ complex}
+bind def
+
+/csub				% z1 z2 csub z1-z2			% complex sub.
+{cri				% z1 x2 y2
+ 3 -1 roll cri			% x2 y2 x1 y1
+ exch 4 -1 roll sub		% y2 y1 x1-x2
+ exch 3 -1 roll sub		% x1-x2 y1-y2
+ complex}
+bind def
+
+/cneg				% z cneg -z			% complex negate.
+{cri exch neg exch neg complex}
+bind def
+
+/cmul				% z1 z2 cmul z1*z2	% complex multiply.
+{cri 3 -1 roll cri				% c d a b
+ 1 index 4 index mul				% c d a b ac
+ 1 index 4 index mul sub			% c d a b ac-bd
+ exch 5 -1 roll mul				% d a ac-bd bc
+ 3 -1 roll 4 -1 roll mul add			% ac-bd bc+ad
+ complex}
+bind def
+
+/conjugate			% z cneg z'		% complex conjugate.
+{cri neg complex}
+bind def
+
+/cnorm				% z cnorm |z|^2		% (real) norm of complex #.
+{cri dup mul exch dup mul add}
+bind def
+
+/cabs {cnorm sqrt} bind def	% z cabs |z|		% (real) absolute value.
+
+/cscale				% z r cscale z*r	% scale z by real r.
+{exch cri			% r x y
+ 3 1 roll			% y r x
+ 1 index mul			% y r x*r
+ 3 1 roll mul complex}
+bind def
+
+/cinv				% z cinv 1/z		% complex inverse.
+{cri minv complex}
+bind def
+
+/cdiv				% z1 z2 cdiv z1/z2	% complex division.
+{exch cri 3 -1 roll cri mdiv complex}
+bind def
+
+
+/csignum			% z csignum z/|z|	% normalize to unit vector.
+{cri msignum}
+bind def
+
+/phase				% z phase atanr(y/x)	% angle of z in radians.
+{cri mphase}
+bind def
+
+/cis				% t cis cos(t)+i*sin(t)	% unit vector at angle t.
+{mcis complex}
+bind def
+
+/clog				% z clog log(z)		% complex log of z.
+{cri mlog complex}
+bind def
+
+/cexp				% z cexp exp(z)		% complex exponential of z.
+{cri mexp complex}
+bind def
+
+/csqrt				% z csqrt sqrt(z)	% complex square root of z.
+{cri msqrt complex}
+bind def
+
+/ccbrt				% z ccbrt cube-root(z)	% complex cube root of z.
+{dup czerop not
+ {clog 0.333333333 cscale cexp} if}
+bind def
+
+/mmobius			% x y ax ay bx by cx cy dx dy mmobius x' y'
+{10 -2 roll 2 copy		% ax ay bx by cx cy dx dy x y x y
+ 12 -2 roll mmul		% bx by cx cy dx dy x y ax ay
+ 10 -2 roll madd		% cx cy dx dy x y ax+b ay+b
+ 8 2 roll			% ax+b ay+b cx cy dx dy x y
+ 6 -2 roll mmul			% ax+b ay+b dx dy cx cy
+ madd mdiv}
+bind def
+
+/cmobius			% z a b c d cmobius (az+b)/(cz+d)
+{% z a b c d
+ 4 -1 roll 4 index cmul		% z b c d az
+ 4 -1 roll cadd			% z c d az+b
+ 4 2 roll cmul			% d az+b cz
+ 3 -1 roll cadd cdiv}
+bind def
+
+
+/pop-czeros		% z 0 ... 0 pop-czeros z		% pop complex zeros.
+{{dup czerop {pop} {exit} ifelse} loop}
+bind def
+
+/pctomark		% mark a0 ... an pctomark a0 ... an	% make polynomial.
+{pop-czeros ]}
+bind def
+
+/pcexplode		% [ao ... an] pcexplode mark a0 ... an	% inverse of pctomark.
+{mark exch aload pop}
+bind def
+
+/pcdegree		% [a0 ... an] pcdegree n	% degree of polynomial.
+{length sub1}
+bind def
+
+
+/pczero				% zero polynomial.
+mark czero pctomark
+def
+
+/pcone				% one polynomial.
+mark cone pctomark
+def
+
+/pcx				% 'x' polynomial.
+mark czero cone pctomark
+def
+
+/pclinear-canonic		% x - 1 polynomial.
+mark cmone cone pctomark
+def
+
+/pcquadratic-canonic		% x^2 -1 polynomial.
+mark cmone czero cone pctomark
+def
+
+/pccubic-canonic		% x^3 - 1 polynomial.
+mark cmone czero czero cone pctomark
+def
+
+/pcquartic-canonic		% x^4 - 1 polynomial.
+mark cmone czero czero czero cone pctomark
+def
+
+
+/pcadd				% p1 p2 pcadd p1+p2	% add 2 polynomials.
+{dup pcdegree 2 index pcdegree	% p1 p2 p2d p1d
+ sub dup 0 ne
+ {				% p1 p2 p2d-p1d
+  dup 0 gt			% p1 p2 p2d-p1d.
+  {
+   neg 3 1 roll exch		% p1d-p2d p2 p1
+   3 -1 roll} if		% p1 p2 p2d-p1d; p2d<p1d.
+ exch pcexplode			% p1 p2d-p1d mark p20 ... p2n
+ counttomark 2 add -1 roll	% p1 mark p20 ... p2n p2d-p1d
+ neg {czero} repeat ]}
+ {pop}
+ ifelse				% p1 p2
+ {cadd} map2			% p1+p2
+ pcexplode pctomark}		% normalize the sum.
+bind def
+
+/pcneg {{cneg} map1} bind def	% p pcneg -p		% negate polynomial.
+
+/pcsub {pcneg pcadd} bind def	% p1 p2 pcsub p1-p2	% subtract 2 polynomials.
+
+
+/pceval				% z p pceval pz		% Compute p[z].
+{pcexplode czero		% z mark p0 ... pn [0 0]
+ counttomark 2 add -1 roll	% mark p0 p1 ... pn [0 0] z
+ {cmul cadd} 1 make-closure	% mark p0 ... pn [0 0] {z cmul cadd}
+ counttomark 2 sub exch repeat	% mark p[z]
+ exch pop}
+bind def
+
+/pc2function			% p pc2function proc	% Construct f(z)=p[z].
+{/pceval load 1 make-closure}
+bind def
+
+
+
+
+
+
+/pcdiff				% p pcdiff p'		% Compute derivative of p.
+{pcexplode			% mark p0 p1 ... pn
+ counttomark -1 roll pop	% mark p1 ... pn
+ counttomark 1 1 3 -1 roll	% mark p1 ... pn 1 1 n
+ dup {add1 -1 roll exch cscale} 1 make-closure	% mark p1 ... pn 1 1 n proc
+ for				% mark p1' ... pn'
+ ]}				% shouldn't need pctomark here.
+bind def
+
+
+/pc-newton			% p newton-p fp		% Compute fp(z)=z-p[z]/p'[z].
+{dup pcdiff exch		% p' p
+ {% z p' p
+  2 index exch pceval % z p' pz
+  exch 2 index exch pceval % z pz p'z
+  cdiv % z pz/p'z
+  csub % z-pz/p'z
+  } 2 make-closure}
+bind def
+
+
+/pcmonic			% p pcmonic p'		% p' is monic.
+{dup dup length sub1 get	% p pn
+ cinv {cmul} 1 make-closure map1}
+bind def
+
+
+/csqrt2				% z csqrt2 z1 z2	% return both square roots.
+{csqrt dup cneg}
+bind def
+
+/croot131 [-1 3 sqrt] 0.5 cscale def
+
+/croot132 [-1 3 sqrt neg] 0.5 cscale def
+
+/ccbrt3				% z ccbrt3 z1 z2 z3	% return 3 cube roots.
+{ccbrt
+ dup dup croot131 cmul		% z1 z1 z2
+ exch croot132 cmul}
+bind def
+
+/pcquadratic-solve		% p pcquadratic-solve r1 r2	% r1, r2 are roots.
+{pcmonic			% quadratic is now monic.
+ pcexplode pop 3 -1 roll pop	% c b
+ 0.5 cscale			% c b'=b/2
+ dup dup cmul			% c b' b'^2
+ 3 -1 roll csub			% b' b'^2-c
+ csqrt2				% b' r1' r2'
+ 2 index csub			% b' r1' r2
+ 3 1 roll exch csub}
+bind def
+
+
+/croot12 [[1 0] [-1 0]] def	% The square roots of 1.
+
+/pcquadratic-paper		% p pcquadratic-paper
+{pcmonic			% p now monic
+ dup 1 get -0.5 cscale		% p B
+ dup 3 -1 roll pceval cneg	% B -p(B)
+ csqrt				% B A
+ exch				% A B
+ 2 copy czero cone {cmobius} 4 make-closure
+ croot12 exch map1 3 1 roll}
+bind def
+
+/pccubic-hakmem				% p pccubic-hakmem
+{pcmonic
+ dup 2 get -0.333333 cscale exch	% b p
+ dup pcdiff				% b p p'
+ 2 index exch pceval 0.333333 cscale	% b p p'(b)/3
+ dup dup cmul cmul			% b p (p'(b)/3)^3
+ 2 index				% b p (p'(b)/3)^3 b
+ 3 -1 roll pceval 0.5 cscale		% b (p'(b)/3)^3 p(b)/2
+ dup dup cmul				% b (p'(b)/3)^3 p(b)/2 (p(b)/2)^2
+ 3 -1 roll cadd csqrt			% b p(b)/2 D
+(b p(b)/2 D\n) print pstack
+ 2 copy cadd				% b p(b)/2 D p(b)/2+D
+(b p(b)/2 D p(b)/2+D\n) print pstack
+ ccbrt
+(b p(b)/2 D s1\n) print pstack
+ 3 1 roll cadd				% b s1 s2
+(b s1 s2^3\n) print pstack
+ ccbrt
+(b s1 s2\n) print pstack
+ 3 copy cadd csub			% b s1 s2 r1
+ 4 1 roll				% r1 b s1 s2
+ 3 copy croot132 cmul exch croot131 cmul cadd csub	% r1 b s1 s2 r2
+ 4 1 roll				% r1 r2 b s1 s2
+ croot131 cmul exch croot132 cmul cadd csub	% r1 r2 r3
+}
+def
+
+
+/croot13 [[1 0] [-0.5 3 sqrt 0.5 mul] [-0.5 3 sqrt -0.5 mul]] def
+
+/pccubic-paper			% p pccubic-paper
+{pcmonic			% p now monic
+ dup pcexplode pop		% p mark a0 a1 a2
+ 4 -1 roll pop			% p a0 a1 a2
+ dup 3 index cmul 3 cscale 2 index dup cmul csub	% p a0 a1 a2 c
+ 3 index 9 cscale 3 index 3 index cmul csub		% p a0 a1 a2 c b
+ 3 index 3 cscale 3 index dup cmul csub			% p a0 a1 a2 c b a
+ mark 4 1 roll pctomark		% p a0 a1 a2 q
+(p a0 a1 a2 q\n) print pstack exit
+ pcquadratic-paper pop pop	% p a0 a1 a2 [r1 r2]
+ aload pop			% p a0 a1 a2 r s
+ 2 copy				% p a0 a1 a2 r s r s
+ 7 index pceval ccbrt		% p a0 a1 a2 r s r C
+ exch 7 index pceval ccbrt cneg	% p a0 a1 a2 r s C D
+ 3 index 2 index cmul		% p a0 a1 a2 r s C D A
+ 3 index 2 index cmul		% p a0 a1 a2 r s C D A B
+ 4 -2 roll			% p a0 a1 a2 r s A B C D
+ }
+def
+
+
+/pccubic-solve1			% p pccubic-solve r1	% Find 1 root of polynomial p.
+{				% p
+ dup 0 get czerop
+ {pop czero}			% if a0=0, then zero is one root.
+ {[2 2] exch pc-newton 20 exch repeat} ifelse}
+bind def
+
+/pccubic-solve4			% p pccubic-solve r1 r2 r3	% p is monic; p has center-of-mass at 0.
+{dup pcexplode pop pop		% p mark Q P
+ 3 -1 roll pop			% p Q P
+ dup czerop
+ {%p Q P
+  pop exch pop			% Q
+  -1 cscale ccbrt3}
+ {%p Q P
+  dup -0.333333 cscale		% p Q P -P/3
+  3 1 roll cdiv 3 cscale	% p -P/3 3Q/P
+  mark 3 1 roll cone pctomark	% p [-P/3 3Q/P 1]
+  pcquadratic-solve		% p r s
+  dup 3 index pceval		% p r s p(s)
+  2 index 5 -1 roll pceval	% r s p(s) p(r)
+  cdiv -1 cscale ccbrt3		% r s y1 y2 y3
+  5 -2 roll			% y1 y2 y3 r s
+  cone cone {cmobius} 4 make-closure	% y1 y2 y3 mp
+  dup 5 -1 roll exch exec	% y2 y3 mp x1
+  4 1 roll			% x1 y2 y3 mp
+  dup 4 -1 roll exch exec	% x1 y3 mp x2
+  3 1 roll			% x1 x2 y3 mp
+  exec				% x1 x2 x3
+  } ifelse
+}
+bind def
+
+/pccubic-solve3			% p pccubic-solve r1 r2 r3
+{pcmonic			% p now monic
+ dup pcexplode pop		% p mark d c b
+ 4 1 roll pop pop pop		% p b
+ dup czerop
+ {pop pccubic-solve4}
+ {% p b
+  1 index pcdiff exch		% p p' b
+  -0.333333 cscale		% p p' -b/3
+  dup 4 -1 roll pceval		% p' -b/3 p(-b/3)
+  1 index 4 -1 roll pceval		% -b/3 p(-b/3) p'(-b/3)
+  mark 3 1 roll czero cone pctomark	% -b/3 [p(-b/3) p'(-b/3) 0 1]
+  pccubic-solve4			% -b/3 r1 r2 r3
+  3 index cadd 3 1 roll
+  3 index cadd 3 1 roll		% -b/3 r2 r3 r1'
+  4 -1 roll cadd} ifelse
+}
+bind def
+
+/pccubic-solve			% p pccubic-solve r1 r2 r3	% r1,r2,r3 roots
+{pcmonic			% p
+ dup pccubic-solve1 exch	% r p
+ pcexplode pop 			% r mark a0 a1 a2
+ 3 -1 roll pop			% r mark a1 a2
+ 3 index cadd			% r mark a1 a2+r
+ exch				% r mark a2+r a1
+ 1 index 4 index		% r mark a2+r a1 a2+r r
+ cmul cadd			% r mark a2+r a1+r*(a2+r)
+ exch cone pctomark
+ pcquadratic-solve}
+bind def
+
+
+/cdot				% z1 z2 cdot x1*x2+y1*y2
+{cri				% z1 x2 y2
+ 3 -1 roll cri			% x2 y2 x1 y1
+ 3 -1 mul			% x2 x1 y1*y2
+ 3 1 roll mul add}
+bind def
+
+
+/ccross				% z1 z2 ccross x1*y2-x2*y1
+{cri 3 -1 roll cri		% x2 y2 x1 y1
+ 3 1 roll			% x2 y1 y2 x1
+ mul 3 1 roll mul sub}
+bind def
+
+
+/triangle-2area			% z1 z2 z3 triangle-2area 2A
+{2 index csub			% z1 z2 z3-z1
+ exch 3 -1 roll csub		% z3-z1 z2-z1
+ exch ccross}
+bind def
+
+/triangle-area			% z1 z2 z3 triangle-area A
+{triangle-2area 2 div}
+bind def
+
+
+/curv-circumcircle		% z1 z2 z3 curv-circumcircle k	% signed circumcircle curvature.
+{% z1 z2 z3
+ 3 copy triangle-2area			% z1 z2 z3 2A
+ 2 mul 4 1 roll				% 4A z1 z2 z3
+ 2 copy csub cnorm			% 4A z1 z2 z3 |z2-z3|^2
+ 3 index 3 index csub cnorm mul		% 4A z1 z2 z3 |z2-z3|^2*|z1-z2|^2
+ 4 1 roll exch pop csub cnorm mul sqrt div}
+bind def
+
+/dcoeff				% z1 z2 z3 dcoeff d
+{% z1 z2 z3
+ dup cnorm exch imagpart complex 3 1 roll	% v3 z1 z2
+ dup cnorm exch imagpart complex 3 1 roll	% v2 v3 z1
+ dup cnorm exch imagpart complex 3 1 roll	% v1 v2 v3
+ triangle-2area neg}
+bind def
+
+/ecoeff				% z1 z2 z3 ecoeff e
+{% z1 z2 z3
+ dup cnorm exch realpart complex 3 1 roll	% u3 z1 z2
+ dup cnorm exch realpart complex 3 1 roll	% u2 u3 z1
+ dup cnorm exch realpart complex 3 1 roll	% u1 u2 u3
+ triangle-2area}
+bind def
+
+
+/fcoeff			% z1 z2 z3 fcoeff f
+{% z1 z2 z3
+ 1 index 1 index ccross	% z1 z2 z3 z2xz3
+ 3 index cnorm mul	% z1 z2 z3 res
+ 3 index 2 index ccross	% z1 z2 z3 res z1xz3
+ 3 index cnorm mul sub	% z1 z2 z3 res
+ 4 -2 roll		% z3 res z1 z2
+ ccross			% z3 res z1xz2
+ 3 -1 roll cnorm mul add neg}
+bind def
+
+
+/circle-3points		% z1 z2 z3 cradius [x y] r
+{% z1 z2 z3
+ 3 copy triangle-2area 2 mul 4 1 roll	% A z1 z2 z3
+ 3 copy dcoeff 4 index neg div 5 1 roll	% x A z1 z2 z3
+ 3 copy ecoeff 4 index neg div 5 1 roll	% x y A z1 z2 z3
+ fcoeff -2 mul exch div			% x y -f
+ 3 1 roll complex			% -f [x y]
+ dup 3 1 roll cnorm			% [x y] f |z|^2
+ add dup 0 ge {sqrt} {pop 0} ifelse}
+bind def
+
+/cradius		% z1 z2 z3 cradius r	% r is radius of circumcircle.
+{circle-3points exch pop}
+bind def
+
+
+/compute-rz4		% z1 z2 z3 compute-rz4 z4	% Need r & z4 for arcto command.
+{% z1 z2 z3
+ 3 copy circle-3points 5 1 roll			% r z1 z2 z3 C
+ 3 -1 roll pop					% r z1 z3 C
+ dup						% r z1 z3 C C
+ 4 1 roll					% r C z1 z3 C
+ exch						% r C z1 C z3
+ circle-3points pop				% r C D
+ 2 cscale exch csub}
+bind def
+
+/carcto1		% z2 z3 carcto1 -	% arc through z2 & z3.
+{% z2 z3
+ exch currentpoint			% z3 z2 x1 y1
+ complex exch				% z3 z1 z2
+ 2 index				% z3 z1 z2 z3
+ 3 copy curv-circumcircle		% z3 z1 z2 z3 k
+ 1 exch div				% z3 z1 z2 z3 r
+ 5 1 roll 				% r z3 z1 z2 z3
+ circle-3points				% r z3 C r
+ pop 3 -1 roll				% z3 C r
+ currentpoint complex 2 index csub	% z3 C r z1-C
+ cri exch atan				% z3 C r a1
+ 4 -1 roll				% C r a1 z3
+ 3 index csub cri exch atan		% C r a1 a2
+ 4 -1 roll cri				% r a1 a2 x y
+ 5 -1 roll				% a1 a2 x y r
+ dup 0 lt
+ {neg 5 3 roll arcn}			% r<0 means draw circle backwards.
+ {5 3 roll arc} ifelse}
+bind def
+
+/carcto			% z2 z3 carcto -	% arc through z2 & z3.
+{2 copy currentpoint complex 3 1 roll		% z2 z3 z1 z2 z3
+ curv-circumcircle abs				% z2 z3 |k|
+ 0.0001 lt
+ {exch pop cri lineto}				% draw line if too little curvature.
+ {carcto1} ifelse}				% otherwise draw arc.
+bind def
+
+
+/cadd-vector {{cadd} map2} bind def % s1 s2 cadd-vector s3
+
+/plot-set		% s plot-set		% set must have at least one point.
+{dup 0 get aload pop newpath moveto		% s
+ 1 1						% s 0 1
+ 2 index length 1 sub
+ {% s i
+  1 index exch					% s s i
+  get						% s si
+  aload pop lineto				% s
+  } for						% s
+closepath pop}
+bind def
+
+/cscale-vector		% s r cscale-vector
+{{cscale} 1 make-closure map1}
+bind def
+
+/newton-hexagon		% p z r newton-hexagon p z'
+{% p z r
+ exch			% p r z
+ 7 make-vector		% p r s
+ [[0 0] [1 0] [0.5 0.866025403] [-0.5 0.866025403] [-1 0] [-0.5 -0.866025403] [0.5 -0.866025403]] % p r s a
+ 3 -1 roll		% p s a r
+ cscale-vector		% p s a
+ cadd-vector		% p s
+ dup plot-set		% p s
+ {newton-set dup plot-set % p s'
+  } repeat
+ 0 get			% p z'
+}
+def
+
+/newton-L		% p z r n newton-L p z'
+{% p z r n
+ 4 1 roll		% n p z r
+ exch			% n p r z
+ 6 make-vector		% n p r s
+ [[0 0] [0 1] [-0.5 1] [-0.5 -0.5] [0.5 -0.5] [0.5 0]]
+			% n p r s a
+ 3 -1 roll		% n p s a r
+ cscale-vector		% n p s a
+ cadd-vector		% n p s
+ dup plot-set fill	% n p s
+ dup 0 get		% n p s s0
+ 3 1 roll		% n s0 p s
+ 4 -1 roll
+ {newton-set		% s0 p s'
+  dup 0 get		% s0 p s' s'0
+  4 -1 roll		% p s' s'0 s0
+  aload pop moveto	% p s' s'0
+  dup aload pop lineto stroke % p s' s'0
+  3 1 roll		% s'0 p s'
+  dup plot-set fill	% p s'
+  } repeat		% s0' p s'
+ 3 -1 roll pop		% p s'
+ 0 get			% p z'
+}
+def
+
+/hexagon		% [x y] r hexagon
+{exch aload pop				% r x y
+ 2 index 0.5 mul			% r x y r/2
+ 3 index 0.866025403 mul		% r x y r/2 r*sqrt(3)/2
+ 3 index 3 index moveto			% r x y r/2 r*sqrt(3)/2
+ 4 index 0 rlineto			% r x y r/2 r*sqrt(3)/2
+ 1 index neg 1 index rlineto		% r x y r/2 r*sqrt(3)/2
+ 4 index neg 0 rlineto			% r x y r/2 r*sqrt(3)/2
+ 1 index neg 1 index neg rlineto	% r x y r/2 r*sqrt(3)/2
+ 1 index 1 index neg rlineto		% r x y r/2 r*sqrt(3)/2
+ 4 index 0 rlineto			% r x y r/2 r*sqrt(3)/2
+ rlineto closepath stroke moveto pop}
+def
+
+/xaxis
+{-5 0 moveto 5 0 lineto stroke}
+bind def
+
+/yaxis
+{0 -5 moveto 0 5 lineto stroke}
+bind def
+
+/doit2				% p z n doit
+{1 index aload pop moveto	% p z n
+ {
+  dup dup (length ) print [1 0] csub cabs == [-1 0] csub cabs ==
+  newton dup aload pop
+  lineto} repeat
+ stroke}
+def
+
+/doit3				% p z n doit
+{1 index aload pop moveto	% p z n
+ {newton dup aload
+dup dup (length ) print [1 0] csub cabs == [-0.5 0.866025403] csub cabs ==
+[-0.5 -0.866025403] csub cabs ==	%pop
+  lineto} repeat
+ stroke}
+def
+
+
+/letter-R
+{matrix currentmatrix		% save matrix
+ exch dup scale
+ 0.25 0 rlineto
+ 0 0.5 rlineto
+ 0.25 0 rlineto
+ 0.25 -0.5 rlineto
+ 0.25 0 rlineto
+ -0.25 0.5 rlineto
+ currentpoint exch 0.25 add exch
+ currentpoint exch 0.25 add exch 0.25 add 0.25 arcto pop pop pop pop
+ currentpoint 0.25 add
+ currentpoint exch -0.25 add exch 0.25 add 0.25 arcto pop pop pop pop
+ -0.75 0 rlineto
+ closepath
+ 0.25 0.625 rmoveto
+ 0 0.25 rlineto
+ currentpoint exch 0.5 add exch
+ currentpoint exch 0.5 add exch -0.125 add 0.125 arcto pop pop pop pop
+ currentpoint -0.125 add
+ currentpoint exch -0.5 add exch -0.125 add 0.125 arcto pop pop pop pop
+ closepath
+ setmatrix		% restore matrix
+}
+def
+
+
+
+/newton-cubic			% x y
+{% x y
+ dup dup mul			% x y y^2
+ 2 index dup mul add		% x y x^2+y^2
+ 2 index 1 index div		% x y x^2+y^2 x/|z|^2
+ 2 index neg 3 -1 roll div	% x y a b
+ 1 index dup mul		% x y a b a^2
+ 1 index dup mul sub		% x y a b a^2-b^2
+ 5 -1 roll 2 mul add 3 div 	% y a b (a^2-b^2+2x)/3
+ 4 1 roll mul add 0.6666667 mul	% x' y'
+}
+def
+
+ /ni				% x y
+{10 {newton-cubic} repeat}
+bind def
+
+/ni2				% x y
+{10 {newton-cubic} repeat	% x' y'
+ abs exch 1 sub abs add
+ 0.1 le}
+def
+
+/xyrcircle		% x y r xycircle -
+{0 360 arc stroke}
+bind def
+
+/xypoint		% x y xypoint -		% in device coordinates
+matrix			% make a constant identity matrix for closure
+{gsave setmatrix moveto 0 0 rlineto stroke grestore} 1 make-closure
+bind def
+
+/circlemandel		% incr
+{axes
+ 0 exch 90
+ {% i
+  dup cos exch sin 2 copy ni2 true eq
+  {xypoint} {pop pop} ifelse
+ } for
+ showpage
+}
+def
+
+/domandel		% lowx highx lowy highy
+{axes 0 setlinewidth
+ usertime dup /stime exch def /ptime exch def
+ 4 copy					% save parameters to print later.
+ % lx hx ly hy
+ 3 -1 roll exch				% lx ly hx hy
+ transform				% lx ly hx' hy'
+ exch round cvi exch round cvi
+ 4 2 roll transform			% hx' hy' lx' ly'
+ exch round cvi exch round cvi
+ 3 index 2 index			% hx' hy' lx' ly' hx' lx'
+ ge {1} {-1} ifelse			% hx' hy' lx' ly' ix'
+ 3 index 2 index ge {1} {-1} ifelse	% hx' hy' lx' ly' ix' iy'
+ 5 1 roll				% hx' iy' hy' lx' ly' ix'
+ 6 1 roll				% ix' hx' iy' hy' lx' ly'
+ 4 1 roll				% ix' hx' ly' iy' hy' lx'
+ 6 1 roll				% lx' ix' hx' ly' iy' hy'
+(lx' ix' hx' ly' iy' hy'\015) print pstack flush
+ {% x' ly' iy' hy'
+(\015starting x'=) print 3 index == ( seconds=) print
+ptime usertime dup /ptime exch def exch sub 1000 div == (\015) print flush
+  {% x' y'
+    1 index exch			% x' y'
+    2 copy itransform
+    2 copy abs exch abs add 0.01 lt {false} {ni2} ifelse
+    {xypoint} {pop pop} ifelse} for
+  pop
+  } 3 make-closure			% lx' ix' hx' proc
+ for
+ (lx hx ly hy\015\n) print == == == ==
+ ( total seconds=) print usertime stime sub 1000 div == (\015\n) print flush
+ showpage}
+def
+
+
+
+
+/plotpixel				% z plotpixel -
+{cri moveto 0.0002 0.0002 rlineto stroke}
+bind def
+
+/newton-plot1				% c i newton-plot
+{
+ dup 0 le
+ {pop plotpixel}
+ {% c i
+  sub1 1 index				% c i c
+  dup plotpixel				% c i c
+  mark ctwo				% c i c mark 2
+  3 -1 roll				% c i mark 2 c
+  -3 cscale czero cone pctomark		% c i pinv
+  pccubic-solve4			% c i 1/c1 1/c2 1/c3
+  cinv 3 1 roll cinv 3 1 roll cinv	% c i c1 c2 c3
+  4 index cri moveto
+  3 index				% c i c1 c2 c3 i
+  save 3 1 roll				% c i c1 c2 save c3 i
+  newton-plot1				% c i c1 c2
+  restore				% c i c1 c2
+  3 index cri moveto
+  2 index				% c i c1 c2 i
+  save 3 1 roll				% c i c1 save c2 i
+  newton-plot1				% c i c1
+  restore  				% c i c1
+  3 -1 roll cri moveto			% i c1
+  exch					% c1 i
+  save 3 1 roll
+  newton-plot1
+  restore} ifelse}
+bind def
+
+/newton-plot				% i
+{initplot (1) cone plot-size (w) croot131 plot-size (w*) croot132 plot-size
+ /Times-Roman findfont circle-size scalefont setfont
+ (\015\ndepth=) print dup == (\015\n) print flush
+ /stime usertime def
+ czero exch newton-plot1
+ (\015\ntotal seconds=) print usertime stime sub 1000 div == (\015\n) print flush
+}
+def
+
+/circle					% [x y] r circle
+{exch aload pop 3 -1 roll 0 360 arc stroke}
+bind def
+
+/plot
+{0.3 circle}
+bind def
+
+/center-show				% s center-show -	% center string to current point.
+{% s
+ dup stringwidth			% s wx wy
+ -0.5 mul exch
+ -0.5 mul exch
+ rmoveto
+ currentfont /FontMatrix get 0 get 1000 mul -0.3 mul 0 exch rmoveto
+ show}
+bind def
+
+/plot-size			% s c plot-size -	% plot a circle with a size indication.
+{cri				% x y
+ circle-size			% x y r
+ 3 copy				% x y r x y r
+ newpath 0 359 arc closepath stroke	% x y r
+ pop					% x y
+ moveto 			%
+ center-show
+}
+def
+
+/circle-size 9 21 sqrt sub 10 div def
+
+/initplot
+{72 72 scale 4.25 5.5 translate 0 setlinewidth
+ /Symbol findfont circle-size scalefont setfont}
+def
+
+/axes
+{initplot xaxis yaxis}
+bind def
+
+/cubic-newton pccubic-canonic pc-newton def
+
+/cradius 9 21 sqrt sub 10 div def		% This is critical radius for convergence.
+
+
+
+
+/cincr 6 def
+
+/cangstart 0 def
+
+/cangend 360 def
+
+/circle-center cone def
+
+/newton-circle
+{axes
+ newpath circle-center cri cradius cangstart cangend arc stroke
+ newpath 1 0 0.44174243 0 360 arc stroke
+ newpath
+ cangstart cincr cangend
+ {% i
+  dup							% i i
+  deg2rad cis cradius cscale circle-center cadd		% i z
+  cubic-newton exec					% i z'
+  exch							% z' i
+  cangstart le
+  {cri moveto}
+  {cri lineto} ifelse} for stroke
+  cangstart cincr cangend
+ {deg2rad cis cradius cscale circle-center cadd
+  dup cri moveto
+  cubic-newton
+  cri lineto stroke} for
+ showpage}
+def
+
+/inverse-inverse		% f inverse-inverse \z.1/f(1/z)
+{% f
+ {% z f
+  exch				% f z
+  cinv				% f 1/z
+  exch exec cinv}
+  1 make-closure}
+def
+
+/pc-inverse-newton		% p pc-inverse-newton fp
+{pc-newton inverse-inverse}
+def
+
+10 newton-plot % plot approx 3^10 points.  Change if you want more or fewer.
+end
+restore

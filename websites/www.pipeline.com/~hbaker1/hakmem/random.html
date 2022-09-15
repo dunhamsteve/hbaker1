@@ -1,0 +1,73 @@
+<html><head>
+<!-- Based on MIT AI Memo 239 "HAKMEM" -->
+<!-- by M. Beeler, R.W. Gosper, and R. Schroeppel, Feb. 29, 1972. -->
+<!-- This html version Copyright (c) 1995 by Henry G. Baker. -->
+<link rev="made" href="mailto:hbaker1@pipeline.com">
+<title>HAKMEM -- RANDOM NUMBERS -- DRAFT, NOT YET PROOFED</title>
+
+</head><body>
+
+Beeler, M., Gosper, R.W., and Schroeppel, R.  <i>HAKMEM</i>.  MIT AI
+Memo 239, Feb. 29, 1972.
+
+Retyped and converted to <i>html</i> ('Web browser format) by
+
+<a href="http://home.pipeline.com/~hbaker1/home.html">Henry Baker,</a>
+
+April, 1995.
+
+<h2>RANDOM NUMBERS</h2>
+
+<a href="boolean.html">Previous</a>
+<a href="hakmem.html">Up</a>
+<a href="number.html">Next</a>
+
+<a name="item25"></a>
+
+<h3>ITEM 25 (Schroeppel):</h3>
+
+Random number generators, such as Rollo Silver's favorite, which use SHIFTs and
+XORs, and give as values only some part of their internal state, can be
+inverted.  Also, the outputs may often be used to obtain their total internal
+state.  For example, 2 consecutive values from Rollo's suffice to allow
+prediction of its entire future.  Rollo's is:
+
+<tt><pre>
+RANDOM:  MOVE A,HI        ;register A gets loaded with "high" word
+         MOVE B,LO        ;register B gets loaded with "low" word
+         MOVEM A,LO       ;register A gets stored in "low" word
+         LSHC A,35.       ;shift the 72-bit register AB left 35
+         XORB A,HI        ;bitwise exclusive-or of A and HI replaces both
+</pre></tt>
+
+[<a href="../pdp-10/pdp-10.html">PDP-10 Info</a>]<p>
+
+This suggests a susceptibility to analysis of mechanical code machines.<p>
+
+See <a href="flows.html#item132">LOOP DETECTOR</a> item in
+<a href="flows.html">FLOWS AND ITERATED FUNCTIONS</a> section.
+
+<a name="item26"></a>
+
+<h3>ITEM 26 (? via Salamin):</h3>
+
+A mathematically exact method of generating a Gaussian distribution
+from a uniform distribution: let x be uniform on [0,1] and y uniform
+on [0, 2 <i>pi</i>], x and y independent.  Calculate
+r = sqrt(-log x).  Then r cos y and
+r sin y are two independent Gaussian distributed random
+numbers.
+
+<a name="item27"></a>
+
+<h3> ITEM 27 (Salamin):</h3>
+
+PROBLEM: Generate random unit vectors in N-space uniform on the unit
+sphere.  SOLUTION: Generate N Gaussian random numbers and normalize to
+unit length.<p>
+
+<a href="boolean.html">Previous</a>
+<a href="hakmem.html">Up</a>
+<a href="number.html">Next</a>
+
+</body></html>

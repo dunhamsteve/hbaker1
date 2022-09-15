@@ -1,0 +1,328 @@
+<head>
+<title>ACM Sigplan Notices 27, 1 (Jan 1992), 95-98.</title>
+<link rev="made" href="mailto:hbaker1@pipeline.com">
+<h1><strong>Computing A*B (mod N) Efficiently in ANSI C</strong></h1>
+
+<address>
+<a href="home.html">Henry G. Baker</a><br>
+Nimble Computer Corporation, 16231 Meadow Ridge Way, Encino, CA  91436<br>
+(818) 986-1436  (818) 986-1360 FAX<br>
+Copyright (c) 1991 by Nimble Computer Corporation<br>
+</address>
+<hr>
+
+<p>The modular product computation A*B (mod N) is a bottleneck for
+some public-key encryption algorithms, as well as many exact
+computations implemented using the Chinese Remainder Theorem.  We show
+how to compute A*B (mod N) efficiently, for single-precision A,B, and
+N, on a modern RISC architecture (Intel 80860) in ANSI C.  On this
+architecture, our method computes A*B (mod N) faster than ANSI C
+computes A%N, for unsigned longs A and N.
+
+<hr>
+
+</head><body>
+
+<h2>INTRODUCTION</h2>
+
+<p>Many exact integer computations, rather than being performed using
+multiple-precision arithmetic, are performed instead over a number of
+single-precision modular rings or fields, with the results being then
+combined using the Chinese Remainder Theorem [Moses71] [Knuth81]
+[Gregory84] [Schroeder86].  Organizing the computation in this way
+avoids many multiple-precision arithmetic operations and the storage
+management overheads that these operations entail.  Unfortunately,
+unless the hardware architecture and computer language offers
+double-precision multiplication and double-precision Euclidean
+division-with-remainder operations, the cost of simulating these
+double-precision operations can eliminate any savings from the modular
+approach.  In order to profit from modular techniques, therefore, one
+must either restrict the program to use only half-precision integer
+operations (e.g., 15 bits), or seek another way to avoid
+double-precision operations.</p>
+
+<a name="note1return"></a>
+
+<p>The popularity of ANSI C [ANSI88] has led to architectures which
+efficiently implement its primitives, including its unsigned
+arithmetic primitives.  While most of these primitives are
+unremarkable, ANSI C offers an unusual capability in its unsigned
+integer multiplication operation, which returns the low order bits
+(e.g., 32 bits) of the nonnegative double-precision product
+<em>without raising an overflow interrupt if the high order bits are
+non-zero.</em> Thus, although there is no <em>simple</em> way in ANSI
+C to produce exactly the high order bits of this product,
+
+<a href="#note1">[footnote 1]</a>
+
+the low order bits (equivalent to the product (mod 2^w), where w is
+the word size in bits) are trivially obtained through unsigned integer
+multiplication.  While exact higher-precision multiplication can often
+be performed using floating point operations, many architectures are
+limited to the 24-bit and 53-bit precisions of the IEEE-754 single and
+double formats, and hence cannot produce a full 64-bit integer
+product.</p>
+
+<p>Given these restrictions, computing a full 64-bit double-precision
+integer product can be painfully expensive, while computing a
+double-precision quotient/remainder can be much worse.  Yet because
+modular multiplication is so important, one is led to consider
+alternative computations in which double-precision operations are
+minimized or eliminated.  We present such an alternative modular
+multiplication computation, which also maps efficiently onto certain
+modern RISC architectures.  Other approaches to modular products,
+including those more appropriate for the case with high-precision A,B,
+and N, are given in [Blakeley83] [Gibson88] [Kukihara89].</p>
+
+<h2>COMPUTING A*B (MOD N)</h2>
+
+<p>Let W be the word size of the ANSI C &quot;long integer&quot; implementation.
+Then W-1 is the largest unsigned long integer, and W/2-1 is the
+largest signed long integer.  Since we assume that N is a positive
+(but signed) integer, 0&lt;N&lt;W/2.</p>
+
+<p>Let A,B be nonnegative integers such that 0&lt;=A,B&lt;N.  Let P=A*B;
+i.e., P requires double precision, and can be as large as (W^2)/4-2W+4.
+Let R=mod(P,N)=mod(A*B,N).  In other words, there exists an integer Q
+such that R=P-Q*N=A*B-Q*N, and 0&lt;=R&lt;N.</p>
+
+<p>If we could calculate Q, then we could calculate R using two double
+precision multiplies and a double precision subtract; i.e., R=A*B-Q*N.
+However, since 0&lt;=R&lt;N&lt;W/2&lt;W, we can more efficiently calculate
+R using single-precision ANSI C unsigned (modular) arithmetic.  In
+other words, R=mod(R,W)=mod(A*B-Q*N,W)=mod(mod(A*B,W)-mod(Q*N,W),W),
+which follows from the fact that x-&gt;mod(x,W) is a ring homomorphism.
+This calculation requires only 2 single-precision unsigned multiplies
+and 1 single-precision unsigned subtraction.</p>
+
+<p>Unfortunately, calculating Q precisely requires that we calculate
+Q=floor(P/N) precisely, and since P=A*B is double precision, a precise
+Q needs 1 double-precision multiply and 1 double-precision quotient.
+In this case, we would do better by simply using a brute force
+double-precision Euclidean division which would provide us with the
+correct remainder that we seek.</p>
+
+<p>On the other hand, we can use an approximation Q' to Q, and perform
+instead the calculation R'=P-Q'*N=A*B-Q'*N.  So long as -N&lt;=R'&lt;N, we
+can quickly recover R=(R'&lt;0)?(R'+N):R', and this expression can be
+computed using ANSI C signed single-precision integer arithmetic.
+Furthermore, we can compute the bit pattern for R' using ANSI C
+unsigned single-precision integer arithmetic, since |R'|&lt;W.</p>
+
+<a name="note2return"></a>
+
+<p>An approximation to Q is obtained by the computation
+Q''=round(float(A)*float(B)/float(N)).  So long as the precision of
+the floating point operations is somewhat greater than the precision
+of integers, then Q'' will be close enough--i.e., Q'=Q''.  If the
+floating point calculation were perfectly accurate, then the integer
+Q'' would never deviate more than +-.5 from the rational number A*B/N,
+which would imply that |R'|&lt;=N/2.  If the floating point calculation
+involved some round-off error, then this error would be relative to
+the size of Q''.  This error is greatest for the largest Q'', which is
+about the size of N, but the error is still dominated by the
+round-to-integer operation.  For example, if we utilize IEEE 64-bit
+precision having 53 bits of accuracy, then it is certainly true that
+|R'|&lt;N/2(1+2^(-k)), where k&lt;&lt;22 (=53-31) bits.
+
+<a href="#note2">[footnote 2]</a>
+
+</p>
+
+<p>To summarize, we can perform the modular product calculations as
+follows:</p>
+
+<pre><code>
+{	double dn = n;			/* 31 bits of n>0 */
+	double da = a;			/* 31 bits of a>=0 */
+	double db = b;			/* 31 bits of b>=0 */
+	double dp = da*db;		/* ~53 bits of a*b */
+	double dq = dp/dn;		/* ~51 bits of a*b/n */
+	unsigned long qpp = dq+0.5;	/* q''=round(q) */
+	unsigned long rp = a*b-qpp*n;	/* r' */
+	long r = (rp&0x80000000)?(rp+n):rp;}
+</code></pre>
+
+<a name="note3return"></a>
+<a name="note4return"></a>
+
+<p>This calculation involves 1 double-precision floating point
+multiplication, 1 double-precision floating-point division, 2
+double-precision floating-point additions (the implicit truncation to
+an integer is equivalent to a floating-point addition by a constant
+which right-justifies the mantissa),
+
+<a href="#note3">[footnote 3]</a>
+
+2 single-precision unsigned integer multiplications, 1
+single-precision unsigned integer subtraction, 1 integer sign test,
+
+<a href="#note4">[footnote 4]</a>
+
+and 50% of a single-precision unsigned integer addition.</p>
+
+<a name="note5return"></a>
+
+<h2>REPLACING DIVISION WITH MULTIPLICATION</h2>
+
+<p>Some hardware architectures do not provide a fast floating-point
+divide instruction, and hence a double-precision floating-point
+division can require a very large number of cycles.
+
+<a href="#note5">[footnote 5]</a>
+
+In such a case, it is often advantageous to keep the inverse of n
+(1.0/fn) in a &quot;cache&quot;, since the value of n changes much
+less often than does the value of a and b.  If this caching of n^(-1)
+is done, then the double-precision division can be replaced by a
+double-precision multiply, as in the following sequence:</p>
+
+<pre><code>
+if (n!=saved_n)	/* Cache hit? */
+ {saved_n=n; dn=n; din=1.0/dn;}	/* ~53 bits of 1/n */
+{	double da = a;			/* 31 bits of a>=0 */
+	double db = b;			/* 31 bits of b>=0 */
+	double dp = da*db;		/* ~53 bits of a*b */
+	double dq = dp*din;		/* ~51 bits of a*b/n */
+	unsigned long qpp = dq+0.5;	/* q''=round(q) */
+	unsigned long rp = a*b-qpp*n;	/* r' */
+	long r = (rp&0x80000000)?(rp+n):rp;}
+</code></pre>
+
+<p>The 64-bit Intel 80860 architecture [Intel89] has very fast
+floating-point add, subtract and multiply operations, as well as the
+usual complement of integer operations.  However, it does not have any
+double-precision integer operations, nor does it have a hardware
+floating-point division operation.  As a result, the code sequences
+demonstrated here work very well for this architecture.  In
+particular, the &quot;extra&quot; integer multiplication &quot;a*b&quot; can be completely
+overlapped with the other operations, and hence is free.</p>
+
+<h2>TIMINGS</h2>
+
+<p>Using the Metaware ANSI C compiler with maximum optimization on a
+33MHz 80860XR, a single &quot;mod&quot; computation A%N for unsigned longs takes
+2.94 microsec.  Our ANSI C method using a cache for 1/n takes 2.32 microsec.  If
+we replace trunc(dq+0.5) with round(dq), by editing the assembler code
+to utilize the hardware round-to-integer capability, the time drops to
+2.24 microsec.  Handcoded assembly takes 1.78 microsec; the savings is due to
+reducing the movement of information between the integer and the
+floating point registers, which motion is very expensive on this
+machine.  Finally, we reduced this time to 1.72 microsec by utilizing the
+pipelined capabilities to float a and b simultaneously.  Thus, we have
+gained about 25% by hand coding over the C version, and at least 40%
+over an unsigned &quot;mod&quot; operation.</p>
+
+<p>A C compiler that did a better job of minimizing traffic between
+the integer and floating point registers would eliminate most of the
+incentive for hand-coding this calculation.  Faster speed is unlikely
+for a single computation due to the length of the critical path;
+vectorizing, however, could reduce the amortized cost below 1 microsec by
+keeping the multiplier busier.</p>
+
+<h2>CONCLUSIONS</h2>
+
+<p>We have shown how to efficiently compute the modular product A*B
+(mod N) in ANSI C for single-precision A,B, and N, without splitting
+the integers into smaller pieces.  We have implemented this algorithm
+in Kyoto Common Lisp [Yuasa90], which compiles Lisp into ANSI C.
+Modular multiplication is heavily used in the Lisp-based DOE Macsyma
+symbolic algebra system [Wang75].  The efficiency of our method
+relative to other approaches depends critically on the details of the
+hardware architecture, but we have found it effective for the 64-bit
+Intel 80860 architecture.  In particular, we can compute the
+modulo-reduced product faster than standard C can modulo reduce a
+single number.</p>
+
+<h2>REFERENCES</h2>
+
+<p>Alia, G., and Martinelli, E.  &quot;A VLSI Modulo m Multiplier&quot;.
+<cite>IEEE Trans. Computers 40,</cite> 7 (July 1991), 873-878.</p>
+
+<p>ANSI C.  Draft Proposed American National Standard Programming
+Language C.  ANSI, NY, 1988.</p>
+
+<p>Blakeley, G.R.  &quot;A Computer Algorithm for Calculating the Product
+AB modulo M&quot;.  <cite>IEEE Trans. Comps. C-32,</cite> 5
+(May 1983), 497-500.</p>
+
+<p>DoD.  Reference Manual for the Ada¨ Programming Language.
+ANSI/MIL-STD-1815A-1983, USGPO, 1983.</p>
+
+<p>Gibson, J.K.  &quot;A Generalization of Brickell's Algorithm for Fast
+Modular Multiplication&quot;.  <cite>BIT 28</cite> (1988), 755-764.</p>
+
+<p>Gregory, R.T., and Krishnamurthy, E.V.  <cite>Methods and
+Applications of Error-Free Computation.</cite> Springer, 1984.</p>
+
+<p>Intel Corp.  <cite>i860 (tm) 64-bit Microprocessor Programmer's
+Reference Manual.</cite> #240329-002, 1989.</p>
+
+<p>Knuth, D.E.  <cite>The Art of Computer Programming, Vol. II:
+Seminumerical Algorithms.</cite> Addison-Wesley, MA, 1981.</p>
+
+<p>Kukihara, K.  &quot;Euclidean Type Algorithm for Multiplication Modulo
+P, II&quot;.  <cite>J. Info. Proc. 12,</cite> 2 (1989), 147-153.</p>
+
+<p>Moses, Joel.  &quot;Algebraic Simplification: A Guide for the
+Perplexed&quot;.  <cite>CACM 14,</cite> 8 (Aug. 1971), 527-537.</p>
+
+<p>Rivest, R.L., Shamir, A., and Adleman, L.A.  &quot;A Method for
+Obtaining Digital Signatures and Public Key Cryptosystems&quot;.
+<cite>CACM 21</cite> (1978), 120-126.</p>
+
+<p>Schroeder, M.R.  <cite>Number Theory in Science and
+Communication.</cite> Springer-Verlag, New York, 1986.</p>
+
+<p>Wang, P.  &quot;MACSYMAÑA Symbolic Manipulation System&quot;.  <cite>Proc.
+Int'l.  Comp. Symp., Vol. I.</cite> (1975), 103-109.</p>
+
+<p>Yuasa, T.  &quot;Design and Implementation of Kyoto Common Lisp&quot;.
+<cite>J.  Info. Proc. 13,</cite> 3 (1990), 284-295.</p>
+
+<h3><a name="note1">[footnote 1]</a></h3>
+
+<code><pre>
+void emul(d,q,r,hp,lp) unsigned long d,q,r,*hp,*lp; /* 31x31+31 bit multiplication. */
+{unsigned long l; double fd,fr,fl;
+ fd=d; fr=r; fl=l=(d*q+r)&0x7fffffff; *lp=l;
+ *hp=((q&0x7fff0000)*fd+(((q&0xffff)*fd+fr)-fl))/2147483648.0;}
+</pre></code><br>
+
+<a href="#note1return">return</a>
+
+<h3><a name="note2">[footnote 2]</a></h3>
+
+<p>Indeed, on a test of a few hundred million triples A,B,N whose size
+flirted with 2^31, |R'|&gt;N/2 fewer than 10 times, and the difference
+never exceeded 201 ~ 2^8&lt;2^(31-22)=2^9.<br></p>
+
+<a href="#note2return">return</a>
+
+<h3><a name="note3">[footnote 3]</a></h3>
+
+<p>In Ada [DoD], the conversion of floating-point to integer involves
+rounding, not truncation, and thus avoids the addition of 0.5.  Some
+modern architectures--e.g., Intel 80860 [Intel89]--have a single
+hardware &quot;round-to-integer&quot; instruction, which can be used by an
+assembly language programmer to avoid this addition.<br></p>
+
+<a href="#note3return">return</a>
+
+<h3><a name="note4">[footnote 4]</a></h3>
+
+<p>We would like to write &quot;rp&0x800000&quot; as &quot;((long)
+rp)&lt;0&quot;, but the conversion could trap before the sign is
+checked!  We must therefore rely on the compiler to optimize the mask
+test into a sign test.<br></p>
+
+<a href="#note4return">return</a>
+
+<h3><a name="note5">[footnote 5]</a></h3>
+
+<p>On the Intel 80860, a double-precision divide takes 38 clocks; a
+double-precision multiply takes 4 clocks.<br></p>
+
+<a href="#note5return">return</a>
+
+</body>

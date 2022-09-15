@@ -1,0 +1,95 @@
+<title>"Relational Databases", Comm. of the ACM 35,4 (April 1992), 16,18.</title>
+<p>
+Nimble Computer Corporation<br>
+16231 Meadow Ridge Way<br>
+Encino, CA  91436<br>
+(818) 986-1436<br>
+FAX: (818) 986-1360<br></p>
+<p>
+October 15, 1991<br></p>
+<p>
+<cite>ACM Forum</cite><br>
+Association for Computing Machinery<br>
+11 West 42nd St.<br>
+New York, NY  10036<br></p>
+<p>
+Dear ACM Forum:<br></p>
+
+<p>I had great difficulty in controlling my mirth while I read the
+self-congratulatory article "Database Systems: Achievements and
+Opportunities" in the October, 1991, issue of the
+<cite>Communications,</cite> because its authors consider
+<em>relational databases</em> to be one of the three major
+achievements of the past two decades.  As a designer of commercial
+manufacturing applications on IBM mainframes in the late 1960's and
+early 1970's, I can categorically state that relational databases
+<em>set the commercial data processing industry back at least ten
+years</em> and wasted many of the billions of dollars that were spent
+on data processing.  With the recent arrival of object-oriented
+databases, the industry may finally achieve some of the promises which
+were made 20 years ago about the capabilities of computers to automate
+and improve organizations.</p>
+
+</p>Biological systems follow the rule "ontogeny recapitulates
+phylogeny", which states that every higher-level organism goes through
+a developmental history which mirrors the evolutionary development of
+the species itself.  Data processing systems seem to have followed the
+same rule in perpetuating the Procrustean bed of the "unit record".
+Virtually all commercial applications in the 1960's were based on
+<em>files</em> of fixed-length <em>records</em> of multiple
+<em>fields,</em> which were <em>selected</em> and <em>merged.</em>
+Codd's relational theory dressed up these concepts with the trappings
+of mathematics (wow, we lowly Cobol programmers are now
+<em>mathematicians!</em>)  by calling files <em>relations,</em>
+records <em>rows,</em> fields <em>domains,</em> and merges
+<em>joins.</em>  To a close approximation, established data processing
+<em>practise</em> became database <em>theory</em> by simply renaming
+all of the concepts.  Because "algebraic relation theory" was much
+more respectible than "data processing", database theoreticians could
+now get tenure at respectible schools whose names did not sound like
+the "Control Data Institute".</p>
+
+<p>Unfortunately, relational databases performed a task that didn't
+need doing; e.g., these databases were orders of magnitude slower than
+the "flat files" they replaced, and they could not begin to handle the
+requirements of real-time transaction systems.  In mathematical
+parlance, they made trivial problems obviously trivial, but did
+nothing to solve the really hard data processing problems.  In fact,
+the advent of relational databases made the hard problems harder,
+because the application engineer now had to convince his non-technical
+management that the relational database had no clothes.</p>
+
+<p>Why were relational databases such a Procrustean bed?  Because
+organizations, budgets, products, etc., are hierarchical; hierarchies
+require transitive closures for their "explosions"; and transitive
+closures cannot be expressed within the classical Codd model using
+only a finite number of joins (I wrote a paper in 1971 discussing this
+problem).  Perhaps this sounds like 20-20 hindsight, but most
+manufacturing databases of the late 1960's were of the "Bill of
+Materials" type, which today would be characterized as
+"object-oriented".  Parts "explosions" and budgets "explosions" were
+the norm, and these databases could easily handle the complexity of
+large amounts of CAD-equivalent data.  These databases could also
+respond quickly to "real-time" requests for information, because the
+data was readily accessible through pointers and hash tables--without
+performing "joins".</p>
+
+<p>I shudder to think about the large number of man-years that were
+devoted during the 1970's and 1980's to "optimizing" relational
+databases to the point where they could remotely compete in the
+marketplace.  It is also a tribute to the power of the universities,
+that by teaching only relational databases, they could convince an
+entire generation of computer scientists that relational databases
+were more appropriate than "ad hoc" databases such as flat files and
+Bills of Materials.</p>
+
+<p>Computing history will consider the past 20 years as a kind of Dark
+Ages of commercial data processing in which the religious zealots of
+the Church of Relationalism managed to hold back progress until a
+Renaissance rediscovered the Greece and Rome of pointer-based
+databases.  Database research has produced a number of good results,
+but the relational database is not one of them.</p>
+<p>
+Sincerely,<br></p>
+<p>
+Henry G. Baker, Ph.D.<br></p>

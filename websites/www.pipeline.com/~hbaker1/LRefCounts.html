@@ -1,0 +1,790 @@
+<head><title>ACM Sigplan Notices 29, 9 (September 1994), 38-43.</title>
+
+<link rev="made" href="mailto:hbaker1@pipeline.com">
+
+<h2>Minimizing Reference Count Updating with Deferred and Anchored
+Pointers for Functional Data Structures</h2>
+
+<address>
+<a href="home.html">Henry G. Baker</a><br>
+Nimble Computer Corporation, 16231 Meadow Ridge Way, Encino, CA  91436<br>
+(818) 986-1436  (818) 986-1360 (FAX)<br>
+This material is based upon work supported by the National Science Foundation under Grant No. III-9261682.<br>
+Copyright (c) 1993 by Nimble Computer Corporation
+</address>
+
+<hr>
+
+<p><em>Reference counting</em> can be an attractive form of dynamic
+storage management.  It recovers storage promptly and (with a garbage
+stack instead of a free list) it can be made "real-time"--i.e., all
+accesses can be performed in constant time.  Its major drawbacks are
+its inability to reclaim cycles, its count storage, and its count
+update overhead.  Update overhead is especially irritating for
+functional (read-only) data where updates may dirty pristine cache
+lines and pages.</p>
+
+<p>We show how reference count updating can be largely eliminated for
+functional data structures by using the "linear style" of programming
+that is inspired by Girard's linear logic, and by distinguishing
+normal pointers from <em>anchored pointers,</em> which indicate not
+only the object itself, but also the depth of the stack frame that
+anchors the object.  An <em>anchor</em> for a pointer is essentially
+an enclosing data structure that is temporarily locked from being
+collected for the duration of the anchored pointer's existence by a
+deferred reference count.  An <em>anchored pointer</em> thus implies a
+reference count increment that has been deferred until it is either
+cancelled or performed.</p>
+
+<p>Anchored pointers are generalizations of "borrowed" pointers and
+"phantom" pointers.  Anchored pointers can provide a solution to the
+"derived pointer problem" in garbage collection.</p>
+
+<hr>
+
+</head><body>
+
+<h2>INTRODUCTION</h2>
+
+<p>Reference counting [Collins60] can be an attractive form of dynamic
+storage management for functional (read-only) data structures because
+the cycles that cause trouble for reference counting do not exist in
+these data structures.  Unfortunately, reference counting extracts a
+penalty not only when creating or destroying data structures, but also
+when simply traversing them.  For example, when the length of a list
+is computed, the counts of the cells along the list are each
+incremented and then decremented.  Although this traversal results in
+no net change to any count, the work to perform 2n count updates for a
+list of length n is substantial.  In a modern RISC architecture with a
+data cache, these count references may cause lines to be brought into
+the cache that would not otherwise be touched, and worse still, these
+lines are also "dirtied", requiring that they be rewritten--even
+though the data eventually written out is identical to that brought
+in!  In a shared-memory multiprocessor system, updates to counts
+require synchronization in order to avoid losing or gaining counts due
+to conflicting reads and writes.  Thus, while reference count updating
+for the creation and deletion of structures may be tolerable, this
+continual updating for simple traversals is not.</p>
+
+<p>In a classical reference count system, the reference count on a
+node indicates the exact number of references--whether from other
+nodes or local variables--that currently point to the node.  The
+copying of a reference causes a reference count increment and the
+deletion of a reference causes a reference count decrement.  The
+"linear style" of programming inspired by linear logic (see Appendix
+I) helps to minimize the reference count updating that is caused by
+the copying and deletion of references from local variables.  In the
+linear style, the policy is that variable references are destructive
+reads--i.e., <code>cons(a,b)</code> does not have to change the
+reference counts on a,b because these references have simply moved
+from local variables into storage.  The linear style makes the
+creation and deletion of references explicit--duplicating a local
+reference requires calling the function <code>dup</code>, while
+deleting a local reference requires calling the function
+<code>kill</code>.  The function <code>dup</code> increments the
+reference count of the target object, while the function
+<code>kill</code> decrements the reference count, and may also reclaim
+the object, recursively killing its component references.</p>
+
+<p>While the linear style can help organize and reduce reference count
+updating, it does not eliminate the updating that results from simple
+traversal.  Thus, a linear <code>length</code> function will still
+increment and decrement reference counts on every cell it traverses.
+To understand this better, we show the code for a linear
+<code>length</code>:</p>
+
+<code><pre>
+(defun length (x)			; Length function in linear style.
+  (if-null x (progn (kill x) 0)		; Kill x reference to nil.
+    (dlet* (((carx . cdrx) x))		; Dissolve x into carx, cdrx.
+      (kill carx)			; <a href="#foot1">[footnote 1]</a> Kill reference to carx.
+      (1+ (length cdrx)))))		; Our result is one more than length of cdrx.
+</pre></code>
+
+<p>When <code>length</code> is entered, the reference count on x is
+almost certainly &gt;1, or else <code>length</code> will consume its
+argument and return it to the freelist!  Let us assume that the
+reference count of the head of the list is 2 and the rest of the list
+is unshared.  A standard <code>dlet*</code> adds references to
+<code>carx</code>, <code>cdrx</code> and then deletes the reference to
+x.  The reference to <code>carx</code> is immediately killed, and the
+reference to <code>cdrx</code>, which now has a reference count of 2,
+is passed to a recursive invocation of <code>length</code>.  At list
+end, the extra reference from x to <code>nil</code> is killed, and 0
+is returned.  Thus, <code>length</code> performs 4n count updates
+(each <em>element</em> of the list has its reference count updated
+twice) for an n-element list.</p>
+
+<p>Since <code>length</code> eventually returns the reference counts
+to their initial state, what would happen if we simply avoided all
+updates?  A problem arises because the second and succeeding nodes on
+the list have reference counts of 1--the <code>dlet*</code>'s will
+reclaim all of these nodes and put them onto the freelist!  We must
+therefore somehow suspend reclamation while <code>length</code> is in
+progress.  Suppose that we use <em>two</em> types of pointers--a
+<em>normal</em> pointer and a <em>deferred increment</em> pointer.
+The normal pointer acts as we have described above, while the deferred
+increment pointer signals that reclamation has been turned off.  In
+other words, <em>a deferred increment pointer is a pointer with a
+deferred reference count increment.</em> If we copy a deferred
+increment pointer using <code>dup</code>, we simply copy the bits,
+because n copies of a deferred increment implies a deferred increment
+of n.  Similarly, if we delete a deferred increment pointer using
+<code>kill</code>, we simply delete the reference, since the decrement
+associated with <code>kill</code> cancels the deferred increment.
+When <code>cons(x,y)</code> is performed on a <em>normal</em> pointer
+x, the reference count on x does not have to be adjusted since the
+reference is simply transferred from the local variable x to the cons
+cell.  However, when <code>cons(x,y)</code> is performed on a
+<em>deferred increment</em> pointer x, the reference count on x
+<em>does</em> have to be incremented, since a deferred reference means
+a deferred increment, and components of data structures have to be
+normal.  The treatment of <code>dlet*</code> for a deferred increment
+pointer x is also elegant: the deferred increment on x cancels with
+<code>dlet*</code>'s decrement of x, and the local variables
+<code>carx</code>, <code>cdrx</code> are also deferred, so their
+increments are deferred.  So deferred increment pointers appear to
+elegantly achieve our goals--executing <code>length</code> on a
+deferred increment pointer x performs no reference count updates!</p>
+
+<p>If deferred increment pointers are so efficient, why not eliminate
+normal pointers altogether?  The problem with this proposal is that no
+storage can <em>ever</em> be recovered with only deferred increment
+pointers--i.e., we are back in the realm of tracing garbage
+collection.  Consider <code>kill(cons(x,y))</code>.  If
+<code>cons</code> returns a deferred increment pointer, then
+<code>kill</code> does nothing, and the cons cell is lost.  Thus,
+<code>cons</code> itself must always return a normal (non-deferred)
+pointer.
+
+<a href="#foot2">[footnote 2]</a>
+
+</p>
+
+<p>We therefore propose a system of pointers that are dynamically
+typed as normal/deferred-increment.
+
+<a href="#foot3">[footnote 3]</a>
+
+Unfortunately, this system still does not quite work, as the
+<code>third</code> function demonstrates:</p>
+
+<code><pre>
+(defun third (x)			; Linearly return the third cons in list x.
+  (dlet* (((carx . cdrx) x)		; Dissolve the first cons.
+          ((cadrx . cddrx) cdrx))	; Dissolve the second cons.
+    (kill carx) (kill cadrx) cddrx))	; Kill first 2 elements, then return 3rd cons.
+</pre></code>
+
+<p>If <code>third</code> is passed a deferred increment pointer x, it
+will traverse the list x without changing reference counts until it
+gets to the third cons cell.  It then returns a deferred increment
+pointer to this third cons cell.  Unfortunately, the caller to
+<code>third</code> can now kill the list, in which case the third cons
+will also be reclaimed, because the increment implied by the deferred
+pointer to it will never have been performed.  We can fix this bug by
+making the policy that <em>only normal pointers can be returned from a
+function.</em> With this policy, the returned value from
+<code>third</code> will be coerced back to a normal pointer by
+performing the increment implied by the deferred pointer.
+
+<a href="#foot4">[footnote 4]</a>
+
+This policy will work correctly, because it is somewhat more prompt
+than the correct "anchored pointer" scheme described below, but is
+also more expensive, because it does not defer reference count updates
+as long as possible.  However, if we have but one pointer bit to give
+to the cause, this normal/deferred scheme is still better than a
+classical reference count scheme--e.g., functions like
+<code>length</code> "win completely" with just a one-bit
+distinction.</p>
+
+<p>A reference count updating scheme lazier than deferred increment
+pointers can be obtained at the cost of additional pointer bits by
+means of <em>anchored pointers.</em> An anchored pointer is a deferred
+increment pointer with an additional component which indicates its
+<em>anchor.</em> One implementation might use an integer component
+indicating the level in the stack at which the object is
+<em>anchored.</em> When a functional cell pointed at by a deferred
+increment pointer x is dissolved into its components, they each
+<em>inherit</em> the level number associated with x.  An anchored
+pointer not only indicates deferredness, but also indicates the extent
+during which this deferral is valid.  If a deferred increment pointer
+is returned from stack level n, it must have a level number that is
+strictly less than n.  In other words, when returning a deferred
+increment pointer from stack level n+1, one first checks to see that
+the level is &lt;=n, and if not, the pointer is coerced to
+normal--i.e., the reference count increment is performed.</p>
+
+<p>The implementation of the anchored pointer scheme can be confined
+to a <code>dlet1</code> special form, which dissolves a single list
+cell and binds its components.  We identify the anchor level with the
+index of this <code>dlet1</code> in the stack--i.e., each
+<code>dlet1</code> form has its own level number.  If
+<code>dlet1</code> is given a normal pointer, then it checks the
+reference count.  If the count is 1, then the cell is unshared, and
+<code>dlet1</code> has the only pointer to this cell.  The car and cdr
+are bound as normal pointers, and the cell is recycled.  If the count
+is &gt;1, then the cell is shared, so the car and cdr are bound as
+anchored pointers with a level number being the current
+<code>dlet1</code> level.  Later, when <code>dlet1</code> must return
+values, these values are checked for deferral and normalized if their
+level numbers are &gt;= the current level.  Finally, the reference
+count on the cell input to the <code>dlet1</code> is decremented.  The
+last case involves an anchored pointer input to <code>dlet1.</code> In
+this case, the car and cdr bindings are also anchored with the same
+level number as their parent pointer.  Since the parent pointer must
+have been anchored at a level strictly less than the current level,
+the return values need not be checked at all, since they will either
+already be normal, or will not require normalization until a lower
+level.</p>
+
+<p>Working with anchored pointers can be extremely efficient.  In the
+Boyer Benchmark [Gabriel85], for example, the (functional) database of
+rewrite rules is bound at "top-level"--i.e., stack level 0.  Thus,
+traversals of these data structures can be performed entirely by
+anchored pointers without updating reference counts--an extremely
+important characteristic for a shared-memory multiprocessor
+implementation of this benchmark, where multiple processors have to
+concurrently access these shared read-only rules.</p>
+
+<p>If our anchored pointer scheme is used in conjunction with a
+traditional tracing garbage collector, the deferred reference counts
+may give the collector fits.  In order for the reference accounting to
+balance, a cell bound by a deferred <code>dlet1</code> should be given
+a <em>negative</em> deferred reference by the <code>dlet1</code>, and
+this negative deferred reference is finally normalized before the
+<code>dlet1</code> returns its values by causing its reference count
+to be decremented.  Only <code>dlet1</code> and the garbage collector
+ever see these negative deferred references, however.</p>
+
+<p>The inclusion of a level number with every pointer in a local
+variable is probably prohibitive on today's 32-bit architectures,
+because the additional information would double the number of
+registers required to store local variables.  However, with the newer
+64-bit architectures--e.g., MIPS, DEC--a 16-bit level number would not
+constrain addressability, and would avoid the requirement for
+additional registers.  Checking and masking this level data, however,
+could present efficiency problems if the architecture is not organized
+for it.</p>
+
+<h2>'<code>WITH-ANCHORED-POINTER</code>' PROGRAMMING LANGUAGE CONSTRUCT</h2>
+
+<p>The <code>dlet1</code> special form described above works, but it
+may be more complex than strictly needed to solve the problem.  What
+we really need is a form that is given a normal pointer and provides
+an anchored pointer for use only within a dynamic context.  In other
+words, it puts the normal pointer into "escrow", and provides an
+anchored pointer for temporary use, and when the construct is exited
+and its values normalized, the escrowed pointer can then be dropped.
+We suggest something like the <code>with-anchored-pointer</code>
+special form:</p>
+
+<code><pre>
+(with-anchored-pointer (ap-name) (&lt;expression&gt;)	; binds ap-name to copy of expression value.
+  &lt;&lt; use ap-name within this dynamic extent body &gt;&gt;
+  &lt; returned-value-expression &gt;)
+</pre></code>
+
+<p>The <code>with-anchored-pointer</code> form evaluates
+<code>&lt;expression&gt;</code> to either a normal pointer or another
+anchored pointer.  If it evaluates to an anchored pointer, then
+<code>with-anchored-pointer</code> acts just like a
+<code>let</code>-expression.  However, if it evaluates to a normal
+pointer, then the pointer is saved internally, and an anchored pointer
+copy of the normal pointer is made and bound to the name
+<code>ap-name</code>.  The body of the
+<code>with-anchored-pointer</code> form is evaluated with this new
+binding, and the values returned by the body are normalized if they
+depend upon the escrowed pointer.  The normal pointer is killed just
+before the dynamic scope is exited, which involves decrementing its
+reference count.</p>
+
+<p>Constructs like <code>with-anchored-pointer</code> allow the
+introduction of anchored pointers into a static type system.  Within
+the body of the construct, the name is bound to a value which is
+guaranteed to be anchored, and thus many run-time checks may be
+omitted.</p>
+
+<h2>CONCLUSIONS AND PREVIOUS WORK</h2>
+
+<p>Programmers have been using temporary pointers to objects without
+updating their associated reference counts for decades--e.g., the Unix
+file system is reference counted, but it distinguishes between "hard"
+and "soft" links; soft links (created by <code>ln -s</code>) are
+uncounted.  [Gelernter60] uses the distinction of
+<em>owned/borrowed</em> pointers; [Lemaitre86] uses the concept of
+<em>phantom pointers.</em> Our concept of anchored pointers, however,
+generalizes these techniques and makes more precise the situations
+under which they are safe.  Maclisp "PDL numbers" [Steele77] are
+similar to anchored pointers in that they encode a stack level and can
+be used safely only within a dynamic context.  Since PDL numbers have
+no explicit reference count, however, the only way to normalize them
+is by copying them, which is done whenever they are stored into a more
+global environment or returned as a value of a function.</p>
+
+<p>Other schemes involving 1-bit reference counts include [Wise77]
+[Stoye84] [Chikayama87] [Inamura89] [Nishida90] and [Wise92].
+Anchored pointers can be particularly useful when a reference count
+cannot be incremented for some particular reason--e.g., it has only 1
+bit [Wise77] [Chikayama87] [Inamura89] [Nishida90].  Our linear scheme
+for avoiding reference count updates has goals similar to those of
+[Deutsch76] [Deutsch80] and especially [Barth77] and [Park91].  In
+particular, our scheme defers reference count updating like Barth's
+and Park's in the hope of a decrement cancelling an increment, leaving
+no net change.  However, ours is simpler than theirs--requiring only
+static linearity checking instead of global flow analysis.
+Furthermore, linear style makes avoiding count updates more
+likely.</p>
+
+<p>Anchored pointers are similar to <em>generational reference
+counts</em> [Goldberg89] in that they both attempt to minimize count
+updates, both explicitly identify their generation and both use escape
+analysis.  However, anchored pointers do not require a count field,
+and can be slightly lazier than generational reference counts.
+Anchored pointers are closely related to the schemes described in
+
+<a href="LazyAlloc.html">[Baker92CONS]</a>
+
+and
+
+<a href="LimitedRoots.html">[Baker93Safe].</a>
+
+The scheme of
+
+<a href="LimitedRoots.html">[Baker93Safe],</a>
+
+which has different goals and works for mutable data, stores its stack
+level numbers in the objects themselves rather than in the pointers to
+the objects.  Some reference count schemes [Deutsch76] [Deutsch80]
+avoid reference count updating overhead during traversal by never
+counting references from local variables on the stack.  Such schemes
+require that the stack be scanned before cells can be reclaimed.  It
+is becoming apparent, however, that scanning the stack of a compiled
+language like C [Yuasa90] or Ada
+
+<a href="LimitedRoots.html">[Baker93Safe]</a>
+
+is becoming increasingly difficult, making stack-scanning schemes
+infeasible.</p>
+
+<p>Anchored pointers can also be used to improve the efficiency of
+tracing non-copying garbage collection.  In a real-time non-relocating
+garbage collector such as
+
+<a href="NoMotionGC.html">[Baker92Tread],</a>
+
+<em>anchored pointers can be accessed without a read barrier.</em>
+Furthermore, since an anchored pointer contains within it a proof that
+the target object is not garbage, <em>anchored pointers need not be
+traced by the garbage collector.</em> While tracing the pointer will
+reveal that the target object has already been marked, it is more
+efficient to not trace the pointer, so that the target never has to be
+paged into main memory or the cache.  Anchored pointers are similar to
+<code>object</code> declarations in <em>Kyoto Common Lisp</em>
+[Yuasa90], because <code>object</code> declarations are not traced by
+the garbage collector.  KCL <code>object</code> declarations are not
+safe, however, because they can refer to mutable data, and carry no
+proof of accessibility.</p>
+
+<p>Anchored pointers are similar to <em>weak pointers,</em> in that
+they are not traced by a garbage collector, but are used for a
+completely different purpose.  A weak pointer is expected to escape
+from the context in which its target is protected from reclamation,
+but when its target is reclaimed, the escaped pointer is cleared to
+<code>nil</code>, so the application will know that the object is
+gone.  Anchored pointers, on the other hand, are used primarily for
+improving efficiency, and should have no user-visible semantic
+differences except for improved performance.</p>
+
+<p>Anchored pointers can also provide a solution to the garbage
+collection problems of <em>derived pointers</em> [Ellis88] [Nilsen88]
+[Boehm91] [Diwan92]--i.e., pointers into the interior of a large
+object such as an array.  [Ellis88] suggests that a derived pointer
+have the form &lt;base-ptr,derived-ptr&gt;; a normal pointer to an
+array element would have the form &lt;base-ptr,index&gt;.  A derived
+pointer can be normalized into a normal pointer by computing
+index=(derived-ptr-base-ptr)/element-size.  Our anchored pointers and
+their use in a dynamic extent can be considered a generalization of
+the static scheme proposed in [Boehm91].  Our anchoring scheme avoids
+the tracing of derived pointers in a non-copying collector.</p>
+
+<p>Our reference count scheme is safe because it defers increments
+only within an extent where a cell cannot be reclaimed anyway.  The
+non-prompt incrementation of reference counts means that a garbage
+collection that restores reference counts may restore the reference
+counts improperly.  Our fix for this problem is to create <em>negative
+references</em> when a cons is dissolved by <code>dlet1</code>.  This
+negative reference is normalized when <code>dlet1</code> exits.
+Negative references are also cleaned up when unwinding the
+stack--e.g., for C's <code>setjmp/longjmp</code>, or for Common Lisp's
+<code>catch/throw</code>.</p>
+
+<p>Our reference count scheme is intended to support the efficient
+implementation of functional (read-only) objects--perhaps implemented
+by means of <em>hash consing</em>
+
+<a href="BoyerB.html">[Baker92BB]</a>
+
+<a href="LinearLisp.html">[Baker92LLL]</a>--and so there is no attempt
+to handle mutable objects or cycles.  The linear style of programming
+essentially requires functions to be <em>total</em>--i.e., they must
+return with a value.  The explicit killing of references, and the
+normalization traps of anchored pointers requires that functions
+return in the normal way--the <code>catch/throw</code> of Common Lisp,
+the reified continuations of Scheme and the
+<code>setjmp/longjmp</code> of C will all cause significant problems
+with this storage management scheme.</p>
+
+<h2>ACKNOWLEDGEMENTS</h2>
+
+<p>Many thanks to David Wise and Kelvin Nilsen for their constructive
+criticisms on this paper.</p>
+
+<h2>REFERENCES</h2>
+
+<p>Abramsky, S.  "Computational interpretations of linear logic".
+<cite>Theor. Comp. Sci. 111</cite> (1993), 3-57.</p>
+
+<p>
+
+<a href="LazyAlloc.html">[Baker92CONS]</a>
+
+Baker, H.G.  "CONS Should not CONS its Arguments".  <cite>ACM Sigplan
+Not. 27,</cite> 3 (March 1992), 24-34.</p>
+
+<p>
+
+<a href="NoMotionGC.html">[Baker93Tread]</a>
+
+Baker, H.G.  "The Treadmill: Real-Time Garbage Collection without
+Motion Sickness".  <cite>ACM Sigplan Not. 27,</cite> 3 (1992).</p>
+
+<p>
+
+<a href="BoyerB.html">[Baker92BB]</a>
+
+Baker, H.G.  "The Boyer Benchmark at Warp Speed".  <cite>ACM Lisp
+Pointers V,</cite> 3 (July-Sept. 1992), 13-14.</p>
+
+<p>
+
+<a href="LinearLisp.html">[Baker92LLL]</a>
+
+Baker, H.G.  "Lively Linear Lisp -- 'Look Ma, No Garbage!'".  <cite>ACM
+Sigplan Notices 27,</cite> 8 (Aug. 1992), 89-98.</p>
+
+<p>
+
+<a href="LimitedRoots.html">[Baker93Safe]</a>
+
+Baker, H.G.  "Safe and Leakproof Resource Management using Ada83
+Limited Types".  <cite>ACM Ada Letters XIII,</cite> 5 (Sep/Oct 1993),
+32-42.</p>
+
+<p>
+
+<a href="ObjectIdentity">[Baker93ER]</a>
+
+Baker, H.G.  "Equal Rights for Functional Objects".  <cite>ACM OOPS
+Messenger 4,</cite> 4 (Oct. 1993), 2-27.</p>
+
+<p>Barth, J.  "Shifting garbage collection overhead to compile time".
+<cite>Comm. ACM 20,</cite> 7 (July 1977), 513-518.</p>
+
+<p>Bekkers, Y., and Cohen, J., <i>eds.</i> <cite>Memory Management:
+Proc. IWMM92</cite> Springer LNCS 637, 1992.</p>
+
+<p>Berry, G., and Boudol, G.  "The chemical abstract machine".
+<cite>Theor.  Comp. Sci. 96</cite> (1992), 217-248.</p>
+
+<p>Boehm, H.-J.  "Simple GC-Safe Compilation".  <cite>Proc. GC
+Workshop at OOPSLA'91,</cite> Phoenix, AZ, Oct. 6, 1991.</p>
+
+<p>Chikayama, T., and Kimuar, Y.  "Multiple Reference Management in
+Flat GHC".  <cite>Logic Programming, Proc. 4th Intl. Conf.</cite> MIT
+Press, 1987, 276-293.</p>
+
+<p>Chirimar, J., <i>et al.</i> "Proving Memory Management Invariants
+for a Language Based on Linear Logic".  <cite>Proc. ACM Conf. Lisp &
+Funct. Prog.</cite> San Francisco, CA, June, 1992, also <cite>ACM Lisp
+Pointers V,</cite> 1 (Jan.-Mar. 1992), 139.</p>
+
+<p>Collins, G.E.  "A method for overlapping and erasure of lists".
+<cite>Comm. ACM 3,</cite> 12 (Dec. 1960), 655-657.</p>
+
+<p>Deutsch, L.P., and Bobrow, D.G.  "An efficient incremental
+automatic garbage collector".  <cite>Comm. ACM 19,</cite> 9 (Sept.
+1976).</p>
+
+<p>Deutsch, L.P.  "ByteLisp and its Alto Implementation".  <cite>Lisp
+Conf.</cite> Stanford, CA, Aug. 1980, 231-243.</p>
+
+<p>Diwan, A., <i>et al.</i> "Compiler support for garbage collection
+in a statically typed language".  <cite>ACM PLDI'92, Sigplan Not.
+27,</cite> 6 (June 1992), 273-282.</p>
+
+<p>Edelson, D.R.  "Smart pointers: They're smart but they're not
+pointers".  <cite>Proc. Usenix C++ Tech. Conf. 92,</cite> 1-19.</p>
+
+<p>Edelson, D.R.  "Precompiling C++ for Garbage Collection".  In
+[Bekkers92], 299-314.</p>
+
+<p>Ellis, J.R., et al.  "Real-time concurrent collection on stock
+multiprocessors".  <cite>ACM PLDI'88.</cite></p>
+
+<p>Friedman, D.P., and Wise, D.S.  "Aspects of applicative programming
+for parallel processing".  <cite>IEEE Trans. Comput. C-27,</cite> 4
+(Apr. 1978), 289-296.</p>
+
+<p>Gabriel, R.P.  <cite>Performance and Evaluation of Lisp
+Systems.</cite> MIT Press, Camb., MA 1985.</p>
+
+<p>Gelernter, H., <i>et al.</i> "A Fortran-compiled list processing
+language".  <cite>J. ACM 7</cite> (1960), 87-101.</p>
+
+<p>Girard, J.-Y.  "Linear Logic".  <cite>Theoretical Computer Sci.
+50</cite> (1987), 1-102.</p>
+
+<p>Goldberg, B.  "Generational Reference Counting: A
+Reduced-Communication Distributed Storage Reclamation Scheme".
+<cite>ACM PLDI'89, Sigplan Not. 24,</cite> 7 (July 1989), 313-321.</p>
+
+<p>Inamura, Y., et al.  "Optimization Techniques Using the MRB and
+Their Evaluation on the Multi-PSI/V2".  <cite>Logic Programming, Proc.
+North American Conf.</cite> MIT Press, 1989, 907-921.</p>
+
+<p>Kieburtz, R.B.  "Programming without pointer variables".
+<cite>Proc.  Conf. on Data: Abstraction, Definition and Structure,
+Sigplan Not. 11</cite> (special issue 1976), 95-107.</p>
+
+<p>Lafont, Y.  "The Linear Abstract Machine".  <cite>Theor. Comp. Sci.
+59</cite> (1988), 157-180.</p>
+
+<p>Lemaitre, M., <i>et al.</i> "Mechanisms for Efficient
+Multiprocessor Combinator Reduction".  <cite>Lisp & Funct. Progr.
+1986.</cite></p>
+
+<p>Nilsen, K.  "Garbage collection of strings and linked data
+structures in real time".  <cite>SW--Prac. & Exper. 18,</cite> 7
+(1988).</p>
+
+<p>Nishida, K., <i>et al.</i> "Evaluation of MRB Garbage Collection on
+Parallel Logic Programming Architectures".  <cite>Logic Programming,
+Proc.  7th Intl. Conf.</cite> MIT Press, 1990, 83-95.</p>
+
+<p>Park, Y.G., and Goldberg, B.  "Reference Escape Analysis:
+Optimizing Reference Counting based on the Lifetime of References".
+<cite>Proc. PEPM'91,</cite> Yale Univ., June, 1991, 178-189.</p>
+
+<p>Shalit, A.  <cite>Dylan(tm): An object-oriented dynamic
+language.</cite> Apple Computer, Camb., MA, 1992.</p>
+
+<p>Steele, G.L.  "Fast Arithmetic in MacLisp".  AI Memo 421, MIT AI
+Lab., Camb., MA, Sept. 1977.</p>
+
+<p>
+
+<a href="http://www.cs.cmu.edu:8001/Web/Groups/AI/html/cltl/cltl2.html">[Steele90]</a>
+
+Steele, G.L.  <cite>Common Lisp, The Language; 2nd Ed.</cite> Digital
+Press, Bedford, MA, 1990.</p>
+
+<p>Stoye, W.R., <i>et al.</i> "Some practical methods for rapid
+combinator reduction".  <cite>Lisp & Funct. Progr. Conf.
+1984.</cite></p>
+
+<p>Strom, R.E.  "Mechanisms for Compile-Time Enforcement of Security".
+<cite>Proc. ACM POPL 10,</cite> Jan. 1983.</p>
+
+<p>Strom, R.E., and Yemini, S.  "Typestate: A Programming Language
+Concept for Enhancing Software Reliability".  <cite>IEEE Trans. SW
+Engrg.  SE-12,</cite> 1 (Jan. 1986), 157-171.</p>
+
+<p>Wadler, P.  "Is there a use for linear logic?".  <cite>Proc. ACM
+PEPM'91,</cite> New Haven, June 1991, 255-273.</p>
+
+<p>Wakeling, D., and Runciman, C.  "Linearity and Laziness".
+<cite>Proc.  Funct. Progr. & Computer Arch.</cite> LNCS 523,
+Springer-Verlag, Aug. 1991, 215-240.</p>
+
+<p>Wise, D.S., and Friedman, D.P.  "The one-bit reference count".
+<cite>BIT 17,</cite> 3 (Sept. 1977), 351-359.</p>
+
+<p>Wise, D.S.  "Stop-and-copy and One-bit Reference Counting".
+TR-360, Indiana U., Bloomington, IN, Oct. 1992.</p>
+
+<p>Yuasa, T.  "Design and Implementation of Kyoto Common Lisp".
+<cite>J.  Info. Proc. 13,</cite> 3 (1990), 284-295.</p>
+
+<h2>APPENDIX I.  A SHORT TUTORIAL ON "LINEAR" LISP</h2>
+
+<p>Linear Lisp is a style of Lisp in which every bound name is
+referenced exactly once.  Thus, each parameter of a function is used
+just once, as is each name introduced via other binding constructs
+such as <code>let</code>, <code>let*</code>, etc.  A linear language
+requires work from the programmer to make explicit any copying or
+deletion, but he is paid back by better error checking during
+compilation and better utilization of resources (time, space) at
+run-time.  Unlike Pascal, Ada, C, and other languages providing
+explicit deletion, however, <em>a linear language cannot have dangling
+references.</em></p>
+
+<p>The <code>identity</code> function is already linear, but
+<code>five</code> must dispose of its argument before returning the
+value 5:</p>
+
+<code><pre>
+(defun identity (x) x)
+
+(defun five (x) (kill x) 5)           ; a true Linear Lisp would use "x" instead of "(kill x)"
+</pre></code>
+
+<p>The <code>kill</code> function, which returns <em>no</em> values,
+provides an appropriate "boundary condition" for the parameter x.  The
+appearance of <code>kill</code> in <code>five</code> signifies
+<em>non-linearity.</em> (See below for a definition of
+<code>kill</code>).</p>
+
+<p>The <code>square</code> function requires <em>two</em> occurrences
+of its argument, and is therefore also non-linear.  A second copy can
+be obtained by use of the <code>dup</code> function, which accepts one
+argument and returns <em>two</em> values--i.e., two copies of its
+argument.  (See below for a definition of <code>dup</code>).  The
+<code>square</code> function follows:</p>
+
+<code><pre>
+(defun square (x)
+  (let* ((x x-prime (dup x)))         ; Use Dylan-style syntax for multiple values [Shalit92].
+    (* x x-prime)))
+</pre></code>
+
+<p>Conditional expressions such as <code>if</code>-expressions require
+a bit of sophistication.  Since only one "arm" of the conditional will
+be executed, we relax the "one-occurrence" linearity condition to
+allow a reference in both arms.
+
+<a href="#foot5">[footnote 5]</a>
+
+One should immediately see that linearity implies that an occurrence
+in one arm <em>if and only if</em> there is an occurrence in the other
+arm.  (This condition is similar to that for <em>typestates</em>
+[Strom83] [Strom86]).</p>
+
+<p>The boolean expression part of an <code>if</code>-expression
+requires more sophistication.  Strict linearity requires that any name
+used in the boolean part of an <code>if</code>-expression be counted
+as an occurrence.  However, many predicates are "shallow", in that
+they examine only a small (i.e., shallow) portion of their arguments
+(e.g., <code>null</code>, <code>zerop</code>), and therefore a
+modified policy is required.  We have not yet found the best syntax to
+solve this problem, but provisionally use several new
+<code>if</code>-like expressions: <code>if-atom</code>,
+<code>if-null</code>, <code>if-zerop</code>, etc.  These
+<code>if</code>-like expressions require that the boolean part be a
+simple name, which does not count towards the "occur-once" linearity
+condition.  This modified rule allows for a shallow condition to be
+tested, and then the name can be reused within the arms of the
+conditional.
+
+<a href="#foot6">[footnote 6]</a>
+
+</p>
+
+<p>We require a mechanism to <em>linearly</em> extract both components
+of a Lisp cons cell, since a use of <code>(car x)</code> precludes the
+use of <code>(cdr x)</code>, and vice versa, due to the requirement
+for a single occurrence of x.  We therefore introduce a "destructuring
+let" operation <code>dlet*</code>, which takes a series of binding
+pairs and a body, and binds the names in the binding pairs before
+executing the body.  Each binding pair consists of a pattern and an
+expression; the expression is evaluated to a value, and the result is
+matched to the pattern, which consists of list structure with embedded
+names.  The list structure must match to the value, and the names are
+then bound to the portions of the list structure as if the pattern had
+been <em>unified</em> with the value.  Linearity requires that a name
+appear only once within a particular pattern.  Linearity also requires
+that each name bound by a <code>dlet*</code> binding pair must occur
+either within an expression in a succeeding binding pair, or within
+the body of the <code>dlet*</code> itself.  Using these constructs, we
+can now program the <code>append</code> and factorial
+(<code>fact</code>) functions:</p>
+
+<code><pre>
+(defun lappend (x y)				; append for "linear" lists.
+  (if-null x (progn (kill x) y)			; trivial kill
+    (dlet* (((carx . cdrx) x))			; disassociate top-level cons.
+      (cons carx (lappend cdrx y)))))		; this cons will be optimized to reuse input cell x.
+
+(defun fact (n)
+  (if-zerop n (progn (kill n) 1)		; trivial kill.
+    (let* ((n n-prime (dup n)))			; Dylan-style multiple-value syntax.
+      (* n (fact (1- n-prime))))))
+</pre></code>
+
+<p>Below we show one way to program the <code>kill</code> and
+<code>dup</code> functions.</p>
+
+<code><pre>
+(defun kill (x)		; Return no values.  Expensive way to decrement a reference count.
+  (if-atom x (kill-atom x)
+    (dlet* (((carx . cdrx) x))
+      (kill carx) (kill cdrx))))
+
+(defun dup (x)		; Return 2 values.  Expensive way to increment a reference count.
+  (if-atom x (dup-atom x)
+    (dlet* (((carx . cdrx) x))
+      (let* ((carx carx-prime (dup carx)) (cdrx cdrx-prime (dup cdrx)))
+        (share-if-possible (cons carx cdrx) (cons carx-prime cdrx-prime))))))   ; reuse input.
+</pre></code>
+
+<p>
+
+<a name="foot1">[Footnote 1]</a>
+
+Following logic languages, we could use syntax like <code>dlet* (((_ .
+cdrx) x))</code> to immediately kill the car of x.</p>
+
+<p>
+
+<a name="foot2">[Footnote 2]</a>
+
+The Deutsch-Bobrow reference count scheme [Deutsch76] [Deutsch80] does
+not count references from local variables, and thereby avoids these
+count updates.  Their scheme requires a stack scan before reclaiming
+storage, however, which scan is nearly impossible to do on stacks
+formatted by optimizing compilers for modern RISC architectures.</p>
+
+<p>
+
+<a name="foot3">[Footnote 3]</a>
+
+The <em>normal/deferred-increment</em> distinction is essentially
+identical to the <em>real/phantom</em> distinction of [Lemaitre86] and
+the <em>owned/borrowed</em> distinction of [Gelernter60].</p>
+
+<p>
+
+<a name="foot4">[Footnote 4]</a>
+
+[Lemaitre86] calls this normalization operation "materialization".</p>
+
+<p>
+
+<a name="foot5">[Footnote 5]</a>
+
+Any use of parallel or <em>speculative</em> execution of the arms of
+the conditional would require strict linearity, however.</p>
+
+<p>
+
+<a name="foot6">[Footnote 6]</a>
+
+Although this rule seems a bit messy, it is equivalent to having the
+shallow predicate return <em>two</em> values: the predicate itself and
+the unmodified argument.  This policy is completely consistent with
+linear semantics.</p>
+
+</body>
+
+

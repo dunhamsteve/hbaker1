@@ -1,0 +1,693 @@
+<head><title>ACM Sigplan Notices 27,3 (March 1992), 66-70.</title>
+
+<link rev="made" href="mailto:hbaker1@pipeline.com">
+
+<h1>The Treadmill: Real-Time Garbage Collection Without Motion
+Sickness</h1>
+
+<address>
+<a href="home.html">Henry G. Baker</a><br>
+Nimble Computer Corporation, 16231 Meadow Ridge Way, Encino, CA  91436<br>
+(818) 986-1436  (818) 986-1360 FAX<br>
+Copyright (c) 1991 by Nimble Computer Corporation<br>
+</address>
+
+<hr>
+
+<p>A simple real-time garbage collection algorithm is presented which
+does not copy, thereby avoiding some of the problems caused by the
+asynchronous motion of objects.  This in-place "treadmill" garbage
+collection scheme has approximately the same complexity as other
+non-moving garbage collectors, thus making it usable in a high-level
+language implementation where some pointers cannot be traced.  The
+treadmill is currently being used in a Lisp system built in Ada.</p>
+
+<hr>
+
+</head><body>
+
+<h2>INTRODUCTION</h2>
+
+<p>In 1978, we presented a relatively simple storage management
+algorithm using garbage collection ("GC") which was "real-time"
+("RT"), in the sense that all of its operations could be bounded by a
+small constant, except for allocation, which was bounded by a small
+constant times the size of the object being allocated
+
+<a href="RealTimeGC.html">[Baker78].</a>
+
+Since initialization requires time proportional to the size of the new
+object, this algorithm was optimum, to within a constant factor.  The
+key ideas of the paper were the tricolor marking scheme and the use of
+the allocation pointer as a clock to measure the "time" until the
+garbage collection must be finished.</p>
+
+<p>Our 1978 paper had two major goals--to show that garbage collection
+could be done in real time, and to show a relatively practical
+algorithm.  After the discovery of the proof shown in that paper, and
+before the discovery of the particular algorithm shown in that paper,
+we considered a number of different strategies for implementing a
+real-time garbage collector.  The search space included a number of
+different dimensions, including copying v. non-copying, breadth-first
+v. depth-first, mark-sweep v. non-mark-sweep.  The copying GC which
+appeared in the paper was chosen because 1) it was space-efficient,
+which appeared to be important for an embedded computer with all
+"real" (non-virtual) memory; 2) it compacted by copying, which allowed
+for the simplest allocation strategy--pointer incrementation; and 3) it
+had a single phase, unlike the 2-phase mark-sweep algorithm.</p>
+
+<p>We have since learned that compile-time garbage collection should
+be used whenever possible
+
+<a href="#chase87">[Chase87]</a>
+
+<a href="#chase88">[Chase88]</a>
+
+<a href="#hederman88">[Hederman88]</a>
+
+<a href="Share-Unify.html">[Baker90];</a>
+
+that stack allocation should be used more often
+
+<a href="LazyAlloc.html">[Baker91b];</a>
+
+that functional objects should be treated differently from
+non-functional objects
+
+<a href="ObjectIdentity.html>[Baker93];</a>
+
+that depth-first copying often causes fewer faults in a virtual memory
+and/or caching environment
+
+<a href="#moon84">[Moon84]</a>
+
+<a href="#andre86">[Andre86]</a>
+
+<a href="#wilson91">[Wilson91];</a>
+
+that the asynchronous movement of objects is detrimental to compiler
+optimization
+
+<a href="#chase87">[Chase87]</a>
+
+<a href="#chase88">[Chase88];</a>
+
+and that more efficient allocation strategies exist
+
+<a href="#brent89">[Brent89]</a>
+
+<a HREF="#white90">[White90].</a>
+
+A "conservative" garbage collector
+
+<a href="#boehm88">[Boehm88]</a>
+
+works much better without copying, since it can never be sure that all
+pointers to an object have been found and updated.  Due to the greater
+perceived costs of copying and due to the greater perceived benefits
+of not copying, it now seems worthwhile to revisit an algorithm which
+lost the initial real-time GC face-off.</p>
+
+<h2>TRICOLOR MARKING</h2>
+
+<p>We use 3 colors to mark the nodes of a rooted directed graph--white,
+grey and black.
+
+<a href="#foot1">[footnote 1]</a>
+
+At the commencement of marking, all the nodes are white.  We then mark
+the root nodes grey.  At any point during the marking, we find a grey
+node, darken all of the nodes it points to, and then blacken it.
+Marking terminates when there are no more grey nodes.</p>
+
+<p>Real-time garbage collection overlaps marking and mutating (user
+program execution).  The mutator is never allowed to see a white node.
+If this policy is ever in danger of being violated,
+
+<a href=#foot2">[footnote 2]</a>
+
+the mutator marks the white node due to be accessed and continues.
+Since a black node can never point directly to a white node without a
+grey node intervening, and since the mutator only sees grey or black
+nodes, this marking by the mutator is not harmful.  When marking is
+done, we interchange the interpretation of the colors white and black
+(at this point there are no grey cells), mark the roots grey, and then
+restart the algorithm.</p>
+
+<p>The copying algorithm in the 1978 paper mapped white nodes into
+"fromspace" nodes, grey nodes into "tospace" nodes which had been
+copied but not yet scanned, and black nodes into "tospace" nodes which
+had been both copied and scanned.  This is not the only possible
+mapping, however.</p>
+
+<h2>IN-PLACE GARBAGE COLLECTION</h2>
+
+<p>The only requirements of tricolor marking are: 1) it is easy to
+enumerate free cells for allocation; 2) it is easy to enumerate grey
+cells; 3) it is easy to determine the color of a cell; 4) it is easy
+to change the color of a cell; and 5) it is easy to interchange the
+interpretation of the colors white and black.</p>
+
+<p><em>Doubly-linked lists</em>
+
+<a href="#knuth73">[Knuth73,2.2.5]</a>
+
+satisfy these requirements.  Consider a system of Lisp-like pairs
+which have two extra "hidden" pointer components.  Initially, the
+free-list is a doubly-linked list through these hidden pointer
+components.  When a cell is allocated ("consed"), it is removed from
+the free-list doubly-linked list, and inserted into the non-free-list
+doubly-linked list.</p>
+
+<p>In a non-real-time system, marking begins when the free-list
+becomes empty.  All cells are on the non-free-list at this point;
+i.e., all cells are white.  Marking begins by making the root cells
+grey; i.e., transferring the root cells from the white list to a grey
+list, which is done by unsnapping the cells from the one list and
+snapping them into the other list.  Marking proceeds by unsnapping
+cells from the grey list and snapping them into an initially empty
+black list.  Since an empty grey list is easy to detect, the algorithm
+will terminate with all accessible cells on the black (non-free) list
+and all inaccessible cells on the white (free) list.  The mutator
+continues after the interpretation of white and black has been
+interchanged.</p>
+
+<p>A real-time collection system is obtained by overlapping marking
+and mutating, as in the 1978 paper.  If the mutator attempts to access
+a white cell, it first darkens it by unsnapping it from the white list
+and snapping it into the grey list for the marker to process; i.e.,
+the algorithm utilizes a "read barrier".  The real-time system will
+require <em>four</em> colors, however, since unmarked white cells must be
+distinguished from cells on the free list;
+
+<a href="#foot3">[footnote 3]</a>
+
+i.e., unmarked white cells must use "off-white" (ecru) instead of the
+"dead white" of the free-list.  At the end of marking, the ecru cells
+are converted to dead white cells to form the new free list.
+
+<a href="#foot4">[footnote 4]</a>
+
+</p>
+
+<p>It is easy to see that this "in-place" algorithm is real-time,
+since the basic operations of determining a cell's color, changing a
+cell's color (including unsnapping and snapping its links), etc., are
+all constant-time operations.  If we incrementally update the simple
+statistics required to calculate the appropriate "cons/mark" ratio
+
+<a href="RealTimeGC.html">[Baker78],</a>
+
+then this in-place system is real-time if and only if the original
+copying system is real-time.</p>
+
+<h2>THE TREADMILL OPTIMIZATION</h2>
+
+<p>A new (1991) optimization for this algorithm is obtained by linking
+<em>all</em> the cells into into the same large cyclic doubly-linked
+list (the treadmill "tread"), while keeping the various colors in
+contiguous subsequences of this list.  The four segments--white, grey,
+black and ecru--are delimited by four pointers--<code>bottom, top,
+free</code> and <code>scan.</code> We use the hidden links "forward"
+and "backward" to orient this cyclic doubly-linked list.  We thus have
+the pointers and segments in the following cyclic order:
+<code>bottom,</code> ecru, <code>top,</code> grey, <code>scan,</code>
+black, <code>free,</code> white, <code>bottom.</code> When the mutator
+allocates a cell, the <code>free</code> pointer is moved one cell
+"forward", thus changing a white (free) cell directly into a black
+(allocated) cell.  When the cell under the <code>scan</code> pointer
+has been scanned, the <code>scan</code> pointer is moved "backward",
+thus changing a grey cell into a black cell.  To scan a grey cell, its
+visible pointers must be checked.  If a scanned pointer is black or
+grey, we do nothing, but if the scanned pointer is ecru, it is
+unlinked from the ecru segment between <code>bottom</code> and
+<code>top,</code> and relinked into the grey area, either at the
+<code>scan</code> pointer--for depth-first ordering, or at the
+<code>top</code> pointer--for breadth-first ordering.  Notice that
+only one bit of color distinction must be stored in the cell--whether
+or not it is ecru.</p>
+
+<p>When the <code>scan</code> pointer meets the <code>top</code>
+pointer, the collection cycle has finished, and when the
+<code>free</code> pointer meets the <code>bottom</code> pointer, we
+must "flip".  At this point, we have cells of only two colors--black
+and ecru.  To flip, we make ecru into white and black into ecru;
+<code>bottom</code> and <code>top</code> are then exchanged.  The root
+pointers are now "scanned" by making them grey; the cells they point
+to are unlinked from the ecru region and linked into the grey
+region.(between <code>scan</code> and <code>top</code>).  We can
+restart the collector, as it now has grey cells to scan.</p>
+
+<p>The "treadmill" optimization eliminates the need to resnap links
+during mutator allocation
+
+<a href="#foot5">[footnote 5]</a>
+
+and when changing from grey to black.  However, we must still resnap
+links when changing from ecru to grey, since we need to separate the
+accessible ecru cells from the garbage ecru cells.</p>
+
+<p>In the exposition above, we explicitly "moved" cells from the ecru
+list to the grey list.  On a multi-processor system, however, we might
+rather move the cell directly from the white list to the black list,
+but also put it onto a marker stack.  In this modified scheme, a grey
+cell is a black cell which is also on the marker stack.  This
+optimization may be useful in reducing the latency in the mutator's
+read barrier.
+
+<a href="#foot6">[footnote 6]</a>
+
+</p>
+
+<h2>COSTS</h2>
+
+<p>We now compare the costs of the treadmill "in-place" algorithm to
+the 1978 "copying" algorithm.  The in-place algorithm requires 2
+additional pointers per CONS pair, but it does not require the
+additional "tospace".  Therefore, for CONS pairs, the space
+requirements are identical, and the in-place algorithm requires less
+space for larger objects.
+
+<a href="#foot7">[footnote 7]</a>
+
+The cost of resnapping links is probably larger than that of copying
+for CONS pairs, but for larger objects the in-place algorithm should
+require less effort.
+
+<a href="#foot8">[footnote 8]</a>
+
+</p>
+
+<p>If one uses a modern RISC architecture with a cache, and if both
+hidden links of an object occupy the same cache line, then link
+resnapping may not be nearly as expensive as a count of memory
+references would indicate.  To enhance locality in a dual
+(mutator-collector) processor system, one could separate the object
+into two pieces--one piece holding the links visible to the mutator and
+the other holding the links visible to the collector; this separation
+would keep the cache consistency protocol from thrashing.</p>
+
+<p>The biggest potential cost of an in-place algorithm, and the factor
+which lost it a place in the 1978 paper, is the fact that the
+free-list must be searched if objects of different sizes are managed
+
+<a href="#baker89">[Baker89].</a>
+
+In other words, allocation is no longer a simple pointer-increment
+operation, but a search of a free-list for an amount of storage big
+enough to satisfy the allocation.  Thus, the in-place algorithm
+appears to be most useful when managing a homogeneous collection of
+objects.</p>
+
+<p>There are several possible solutions to this allocation problem.
+Brent
+
+<a href="#brent89">[Brent89]</a>
+
+showed a first-fit technique for managing storage in which allocation
+could be performed in O(log(w)) time, where w is the maximum number of
+words allocated dynamically.  Jon L. White's technique
+
+<a href="#white90">[White90]</a>
+
+utilizes a hierarchy of bit-vectors which achieves O(log(s))
+allocation time, where s is the amount of storage under
+management.</p>
+
+<p>Of course, these techniques only put off the inevitable
+fragmentation caused by immobile objects of different sizes
+
+<a href="#robson74">[Robson74].</a>
+
+Bounds on the sizes of available memory blocks can be obtained by
+combinatorial arguments; these bounds are not good, but are
+worst-case, not average bounds.  We therefore have a situation with
+poor worst-case bounds, but good average-case behavior; this may be a
+trap for real-time systems designers, who should be preparing for the
+worst, not the average, case
+
+<a href="#baker89">[Baker89].</a>
+
+</p>
+
+<p>Brenda Baker
+
+<a href="#baker85">[Baker85]</a>
+
+has shown how a "buddy" storage system can be modified to "make space"
+by moving objects when a large allocation request cannot be fulfilled
+normally.  Her algorithm operates so long as memory is not already
+full, and the time to allocate a block is proportional to the size of
+the block.  All of these characteristics would make her scheme seem
+ideal, except that the original goal of a motionless garbage collector
+has not been achieved!</p>
+
+<p>Thus, it would appear that if the allocation problem of large
+immobile objects of different sizes could be solved, then our in-place
+real-time variant would be an attractive way to collect garbage.</p>
+
+<h2>CONCLUSIONS</h2>
+
+<p>We have shown an elegant technique based on doubly-linked lists for
+in-place real-time memory management which is isomorphic to our
+original copying algorithm.  We are using this in-place real-time
+garbage collector in a Lisp system built on top of the Ada programming
+language
+
+<a href="LPprogram.html">[Baker91a].</a>
+
+Other authors
+
+<a href="#yuasa90">[Yuasa90]</a>
+
+<a href="#beaudoing91">[Beaudoing91]</a>
+
+have shown in-place real-time algorithms based on the 2-phase
+mark-sweep algorithm, although
+
+<a href="#queinnec89">[Queinnec89]</a>
+
+has shown how to integrate the sweep phase with allocation.
+
+<a href="#foot9">[footnote 9]</a>
+
+<a href="#moss87">[Moss87]</a>
+
+uses a similar doubly-linked list to manage the stack frames of
+Smalltalk.  Doubly-linked lists can also be used to convert
+generational copying garbage collectors
+
+<a href="#lieberman83">[Lieberman83]</a>
+
+into in-place algorithms.</p>
+
+<h2>ACKNOWLEDGEMENTS</h2>
+
+<p>Many thanks to Hans Boehm, Eliot Moss, Paul Wilson and others at
+the GC'91 Workshop of Garbage Collection in Object-Oriented Systems
+for their suggestions and feedback on this paper.</p>
+
+<h2>REFERENCES</h2>
+
+<p>
+
+<a name="andre86">[Andre86]</a>
+
+Andre, David L.  Paging in Lisp Programs.  M.S. Thesis, U. of
+Maryland, 1986.</p>
+
+<p>
+
+<a name="appel88">[Appel88]</a>
+
+Appel, Andrew W., Ellis, John R., and Li, Kai.  "Real-time concurrent
+garbage collection on stock multiprocessors".  <cite>Proc. ACM
+PLDI,</cite> June 1988, 11-20.</p>
+
+<p>
+
+<a name="baker85">[Baker85]</a>
+
+Baker, Brenda, et al.  "Algorithms for Resolving Conflicts in Dynamic
+Storage Allocation".  <cite>J. ACM 32,</cite> 2 (April 1985), 327-343.</p>
+
+<p>
+
+<a href="RealTimeGC.html">[Baker78]</a>
+
+Baker, Henry.  "List processing in real time on a serial computer".
+<cite>Comm. of the ACM 21,</cite> 4 (April 1978), 280-294.</p>
+
+<p>
+
+<a name="baker89">[Baker89]</a>
+
+Baker, Henry.  "Garbage Collection in Ada".  Ada-9X Revision
+Request#643, Ada Joint Program Office, Oct., 1989.</p>
+
+<p>
+
+<a href="Share-Unify.html">[Baker90]</a>
+
+Baker, Henry.  "Unify and Conquer (Garbage, Updating, Aliasing ...)
+in Functional Languages".  <cite>Proc. 1990 ACM Conf. on Lisp and
+Functional Programming,</cite> Nice, France, June, 1990, 218-226.</p>
+
+<p>
+
+<a href="LPprogram.html">[Baker91]</a>
+
+Baker, Henry.  "Structured Programming with Limited Private Types in
+Ada: Nesting is for the Soaring Eagles".  ACM <cite>Ada Letters
+XI,</cite> 5 (July/Aug. 1991), 79-90.</p>
+
+<p>
+
+<a href="LazyAlloc.html">[Baker92]</a>
+
+Baker, Henry.  "CONS Should not CONS its Arguments, or, A Lazy Alloc
+is a Smart Alloc".  ACM <cite>Sigplan Not. 27,</cite> 3 (March 1992),
+24-34.</p>
+
+<p>
+
+<a href="ObjectIdentity.html">[Baker93]</a>
+
+Baker, Henry.  "Equal Rights for Functional Objects, or, The More
+Things Change, The More They Are the Same".  ACM <cite>OOPS Messenger
+4,</cite> 4 (Oct. 1993), 2-27.</p>
+
+<p>
+
+<a name="beaudoing91">[Beaudoing91]</a>
+
+Beaudoing, B., and Queinnec, C.  "Mark-DURING-Sweep: A Real-Time
+Garbage Collector".  Submitted to <cite>PARLE'91.</cite></p>
+
+<p>
+
+<a name="boehm88">[Boehm88]</a>
+
+Boehm, Hans-J., and Demers, Alan.  "Garbage Collection in an
+Uncooperative Environment".  <cite>Soft. Pract. & Exper. 18,</cite> 9
+(Sept. 1988), 807-820.</p>
+
+<p>
+
+<a name="brent89">[Brent89]</a>
+
+Brent, R. P.  "Efficient Implementation of the First-Fit Strategy for
+Dynamic Storage Allocation".  ACM <cite>Trans. Prog. Lang. & Sys.
+11,</cite> 3 (July 1989), 388-403.</p>
+
+<p>
+
+<a name="chase87">[Chase87]</a>
+
+Chase, David.  <cite>Garbage Collection and Other
+Optimizations.</cite> Ph.D.  Thesis, Rice Univ., Aug. 1987.</p>
+
+<p>
+
+<a name="chase88">[Chase88]</a>
+
+Chase, David.  "Safety considerations for storage allocation
+optimizations".  <cite>Proc. ACM PLDI,</cite> June 1988.</p>
+
+<p>
+
+<a name="hederman88">[Hederman88]</a>
+
+Hederman, Lucy.  <cite>Compile Time Garbage Collection.</cite> MS
+Thesis, Rice U.  Comp. Sci. Dept., Sept. 1988.</p>
+
+<p>
+
+<a name="hickey84">[Hickey84]</a>
+
+Hickey, T., and Cohen, J.  "Performance Analysis of On-the-Fly Garbage
+Collection".  <cite>Comm. ACM 27,</cite> 11 (Nov. 1984),
+1143-1154.</p>
+
+<p>
+
+<a name="knuth73">[Knuth73]</a>
+
+Knuth, Donald E.  <cite>The Art of Computer Programming Vol. I: Fundamental
+Algorithms, 2nd Ed.</cite>  Addison-Wesley, Reading, MA, 1973, 634p.</p>
+
+<p>
+
+<a name="kung77">[Kung77]</a>
+
+Kung, H.T., and Song, S.W.  "A Parallel Garbage Collection Algorithm
+and its Correctness Proof".  Tech. Report, Computer Science Dept.,
+Carnegie-Mellon Univ., May 1977, 20p.</p>
+
+<p>
+
+<a name="lieberman83">[Lieberman83]</a>
+
+Lieberman, H., and Hewitt, C.  "A Real-Time Garbage Collector Based on
+the Lifetimes of Objects".  <cite>Comm. ACM 26,</cite> 6 (June 1983),
+419-429.</p>
+
+<p>
+
+<a name="moon84">[Moon84]</a>
+
+Moon, David.  "Garbage collection in a large Lisp system".
+<cite>Proc.  ACM Symp. on Lisp and Funct. Prog.,</cite> 1984,
+235-246.</p>
+
+<p>
+
+<a name="moss87">[Moss87]</a>
+
+Moss, J.E.B.  "Managing Stack Frames in Smalltalk".  <cite>Sigplan '87
+Symp.  on Interpreters and Interpretive Techniques,</cite> in
+<cite>Sigplan Not.  22,</cite> 7 (July 1987), 229-240.</p>
+
+<p>
+
+<a name="nilsen88">[Nilsen88]</a>
+
+Nilsen, K.  "Garbage Collection of Strings and Linked Data Structures
+in Real Time".  <cite>SW Prac. & Exper. 18,</cite> 7 (July 1988),
+613-640.</p>
+
+<p>
+
+<a name="queinnec89">[Queinnec89]</a>
+
+Queinnec, Christian, et al.  "Mark DURING Sweep, rather than Mark THEN
+Sweep".  <cite>Proc. PARLE'89.</cite></p>
+
+<p>
+
+<a name="robson74">[Robson74]</a>
+
+Robson, J.M.  "Bounds for Some Functions Concerning Dynamic Storage
+Allocation".  <cite>J. ACM 21,</cite> 3 (July 1974), 491-499.</p>
+
+<p>
+
+<a name="robson80">[Robson80]</a>
+
+Robson, J.M.  "Storage Allocation is NP-Hard".  <cite>Info. Proc. Let.
+11,</cite> 3 (1980), 119-125.</p>
+
+<p>
+
+<a name="white90">[White90]</a>
+
+White, Jon L.  "Three Issues in Object-Oriented Garbage Collection".
+<cite>Proc. ECOOP/OOPSLA'90 Workshop on Garbage Collection,</cite>
+1990.</p>
+
+<p>
+
+<a name="wilson91">[Wilson91]</a>
+
+Wilson, Paul R.  "Some Issues and Strategies in Heap Management and
+Memory Hierarchies".  ACM <cite>Sigplan Not. 26,</cite> 3 (March
+1991), 45-52.</p>
+
+<p>
+
+<a name="yuasa90">[Yuasa90]</a>
+
+Yuasa, T.  "Real-Time Garbage Collection on General-Purpose Machines".
+<cite>J. Sys. Soft. 11</cite> (1990), 181-198.</p>
+
+<p>
+
+<a name="zorn89">[Zorn89]</a>
+
+Zorn, Ben.  <cite>Comparative performance evaluation of garbage
+collection algorithms.</cite> Ph.D. Thesis, UC Berkeley EECS Dept.,
+1989.</p>
+
+<p>
+
+<a name="foot1">[Footnote 1]</a>
+
+Given the date of this real-time GC algorithm (1976), we now wish that
+we had used the colors white, red and blue.</p>
+
+<p>
+
+<a name="foot2">[Footnote 2]</a>
+
+A "read barrier" checks for this violation.</p>
+
+<p>
+
+<a name="foot3">[Footnote 3]</a>
+
+<a href="#kung77">[Kung77]</a>
+
+also uses the same color scheme for his <em>parallel</em> garbage
+collector, which uses the two phases mark and sweep; that collector
+does not meet our definition of real-time, however.</p>
+
+<p>
+
+<a name="foot4">[Footnote 4]</a>
+
+This color change to dead white can be accomplished by brute force, as
+in "Ecru, Brute!"</p>
+
+<p>
+
+<a name="foot5">[Footnote 5]</a>
+
+A real-time system may sometimes find it advantageous to increase the
+number of cells under management by allocating a cell external to the
+"tread" and snapping it in during a CONS.</p>
+
+<p>
+
+<a name="foot6">[Footnote 6]</a>
+
+<a href="#kung77">[Kung77]</a>
+
+uses a queue with two ends ("dequeue") for the same purpose; the
+second end reduces conflicts between the mutator and the collector.
+If cells greyed by the mutator were resnapped at the top pointer,
+while cells greyed by the collector were resnapped at the scan
+pointer, then we would have a close approximation to Kung's
+dequeue.</p>
+
+<p>
+
+<a name="foot7">[Footnote 7]</a>
+
+We ignore here fragmentation, which has been called "storage erosion"
+in real-time systems.  Storage erosion is analogous to land
+erosion--the land is still there, but has become so eroded as to be
+useless for cultivation.</p>
+
+<p>
+
+<a name="foot8">[Footnote 8]</a>
+
+On a virtual memory system, however, one does not have to physically
+copy large objects even when one is using a "copying" garbage
+collector algorithm.  This is possible if large objects are always
+located on their own set of pages, so that the algorithm need only
+diddle the page map instead of physically copying these objects.  This
+optimization is especially valuable for large structures of raw bits,
+such as color bitmaps.  Therefore, one cost associated with a
+relocating collector is saved; other costs remain, however, such as
+the costs of updating all pointers and foregoing some compiler
+optimizations.</p>
+
+<p>
+
+<a name="foot9">[Footnote 9]</a>
+
+It is rumored that this idea goes back at least to Fitch and/or
+Norman at the U. of Bath???</p>
+
+</body>

@@ -1,0 +1,181 @@
+High Level Language Programs Run Ten Times Faster in Microstore
+
+Henry G. Baker, Jr. and Clinton Parker
+
+November, 1980
+
+University of Rochester Computer Science Department and Synapse
+Computer Services
+
+Trying to wring the most performance out of mature architectures,
+computer manufacturers such as Digital Equipment and Data General have
+added writeable control stores as options to their microprogrammed
+computers.  The DG Eclipse and the DEC LSI-11 are examples.
+
+The writeable control store option promises the ability to run custom
+microcode to get factors of 5-10 in performance over assembly language
+programs.  However, this promise has not been realized because of the
+very high cost of user microprogramming.
+
+These high costs are due to many factors: the lack of good
+microprogram assemblers, the complexity of microcode instructions, the
+lack of microprogram debugging facilities, the lack of good
+documentation, the lack of knowledgeable people, etc.  For example, a
+microprogram bug may cause the machine to "go off the deep end" in
+such a way that requires re-initializing the machine and possibly
+losing the contents of main memory.  As a result, microprogramming a
+task may require five to ten times the time and cost of programming
+the task in assembly code.
+
+To rectify this situation, we have developed a compiler which
+translates programs in a higher level language directly into
+executable microcode for a small minicomputer.  This compiler has many
+benefits: the user need only be familiar with the higher level
+language, not the microcode, in order to take advantage of its
+existence; microcode developed in this way is considerably easier to
+write and maintain than if it were written in microcode assembler; the
+algorithm may be written and debugged using a standard high level
+language compiler and recompiled into microcode to gain its speed
+advantage; making improvements in the microcode compiler's code
+generator means that existing programs can benefit by simply
+recompiling them.
+
+The Target Machine--a microprogrammable minicomputer
+
+The machine we chose for our target was designed in 1970 and has 1Kx32
+bits of control ROM and 1Kx32 bits of control RAM.  In addition, it
+has a main memory of 64Kx16 and a pipelined microprocessor.  The
+control ROM contains the emulator microcode while the control RAM
+executes user microprograms.
+
+Although there is a very good microprogram assembler for this machine
+and some amount of user microprogramming has been done, e.g., floating
+point and signal processing applications, the control RAM on this
+machine has not lived up to its expectations.  (These RAM chips
+account for a significant fraction of the machine's cost.)  Most of
+this inattention is probably due to the intimidating complexity of its
+arcane microcode.
+
+Most programming on this minicomputer is done in the BCPL high level
+language (a predecessor of Bell Labs' popular C language), because of
+its vast superiority in productivity over assembly language.  However,
+certain tasks such as image enhancement, scan line conversion, feature
+extraction, real time animation, and alpha-beta game search require
+the utmost speed from a computer.  For these tasks, recoding in
+assembler would be expensive and would yield only a factor of 2-4 in
+speed.  Recoding in microcode could gain as much as a factor of 20,
+but the programming cost would be exorbitant.
+
+For these reasons, we developed the Micro-SPL compiler.  We originally
+intended the microcode compiler to translate from the BCPL language to
+microcode, giving complete compatibility with the standard BCPL
+compiler and system.  This approach would have had the advantage of
+allowing algorithms to be debugged using the standard BCPL compiler
+and symbolic debugging facilities, and then recompiled with no source
+changes using the microcode compiler.
+
+However, due to the existence of a parser for the SPL language (a
+derivative of Algol-60) and the non-existence of a parser for BCPL, we
+built a Micro-SPL compiler.
+
+The Micro-SPL compiler takes subroutines and functions written in SPL
+and compiles them directly into microcode that is run-time compatible
+with BCPL.  This means that the programmer calls these subroutines as
+if they were BCPL subroutines, and the microcode takes care of the
+BCPL linkage conventions.  Thus, the programmer need not make any
+provision for loading the control RAM or for linking to the microcode
+because the compiler generates dummy BCPL subroutines which load the
+RAM and install linkages automatically.
+
+Micro-SPL subroutines run an average of 10 times faster than their
+BCPL counterparts, and the "heapsort" routine shown in the figure runs
+12 times faster.  This speed increase can be attributed to the lack of
+instruction fetches, the use of scratchpad registers for local
+variables and temporaries, and the overlapping of certain operations.
+
+Although a carefully hand-coded "heapsort" routine runs almost twice
+as fast as the Micro-SPL version, it took much longer to write and
+used certain properties intrinsic to the heapsort algorithm to gain
+its speed.  In general, one can expect only a 25% or so improvement
+over Micro-SPL from careful hand-coding since for many sequences the
+Micro-SPL compiler generates optimum code.  In addition, we made a
+conscious decision to generate small rather than fast code because of
+the limited amount of RAM (1K instructions) available.
+
+The Micro-SPL compiler is not a research toy, but has actually been
+used to produce production programs.  One early use was the
+recompilation of the storage allocation routines for an in-core text
+editor, making the editing functions effectively instantaneous.  (The
+editor is now in everyday use).  Another use was the recompilation of
+the evaluation function for an Othello game-playing program, yielding
+an almost unbeatable program.  Each of these programs was recoded and
+recompiled in less than one hour.  More mundane (and more valuable)
+use is expected now that the system is debugged and documented.
+
+The Micro-SPL compiler was developed and documented by us in 6 months,
+making use of a previously existing parser for SPL.  Both of us were
+experts in the microprogramming of this machine, so that writing the
+compiler was simply a matter of embedding our expertise into the
+program.
+
+We expect that the techniques used in Micro-SPL could be easily
+transported for making a Micro-FORTRAN or a Micro-PASCAL for virtually
+any micro-coded machine.  The key decisions are what subset of the
+language to support and what level of optimization is acceptable.
+
+We think that this compiler re-emphasizes what has always been true;
+that a computer is just a pile of copper and sand without proper
+software to support it.
+
+ENTRY INT FUNC Delete (REF INT length, INT ARRAY heap)
+  INT new, lengthdiv2, root, son, cur, next, last
+  IF length=0 THEN RETURN(0) FI
+  last := heap(length)
+  new := heap(1)
+  length := length-1
+  lengthdiv2 := length RSH 1
+  root := 1
+  son := 2
+  WHILE root <= lengthdiv2 DO
+    cur := heap(son)
+    next := heap(son+1)
+    IF next < cur THEN
+      cur := next
+      son := son+1
+    FI
+    IF cur <= last THEN
+      heap(root) := cur
+      root := son
+      son := root LSH 1
+    ELSE
+      EXIT
+    FI
+  OD
+  heap(root) := last
+  heap(length) := #77777  (* #77777 is plus infinity. *)
+RETURN(new)
+
+ENTRY PROC Insert(REF INT length, INT ARRAY heap, INT new)
+  INT i, idiv2, cur
+  i := length+1
+  length := i
+  idiv2 := i RSH 1
+  cur := heap(idiv2)
+  WHILE new < cur DO
+    heap(i) := cur
+    i := idiv2
+    idiv2 := i RSH 1
+    cur := heap(idiv2)
+  OD
+  heap(i) := new
+RETURN
+
+Figure 1.  Heapsort Subroutines.  (See "The Design and Analysis of
+Computer Algorithms", by Aho, Hopcroft, and Ullman, Addison-Wesley,
+1974.)
+
+References
+
+Baker, H., and Parker, Clinton.  "Micro SPL".  Tech. Report 62,
+Computer Science Dept., Univ. of Rochester, Rochester, NY, Feb., 1980.
+

@@ -1,0 +1,538 @@
+<html><head>
+<!-- This document was created from RTF source by rtftohtml version 2.7.5 -->
+<link rev="made" href="mailto:hbaker1@pipeline.com">
+<title>H. Baker -- Efficient Bit-vector Searching</title>
+</head><body>
+
+<h1>The Efficient Implementation of Common Lisp's SEARCH Function on Bit-vectors</h1>
+
+<address>
+<a href="home.html">Henry G. Baker</a><br>
+</address>
+
+<address>
+<i>Nimble Computer Corporation, 16231 Meadow Ridge Way, Encino, CA 91436<br>
+(818) 986-1436  (818) 986-1360 (FAX)</i><br>
+</address>
+
+August, 1989; revised April, 1991<br>
+Copyright (c) 1989,1991 by Nimble Computer Corporation<br>
+
+<address>
+This work was supported in part by the U.S. Department of Energy Contract No. DE-AC03-88ER80663
+</address>
+
+<h2>Abstract</h2>
+
+The efficient implementation of Common Lisp's <tt>SEARCH</tt> function
+specialized to bit-vectors is discussed.  With its non-word-aligned search
+patterns and its small 2-element alphabet, a bit-vector <tt>SEARCH</tt> can
+often be the most inefficient of all <tt>SEARCH</tt>'es.  Techniques, some of
+which we believe are novel, are discussed for overcoming these problems and
+achieving excellent performance on standard computer hardware.  To reduce the
+amortized pattern pre-processing costs, we use four distinct search algorithms
+for pattern lengths of 1, 2 to <tt>w</tt>, <tt>w</tt>+1 to 2<tt>w</tt>-2, and
+larger, where <tt>w</tt> is the algorithm byte size.<p>
+
+Fast searching of a bit-string for an exact match of a shorter pattern
+bit-string can be required for some "bit-stuffing" communication protocols, and
+for the 1-dimensional portion of a 2-dimensional search within a binary image,
+such as those found on a bit-mapped display or transmitted by facsimile.  Some
+of the techniques discussed are also relevant for searching with other small
+alphabets, e.g., the 2-bit ATGC alphabet used in DNA databases.
+
+<h2>Introduction</h2>
+
+This paper is a companion to
+
+<a href="Bitvectors.html">[Baker90]</a>
+
+which discusses the efficient implementation of the Common Lisp
+"sequence functions"
+
+<a href="http://www.cs.cmu.edu:8001/Web/Groups/AI/html/cltl/cltl2.html">
+[Steele90,s.14]</a>
+
+on bit-vectors.  The implementation of the function <tt>SEARCH</tt>
+
+<a href="http://www.cs.cmu.edu:8001/Web/Groups/AI/html/cltl/cltl2.html">
+[Steele90,s.14.4]</a>
+
+was left out of that paper, because the techniques involved in
+speeding up the other sequence functions are mostly ineffective for
+speeding up <tt>SEARCH</tt>.
+
+<h2>SEARCH</h2>
+
+<tt>SEARCH</tt> (with the default <tt>:test #'eql</tt>) of two bit-strings is
+the hardest sequence function of bit-vectors of all to efficiently implement.
+It is hard because an efficient implementation of search is quite difficult
+even for character strings ([Boyer77], [Knuth77], [Davies86]).  It is doubly
+difficult because we would like it to be of about the same efficiency as a
+character string search, in terms of the number of bits processed per second,
+even though the pattern may not be an integral number of bytes long, and even
+though an non-byte-aligned instance of the pattern may occur in the string.
+Achieving this level of efficiency is a tall order.<p>
+
+The most naive subsequence <i>exact match</i> search of a <i>pattern</i> of
+length <tt>m</tt> in a <i>string</i> of length <tt>n</tt> requires
+O(<tt>m</tt>*<tt>n</tt>) operations in the worst case, and this worst case
+unfortunately comes up quite often in bit-vectors.  Linear
+O(<tt>m</tt>+<tt>n</tt>) algorithms are known, however, such as
+Knuth-Morris-Pratt ("KMP") [Knuth77], which scans the pattern from
+left-to-right and Boyer-Moore ("BM") [Boyer77] [Galil79], which scans the
+pattern from right-to-left (the string itself is always searched from
+left-to-right, because we desire the left-most match of the pattern within the
+string).<p>
+
+These algorithms are based on the fact that matching at any position is highly
+unlikely, and therefore the algorithm should be highly tuned for the quick
+rejection of mismatches, and for the skipping over without even trying of
+certain positions which cannot possibly match.<p>
+
+On average, BM is several times the speed of KMP on character strings, because
+it can skip distances up to the length of the pattern, while KMP must attempt a
+portion of a match for every character in the string.  Therefore, BM is the
+logical algorithm to start from when attempting to build a fast searcher for
+bit-vectors.<p>
+
+Unfortunately, Boyer and Moore's own data show that the binary alphabet (i.e.,
+bit-vectors) are the worst case for their algorithm, since one of their most
+powerful heuristics for skipping involves the likely absence of certain
+characters from the pattern.  This heuristic fails for bit-vectors, however,
+and the BM algorithm on bit-vectors degenerates to a slightly more efficient
+version of KMP, because it starts with the rightmost part of the pattern
+instead of the leftmost.<p>
+
+Furthermore, none of the three algorithms--naive, KMP, BM--show any obvious
+<tt>w</tt>-fold speedup through the use of byte-wide parallelism (the
+<tt>EQUAL</tt> or <tt>MISMATCH</tt> used within the naive algorithm is speeded
+up, but only for bit-vectors which are almost equal, and we have seen that all
+but one of the <tt>EQUAL</tt>'s or <tt>MISMATCH</tt>'s will fail, and on the
+average will fail within a few bits--long before the speedup can be
+beneficial).<p>
+
+Nevertheless, we pursued the possibility of a faster bit-vector search because
+it was an interesting algorithmic question as to whether byte-parallelism could
+help on this problem.<p>
+
+Before considering a winning strategy, we first consider a losing strategy.
+One possibility would be to take the pattern, and position it on all <tt>w</tt>
+possible byte boundaries, and utilize a character-oriented search strategy on
+each of these <tt>w</tt> possibilities, and return the one with the smallest
+index.  The time required is proportional to the byte-size <tt>w</tt> times
+<tt>m+n</tt>.  While we are now doing byte-size chunks during the match, we now
+have to do byte-size times as many matches, so we have made no improvement.
+Furthermore, our worse case is longer, since we must now examine the whole
+string, whereas in the straightforward bit-oriented implementation, we can stop
+as soon as the first match is found.<p>
+
+We would like to preserve the speed of the BM "fast" case, wherein characters
+are looked up in a table, and the increment of the index to the next character
+to be examined is found in that table.  In the ideal case, we would have a
+byte-indexed table and be able to skip through the string in byte-sized chunks.
+The major problem with this scenario is that byte boundaries get in the way.<p>
+
+An additional complication arises when trying to match byte-size elements when
+the underlying pattern is not located on a byte boundary.  We must now ignore
+some of the bits in the process of trying to perform the match--i.e., we may
+now have some "don't care" items at the beginning and the end of the pattern.
+While "don't care" elements in the pattern can be handled--Pratt shows one way
+in [Pratt??]--they add a great deal of complexity to the process for no gain in
+speed.<p>
+
+While the idea of using character-based processing for bit-strings doesn't work
+in its simple form, it provides the germ of an idea that <i>does</i> work.
+During the "fast" portion of the BM string searcher, we do a table lookup on
+every string character examined, and based on the results of this table lookup,
+we can either skip forward, or start matching.  The key to the speed of our
+algorithm is to use this same idea, but our table allows for the possibility of
+matches at any bit location within the byte.
+
+<h2>SEARCH for Consecutive 0's</h2>
+
+Before tackling the general search problem, we will first "warm up" on a search
+for a consecutive pattern of 0's of length <tt>m</tt> in the string of length
+<tt>n</tt>.  Let us first consider the case where <tt>m</tt> is considerably
+larger than the byte size <tt>w</tt>, so that we know that a consecutive
+sequence of 0's of length <tt>m</tt> <i>must</i> contain at least one aligned
+byte of all zeros.  Since we will be using the Boyer-Moore strategy of matching
+from the right-hand end of the pattern, our search for a zero byte will
+commence at approximately <tt>m</tt> bits into the string.  There are then two
+cases.  If the test byte is zero, then we will commence searching backwards for
+the first 1, so that we can determine if there are <tt>m</tt> 0's in this
+region.  If the test byte is non-zero, then we will advance the pointer by an
+amount approximately equal to <tt>m</tt>, because a non-zero byte implies at
+least one 1, and this would imply that the earliest we could possibly end a
+string of consecutive 0's of length <tt>m</tt> would be approximately
+<tt>m</tt> bits further down the string.  Thus, we will have achieved
+essentially the Boyer-Moore speedup of examining only about <tt>w/m</tt> of the
+bits in the string when there are no zero bytes.<p>
+
+We must now be more precise about our algorithm.  Let <tt>m</tt> be the length
+of the pattern (which in this case will be <tt>m</tt> consecutive 0's),
+<tt>n</tt> be the length of the string, and <tt>w</tt> be the byte size.  Let
+<tt>i</tt> be the bit-number within the string of the proposed start of the
+pattern; clearly <tt>i</tt> starts out at zero.  At any point in the algorithm,
+we will be checking to see whether the <tt>m</tt>-bit pattern matches the
+string in bit-positions <tt>i</tt>:<tt>i+m</tt> (we number subsequences in the
+same manner as Common Lisp's <tt>subseq</tt> function).  Since we will be
+checking the right-most part of the pattern first (in typical Boyer-Moore
+fashion), and since we want to check (aligned) full bytes first, because they
+are more efficiently checked, we first check the <i>last</i> full byte against
+the pattern starting from <tt>i</tt>.  The last full byte of the pattern in
+this position is the subsequence <tt>j=floor((i+m)/w)*w-w</tt>:<tt>j+w</tt>.
+If we find a non-zero byte at this location (the most likely case), then we
+cannot possibly have <tt>m</tt> consecutive zeros starting from <tt>i</tt>
+because all bit locations in this byte are within <tt>m</tt> of <tt>i</tt>, so
+if we find a non-zero bit, then we must abandon our attempt to find the pattern
+at location <tt>i</tt>.  Now we must increment <tt>i</tt> to attempt another
+match at a new location.  What is the maximum distance by which we can
+increment <tt>i</tt> without missing a possible match for the pattern?  Since
+the pattern is all zeros, and since we have already shown that there is no
+possibility of a match at <tt>i</tt>, we have also eliminated any possibilities
+of starting a match anywhere between <tt>i</tt> and the full test byte just
+examined.  Therefore, the earliest place a pattern of <tt>m</tt> consecutive
+0's could possibly start is right after the last 1 in the test byte just
+examined.  We therefore update <tt>i</tt> to this location, and attempt another
+match, as above.<p>
+
+If we skip through the entire string in this fashion (e.g., if no large strings
+of 0's exist in the string), then we will have examined only about
+<tt>n/(m-w)</tt> bytes, with only a minimal amount of work per byte examined,
+for a full speedup over a bit-oriented version of Boyer-Moore of a factor of
+about <tt>w</tt>.<p>
+
+We must also handle the case where the test byte examined during the "fast"
+loop is zero, however.  In this case, we must do some more matching to see
+whether the pattern will match at this location.  We first check the partial
+byte at the end of the pattern <tt>j=floor((i+m)/w)*w</tt>:<tt>i+m</tt>.  If
+this partial byte is non-zero, then we determine the rightmost 1 found within
+that partial byte, update <tt>i</tt> to that position, and continue with the
+fast loop.  If this partial byte is zero, we then embark upon a backward match
+of the string with the pattern starting from the predecessor of the full byte
+that we just checked.  If this match succeeds, we have located the pattern
+within the string.  If, on the other hand, we find a 1, we will have found the
+rightmost 1 within the region of the attempted match, and that becomes the new
+<tt>i</tt> for starting the next iteration of our "fast" loop.<p>
+
+<pre>
+/* Search for first position of <tt>m</tt> consecutive 0's within a byte-aligned string. */<a href="BitSearch.html#fn0">[1]</a>
+Initialize: i:=0;                          /* Work from beginning of string */
+Fast:       j:=floor((i+m)/w)*w-w;         /* j:=((i+m) logand -w)-w when w=2^k */
+            byte:=getbyte(string,j);       /* Test full byte from string at bit pos. j. */
+            if byte=0 then goto Slow;
+            i:=position1_from_end(byte)+j; /* <a href="BitSearch.html#fn1">[2]</a>Simple table lookup */
+            goto Fast;
+Slow:       j:=position1_from_end(string,i,i+m); /* <a href="BitSearch.html#fn2">[3]</a>Check whole pattern. */
+            if j then (i:=j; goto Fast);   /* Start searching again at rightmost 1. */
+            return i;
+</pre>
+
+<h2>SEARCH for Arbitrary Patterns Large Enough to Always Contain a Full Byte</h2>
+
+Now that we have solved the problem of searching for <tt>m</tt> consecutive
+0's, we now take up the harder problem of finding an arbitrary pattern of
+<tt>m</tt> bits within a string of length <tt>n</tt>.<p>
+
+We still want to test a <i>full</i> byte within the fast loop, but since the
+pattern is no longer all zeros, we have more work to do.  What is almost as
+fast as a zero test is a table lookup.  We need to quickly determine whether
+the full byte occurs anywhere within the pattern--regardless of byte
+boundaries--and if it occurs, what its rightmost position is.<p>
+
+We do this by constructing a table of 2^<tt>w</tt> bytes which are indexed by
+<tt>w</tt>-bit bytes.  We initialize all table entries to a large number (how
+large we will later see), and then move a window of size <tt>w</tt> through the
+pattern from beginning to end.  At each window position, we enter the position
+number as the value of the table entry whose key is the bit sequence within the
+window.  When we are done, we will have a table which indicates for every
+substring of size <tt>w</tt> within the pattern the bit index of the rightmost
+occurrence of that <tt>w</tt>-bit substring within the pattern.<p>
+
+Now within our fast loop we compute the position of the last (aligned) full
+byte in the current pattern position, and use this test byte as an index to our
+table.  There are four possible cases:
+
+<ol>
+<li>the test byte does not occur within the pattern anywhere (table entry is "large");
+<li>the test byte occurs at this position in the pattern;
+<li>the test byte occurs to the left of this position in the pattern;
+<li>the test byte occurs to the right of this position in the pattern.</ol>
+
+If the test byte does not occur anywhere within the pattern, then we may
+reposition our pattern to start at the second bit (bit#1) within the test byte
+and start the fast loop again.<p>
+
+If the test byte occurs in the pattern at this position, then we enter the slow
+loop and perform a more laborious match.<p>
+
+If the test byte occurs in the pattern, but to the left (earlier in the
+pattern), then this value tells us how far to shift the pattern to the right to
+align the bytes before proceeding with the slow loop.<p>
+
+If the byte occurs in the pattern, but to the right (later in the pattern),
+then we should extract the actual last full (unaligned) byte, update
+<tt>j</tt>, and use this unaligned byte as our test byte.  If this new test
+byte does not occur within the pattern, then we can set <tt>i</tt> to be
+<tt>i</tt>+<tt>m</tt>.<a href="BitSearch.html#fn3">[4]</a><p>
+
+<pre>
+Initialize: For j:=0 upto 2^w do table(j):=m;
+            For j:=0 upto m-w do table(getbyte(pattern,j)):=j; /* Unaligned getbyte's.  */
+            ** Build skip table here as in normal Boyer-Moore algorithm. **
+            i:=0;
+Fast:       j:=floor((i+m)/w)*w-w;
+            k:=table(getbyte(string,j));           /* Aligned getbyte.  */
+            if i+k&lt;j then (i:=j-k; goto Fast);
+            if i+k=j then goto Slow;
+            if i+k&gt;j then (j:=i+m-w; k:=table(getbyte(string,j))); /* Unaligned getbyte.  */
+            if i+k&lt;j then (i:=j-k; goto Fast);
+            if i+k&gt;j then (i:=j+w; goto Fast);
+Slow:       k:=mismatch_from_end(pattern,string,i);
+            if k then (i:=i+skip(k); goto Fast);   /* Traditional BM skip.  */
+            return i;
+</pre>
+
+<h2>SEARCH for Short Patterns</h2>
+
+Our previous algorithms dealt with patterns which were guaranteed to contain at
+least one full byte.  Patterns of at least 2<tt>w</tt>-1 bits, where <tt>w</tt>
+is the byte-size, always contain one aligned full byte, no matter what the bit
+alignment of the pattern is.  When <tt>m</tt> is less than 2<tt>w</tt>-1 (i.e.,
+15 bits when <tt>w</tt>=8), however, we must use a completely different
+algorithm.<p>
+
+Efficient searching of short patterns is a real problem, since we can no longer
+skip great distances in the string as a result of a mismatch.  Furthermore, any
+fixed overhead (e.g., table-building) becomes relatively more expensive when
+amortized over a short pattern length; we will ignore this overhead for the
+moment--i.e., we consider the case of very long strings.<p>
+
+Efficient searching of the shortest patterns--of length 1--is handled by the
+sequence function <tt>position</tt> already described in
+
+<a href="Bitvectors.html">[Baker90].</a>
+
+Patterns of lengths 2 to <tt>w</tt> occupy one or two bytes, while
+patterns of lengths <tt>w</tt>+1 to 2<tt>w</tt>-2 occupy exactly two
+bytes.
+
+<h2>Patterns of length w+1 to 2w-2</h2>
+
+We first tackle patterns of lengths <tt>w</tt>+1 to 2<tt>w</tt>-2, which extend
+over two bytes.  The first byte contains 1 to <tt>w</tt> bits, right-aligned,
+while the next byte contains 1 to <tt>w</tt> bits, left-aligned.  We then set
+up two byte-indexed tables "CanStart" and "CanEnd".  We sequentially scan the
+string bytes looking for a byte which "CanStart" the pattern.  If such a byte
+is found, we then look up the next byte in the "CanEnd" table.  If one byte
+"CanStart" and the next byte "CanEnd", then we have a good potential for a
+match of the pattern within the two-byte subsequence.<p>
+
+But we can do better than this.  If the "CanStart" table entry is a bit-vector
+whose "on" bits indicate the leftmost position of a succeeding match; i.e., if
+bit #'s 0,3, and 4 are all on, then the pattern can start in those bit
+positions within the index byte.  Similarly, the "CanEnd" table entry can also
+be a bit-vector whose on bits indicate the leftmost position of a successful
+ending.  Thus, when a non-zero CanStart:CanEnd sequence is found, we need only
+shift the CanEnd table entry left by <tt>m</tt>-<tt>w</tt>-1 bits and logically
+"and" the two bit-vectors together.  If the "and" is non-zero, then the pattern
+definitely occurs within the two-byte sequence, and the leftmost occurrence is
+indicated by the first "on" bit within this logical "and".<p>
+
+Unfortunately, this scheme requires two 2^<tt>w</tt>-byte tables,
+whose building can take a significant amount of time.  If the pattern
+is known in advance, then these tables can be precomputed at compile
+time, or if the string is very long, then the table-building time
+becomes insignificant.  At a cost of 2^(<tt>w</tt>+1)
+2^<tt>w</tt>-byte tables, however, we can precompute all of the tables
+we will need, and quickly choose the correct one when the pattern
+becomes known; if <tt>w</tt>=8, then this will cost 128K 8-bit bytes
+for table storage.  By doing a bit more computation during search
+time, we can save half of this room.  We notice that the entry for the
+CanEnd table is identical to the reversed entry in the CanStart table
+for the reversed pattern, so we can utilize a (different) CanStart
+table in place of our CanEnd table by reversing the bits in the byte
+before using it to index the table and then reversing the entry.
+Thus, a single 2^<tt>w</tt>-byte byte-reversing table (already
+required by the <tt>REVERSE</tt> sequence function
+
+<a href="Bitvectors.html">[Baker90]</a>
+
+) can eliminate the need for a separate set of precomputed CanEnd
+tables, and we therefore need only about 64K 8-bit bytes for table
+storage.<p>
+
+Thus, to search for a <tt>m</tt>-bit pattern in a <tt>n</tt>-bit string, where
+<tt>w</tt>+1&lt;=<tt>m</tt>&lt;=2<tt>w</tt>-2, we find the CanStart table
+corresponding to the first <tt>w</tt> bits of the pattern, and the CanEnd table
+corresponding to the last <tt>w</tt> bits of the pattern, reversed.  We then
+sequentially scan the string looking for a byte which produces a non-zero value
+when indexed into CanStart.  When such a byte is found, we reverse the bits in
+the next byte and index the CanEnd table, reverse, shift left by
+<tt>m</tt>-<tt>w</tt>-1 bits, and logically "and" the entry with the CanStart
+entry.  If this byte is non-zero, then a match has occurred, and the left-most
+bit indicates the location of the match.<p>
+
+<pre>
+/*  Search for a pattern of length m, where w+1&lt;=m&lt;=2w-2.  */
+Initialize: i:=0;
+            Select CanStart/CanEnd tables based on initial/final w bits of pattern.
+Fast:       startmask:=CanStart(getbyte(string,i));<a href="BitSearch.html#fn4">[5]</a>
+            i:=i+w;
+            if startmask=0 then goto Fast;
+Slow:       endmask:=reverse(CanEnd(reverse(getbyte(string,i))));
+            posmask:=startmask&amp;(endmask&lt;&lt;m-w-1);
+            if posmask=0 then goto Fast;
+            return find1(posmask)+i-w;
+</pre>
+
+<h2>Patterns of length 2 to w</h2>
+
+The handling of length m in the range 2&lt;=<tt>m</tt>&lt;=<tt>w</tt> requires
+a bit more complexity, because the pattern may be positioned in a byte in such
+a way that we have "don't care" bits at <i>both</i> ends of the byte.  We can
+again use a CanStart table to scan the string, and when the table entry is
+non-zero, a possible match is indicated.  Before accessing another byte from
+the string, however, we first "and" the table entry with a left-aligned mask of
+<tt>w</tt>-<tt>m</tt>+1 bits, and if the result is non-zero, then we have a
+confirmed match within the single string byte.  If not, we access the next
+string byte and compute its CanEnd entry and shift and "and" as before.<p>
+
+We cannot use the previous CanStart tables from above for these lengths, but
+require a different set, thus requiring an additional 64K of 8-bit bytes when
+<tt>w</tt>=8.<p>
+
+<pre>
+/*  Search for a pattern of length m, where 2&lt;=m&lt;=w-1.  */
+Initialize: i:=0;
+            Select CanStart/CanEnd tables based on the pattern.
+            mMask is left-justified mask of w-m+1 1's.
+Fast:       startmask:=CanStart(getbyte(string,i));
+            i:=i+w;
+            if startmask=0 then goto Fast;
+Slow:       if (startmask&amp;mMask)!=0 then return find1(startmask)+i-w;
+            endmask:=reverse(CanEnd(reverse(getbyte(string,i))));
+            posmask:=startmask&amp;(endmask&gt;&gt;w-m+1);
+            if posmask=0 then goto Fast;
+            return find1(posmask)+i-w;
+</pre>
+
+<h2>Conclusions</h2>
+
+We have exhibited an algorithm for the fast searching of bit-strings for a
+bit-string pattern which approaches character-string search algorithms in
+efficiency, in terms of bits of the bit-string processed per second.  This
+efficiency is gained by processing the bit-strings an aligned byte at a time
+and using table lookup, whenever possible.  The algorithm breaks into four
+cases dependent upon the pattern length--1, 2 to <tt>w</tt>, <tt>w</tt>+1 to
+2<tt>w</tt>-2, and larger patterns, where <tt>w</tt> is the byte-size in
+bits.<p>
+
+Our general bit-vector <tt>SEARCH</tt> algorithm requires 128K bytes of
+preprocessed CanStart tables when <tt>w</tt>=8, and could be speeded up a bit
+more through the use of a preprocessed CanEnd table, as well.  Given the low
+cost of DRAM and disk memory, we believe that the cost of these tables is worth
+paying if any amount of bit-vector searching is envisioned.  Alternatively, one
+could <tt>SEARCH</tt> a string for a while (perhaps 1000 bytes or so), and if
+the pattern is still not found, go into "turbo" mode by pre-processing a CanEnd
+table at that point.  Of course, one must pay the "turbo lag" cost of building
+the specialized CanEnd table.<p>
+
+The general desire of any efficient search algorithm to preprocess the pattern
+would argue for a slight change in the definition of the Common Lisp
+<tt>SEARCH</tt> function.  Instead of the simple syntax <tt>(search pattern
+string)</tt>, Common Lisp should recognize the need for preprocessing by
+"currying" the <tt>SEARCH</tt> function like so: <tt>(funcall (search pattern)
+string)</tt>.  In other words, the expression <tt>(search pattern)</tt> would
+itself return a search function which is specialized to search for the
+particular pattern.  Currying the function in this way would enable simple
+"constant propagation" techniques to preprocess the pattern at compile time
+instead of at run time, so that the common case of searching for a constant
+pattern would be optimized.<a href="BitSearch.html#fn5">[6]</a>
+
+<h2>References</h2>
+
+Allison, L, and Dix, T.I.  "A Bit-String Longest-Common-Subsequence Algorithm".
+<i>Info. Proc. Let. 23</i> (1986), 305-310.<p>
+
+Baeza-Yates, Ricardo A.  "Improved String Searching".  <i>SW--Prac. &amp;
+Exper. 19</i>, 3 (March 1989), 257-271.<p>
+
+Bailey, T.A., and Dromey, R.G.  "Fast String Searching by Finding Subkeys in
+Subtext".  <i>Info. Proc. Let. 11</i>, 3 (1980), 130-133.<p>
+
+Baker, Henry G.  "Efficient Implementation of Bit-vector Operations in Common
+Lisp".  <i>ACM Sigplan LISP Pointers 3</i>, 2-4 (April-June 1990), 8-22.<p>
+
+Boyer, Robert, S., and Moore, J. Strother.  "A Fast String Searching
+Algorithm".  <i>CACM 20</i>, 10 (Oct. 1977), 762-772.<p>
+
+Davies, G., and Bowsher, S.  "Algorithms for Pattern matching".
+<i>SW--Practise &amp; Exper. 16</i>, 6 (June 1986), 575-601.  (Rabin and
+Karp).<p>
+
+Galil, Zvi.  "On Improving the Worst Case Running Time of the Boyer-Moore
+String Matching Algorithm".  <i>CACM 22</i>, 9 (Sept. 1979), 505-508.<p>
+
+Knuth, D.E., Morris, Jr., J.H., and Pratt, V.B.  "Fast Pattern Matching in
+Strings".  <i>SIAM J. Comput. 6</i>, 2 (1977), 323-350.<p>
+
+Kuck, David J.  <i>The Structure of Computers and Computations, Vol. I</i>.
+John Wiley &amp; Sons, NY, 1978.<p>
+
+Semba, Ichiro  "An Efficient String Searching Algorithm".  <i>J. Info. Proc.
+8</i>, 2 (1985)<p>
+
+Steele, G.L.  <i>Common Lisp, the Language: Second Edition</i>.  Digital Press,
+Bedford, MA, 1990.<p>
+
+Zhu, R.F., and Takaoka, T.  "On improving the average case of the Boyer-Moore
+string matching algorithm".  <i>J. Inf. Proc. 10</i>, 3 (March 1987), 173-177.<p>
+
+<a name="fn0">[1]</a>
+
+We apologize for non-Lisp pseudocode in a paper about Lisp.<p>
+
+<a name="fn1">[2]</a>
+
+This is a highly specialized version of <tt>POSITION</tt> for a single
+word discussed in
+
+<a href="Bitvectors.html">[Baker90].</a>
+
+We violate slightly the Boyer-Moore "fast" heuristic by setting
+<tt>i</tt> to be one past the last 1 in the test byte; we should
+instead set <tt>i</tt>:=<tt>j</tt>+1 and immediately go back to
+"fast", since a nonzero byte at the right-hand end of the pattern
+skips many bytes instead of a few bits.  We believe our approach is
+faster for shorter patterns, however.<p>
+
+<a name="fn2">[3]</a>
+
+This is Common Lisp <tt>POSITION</tt> specialized for finding 1 in a
+bit-vector searching from the end
+
+<a href="Bitvectors.html">[Baker90].</a>
+
+<p>
+
+<a name="fn3">[4]</a>
+
+We should also investigate the use of the "CanEnd" and "CanStart"
+tables developed in the next section to speed this case.<p>
+
+<a name="fn4">[5]</a>
+
+In the finest Boyer-Moore tradition, we should check CanEnd of the
+next byte first, but we believe that the speed up would be minimal,
+given the short pattern length.<p>
+
+<a name="fn5">[6]</a>
+
+<tt>SEARCH</tt> is not the only Common Lisp function which should be
+so curried; <tt>FORMAT</tt> is also an excellent candidate for
+currying to allow for compiler preprocessing of its usually constant
+formatting string.
+
+</body></html>

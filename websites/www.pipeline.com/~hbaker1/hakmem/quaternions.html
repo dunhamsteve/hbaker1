@@ -1,0 +1,153 @@
+<html><head>
+<!-- Based on MIT AI Memo 239 "HAKMEM" -->
+<!-- by M. Beeler, R.W. Gosper, and R. Schroeppel, Feb. 29, 1972. -->
+<!-- This html version Copyright (c) 1995 by Henry G. Baker. -->
+<link rev="made" href="mailto:hbaker1@pipeline.com">
+<title>HAKMEM QUATERNIONS -- DRAFT, NOT YET PROOFED</title>
+
+</head><body>
+
+Beeler, M., Gosper, R.W., and Schroeppel, R.  <i>HAKMEM</i>.  MIT AI
+Memo 239, Feb. 29, 1972.
+
+Retyped and converted to <i>html</i> ('Web browser format) by
+
+<a href="http://home.pipeline.com/~hbaker1/home.html">Henry Baker,</a>
+
+April, 1995.
+
+<h2>QUATERNIONS</h2>
+
+<a href="group.html">Previous</a>
+<a href="hakmem.html">Up</a>
+<a href="polyominos.html">Next</a>
+
+<a name="item107"></a>
+
+<h3>ITEM 107 (Salamin): QUATERNIONS</h3>
+
+A <i>quaternion</i> is a 4-tuple which can be regarded as a scalar
+plus a vector.  Quaternions add linearly and multiply
+(non-commutatively) by
+
+<pre>
+(S1+V1) (S2+V2) = S1 S2 - V1.V2 + S1 V2 + V1 S2 + V1 x V2
+</pre>
+
+where S=scalar part, V=vector part, .=dot product, x=cross product.<p>
+
+If Q = S+V = (Q0,Q1,Q2,Q3), then S = Q0, V = (Q1,Q2,Q3).  Define
+<i>conjugation</i> by (S+V)* = S-V.  The (<i>absolute value</i>)^2 of
+a quaternion is
+
+<pre>
+  2     2     2     2
+Q0  + Q1  + Q2  + Q3  = Q Q* = Q* Q .
+</pre>
+
+The non-zero quaternions form a group under multiplication with
+(1,0,0,0) = 1 as identity and
+
+<pre>
+1    Q*
+- = ---- .
+Q   Q* Q
+</pre>
+
+The <i>unit</i> quaternions, which lie on a 3-sphere embedded in
+4-space, form a subgroup.  The mapping F(Q) = P Q (P a unit
+quaternion) is a rigid rotation in 4-space.  This can be verified by
+expressing P Q as a 4x4 matrix times the 4-vector Q, and then noting
+that the matrix is orthogonal.  F(Q) restricted to the <i>unit</i>
+quaternions is a rigid rotation of the 3-sphere, and because this
+mapping is a group translation, it has no fixed point.<p>
+
+We can define a dot product of quaternions as the dot product of
+4-vectors.  Then Q1.Q2 = 0 iff Q1 is <i>perpendicular</i> to Q2.  Let
+N be a unit <i>vector.</i> To each <i>unit</i> quaternion Q = S+V,
+attach the quaternion
+
+<pre>
+N Q = -N.V + N S + N x V .
+</pre>
+
+Then it is seen that
+
+<pre>
+(N Q).(N Q) = N.N = 1 and (N Q).Q = 0 .
+</pre>
+
+Geometrically this means that N Q is a continuous unit 4-vector field
+tangent to the 3-sphere.  No such tangent vector field exists for the
+ordinary 2-sphere.  Clearly the 1-sphere has such a vector field.<p>
+
+PROBLEM: For which N-spheres does a continuous unit tangent vector
+field exist?<p>
+
+Let W be a <i>vector</i> (quaternion with zero scalar part) and Q =
+S+V.  Then
+
+<pre>
+Q W Q* = (S^2 + V.V) W + 2 S V x W + 2 V (V.W) .
+</pre>
+
+Let N be a unit vector and Q the unit quaternion
+
+<pre>
+Q = +-(cos(theta/2) + N sin(theta/2)) .
+</pre>
+
+Then
+
+<pre>
+Q W Q* = (cos theta) W + (sin theta) (N x W) + (1-cos theta) N (N.W) ,
+</pre>
+
+which is W rotated thru angle theta about N.  If Q thus induces
+rotation R, then Q1 Q2 induces rotation R1 R2.  So the projective
+3-sphere (+Q and -Q identified) is isomorphic to the rotation group
+(3x3 orthogonal matrices).  Projectiveness is unavoidable since a 2 pi
+rotation about any axis changes Q = 1 continuously into Q = -1.<p>
+
+Let U be a neighborhood of the identity in the rotation group
+(ordinary 3 dimensional rotations) and U1 the corresponding set of
+unit quaternions in the neighborhood of 1.  If a rotation R carries U
+into U', then a quaternion corresponding to R carries U1 into U1'.
+But quaternion multiplication is a rigid rotation of the 3-sphere, so
+U1 and U1' have equal volume.  This shows that in the quaternion
+representation of the rotation group, the Haar measure is the Lebesgue
+measure on the 3-sphere.<p>
+
+Every rotation is a rotation by some angle theta about some axis.  If
+rotations are chosen "uniformly", what is the probability distribution
+of theta?  By the above, we choose points uniformly on the 3-sphere
+(or <i>hemisphere</i> since it is really projective).  Going into
+polar coordinates, one finds
+
+<pre>
+            2      theta 2
+P(theta) = -- (sin -----) , 0 &lt; theta &lt; pi .
+           pi        2
+</pre>
+
+In particular, the <i>expected value</i> of theta is
+
+<pre>
+pi    2
+-- + -- .
+2    pi
+</pre>
+
+Quaternions form a convenient 4-parameter representation of rotations,
+since composition of rotations is done by quaternion multiplication.
+In contrast, 3-parameter representations like Euler angles or (roll,
+pitch, yaw) require trigonometry for composition, and orthogonal
+matrices are 9-parameter.  In space guidance systems under development
+at D-lab, the attitude of the spacecraft is stored in the guidance
+computer as a quaternion.<p>
+
+<a href="group.html">Previous</a>
+<a href="hakmem.html">Up</a>
+<a href="polyominos.html">Next</a>
+
+</body></html>

@@ -1,0 +1,556 @@
+<html><head>
+<!-- This document was created from RTF source by rtftohtml version 2.7.5 -->
+
+<title>ACM Sigsam Bull. 27, 4 (Dec. 1993), 10-14.</title>
+
+<link rev="made" href="mailto:hbaker1@pipeline.com">
+
+<h1>Sparse Polynomials and Linear Logic</h1>
+
+<address>
+<a href="home.html">Henry G. Baker</a>
+</address>
+
+<address>
+Nimble Computer Corp., 16231 Meadow Ridge Way, Encino, CA  91436<br>
+(818) 986-1436  (818) 986-1360 (FAX)<br>
+Copyright (c) 1993 by Nimble Computer Corporation
+</address>
+
+<address>
+This material is based upon work supported by the National Science Foundation
+under Grant No. III-9261682.
+</address>
+
+<hr>
+
+The Gabriel <i>FRPOLY</i> benchmark was rewritten in a "linear" fragment of
+Common Lisp and is competitive with the standard FRPOLY benchmark code.  This
+linear FRPOLY is considerably more perspicuous than the standard code, while
+its running time is only 6% longer than that of the standard FRPOLY code.
+Linear FRPOLY recovers <i>all</i> of its garbage, and its "high water mark"
+space requirement is very probably smaller than that of the standard code.  In
+the expansion of (x+y+z+1)^15, the standard FRPOLY does 48,892 new conses,
+while the linear FRPOLY does only 4821 new conses--i.e., it does only about 10%
+of the consing of the standard FRPOLY code.<p>
+
+We also tested versions of FRPOLY in which squarings were <i>not</i> used for
+exponentiation.  This non-linear FRPOLY does 38,780 conses, and takes only 59%
+of the time of the non-linear squaring FRPOLY.  The linear non-squaring FRPOLY
+takes only 62% of the time of the linear squaring FRPOLY, and cuts the new
+consing to 3988 cells.  A slightly slower version cuts the new consing to 2590
+cells--only 567 cells (28%) more than are used in the result.
+
+<hr>
+
+</head><body>
+
+<h2>
+INTRODUCTION
+</h2>
+
+Two early major applications of Lisp are the <i>Reduce</i> and <i>Macsyma</i>
+symbolic algebra systems.  Due to the complexity of algebraic expressions, the
+Lisp list constructed from "cons" cells provides an elegant and efficient
+representation for the manipulations that must be performed.  Therefore, when
+Richard Gabriel selected a set of programs for benchmarking Lisp systems
+[Gabriel85], he included the <i>FRPOLY</i> program, which is a fragment of the
+Macsyma system that adds and multiplies polynomials in several variables.
+Polynomial manipulations are the heart of any symbolic algebra system, and as
+polynomial <i>multiplication</i> is both common and expensive, the FRPOLY
+benchmark raises the simple polynomial r=x+y+z+1 to the powers 2, 5, 10 and 15
+by successive squaring.  As the size of the answer explodes exponentially with
+larger powers, this expansion of (x+y+z+1)^15 provides an interesting
+benchmark.<p>
+
+"Impure" Lisp is frowned on in beginning Lisp classes, both because the student
+should know how much can be done without "side-effects"--e.g., assignment and
+list modification--and because such code can be difficult to understand
+[Mason86].  However, professional Lispers sometimes mangle lists in the pursuit
+of time or space efficiency.  We were drawn to the FRPOLY benchmark because it
+utilizes such list "mangling".  We wanted to understand its operation, to see
+whether its speed and space efficiency were achievable in a "linear" fragment
+of Lisp.<p>
+
+Before discussing "linear" Lisp, we first note that there are two errors in the
+FRPOLY code [Gabriel85,3.20.1] that cause the polynomial multiplication routine
+<tt>ptimes</tt> to return incorrect results.  The first error occurs in the
+<tt>pzerop</tt> macro, which evaluates its argument twice (a linearity checker
+would have complained about the multiple use of this macro's argument!).  The
+<tt>pzerop</tt> macro is called almost always with a trivial argument, but in
+the routine <tt>ptimes3</tt>, two lines down from the label <tt>b</tt>, it is
+called with an argument expression that has a side-effect--namely an
+assignment.  There are several ways to fix this problem, the simplest being the
+following:
+
+<tt><pre>
+(defmacro pzerop (x) `(let ((x ,x)) (if (numberp x) (zerop x) nil)))
+</pre></tt>
+
+The second error occurs in the routine <tt>ptimes3</tt> near the label
+<tt>b</tt>.  The following two lines should be deleted:
+
+<tt><pre>
+b  (if (or (null (cdr u)) (&lt; (cadr u) e))              ; These 2 lines should
+       (rplacd u (cons e (cons c (cdr u)))) (go e))    ; be replaced.
+</pre></tt>
+
+and should be replaced with:
+
+<tt><pre>
+b  (cond ((or (null (cdr u)) (&lt; (cadr u) e))           ; The if should be a
+          (rplacd u (cons e (cons c (cdr u)))) (go e))); cond.
+</pre></tt>
+
+In addition to producing incorrect results, these errors cause problems in
+comparing benchmark results because they change the amount of work that is
+performed.  For example, the expansion of (x+y+z+1)^15 should perform 48,892
+conses,<a href="#fn0">[1]</a> but the buggy code performs only
+33,574 conses.<p>
+
+A few remarks about the programming style used in the standard FRPOLY code are
+in order.  The style of programming used for most of the functions is
+traditional recursive Lisp programming, as found in any beginning book on Lisp.
+The polynomial <i>addition</i> routines do not utilize any side-effects, nor do
+they take advantage of traditional Lisp's fluid/dynamically-scoped variables.<p>
+
+The style of programming used within the polynomial <i>multiplication</i>
+routines, however, is dramatically different--it relies heavily on both
+dynamically-scoped variables and side-effects to variables and data structures.
+According to Gabriel: "[this benchmark] is programmed in an unusual and
+somewhat unpleasant programming style" [Gabriel85,3.20.2], an analysis with
+which almost every professional Lisp programmer would agree.  The
+<tt>ptimes3</tt> routine is a nightmare for either a person or a compiler to
+understand.<p>
+
+The <tt>ptimes3</tt> code was written by Bill Martin in about 1968 when the
+available list space was severely limited by the PDP-10's 256Kword address
+space, and before optimizing Lisp compilers became available [Fateman91].
+Bill's goals were the fast execution consistent with minimum space [Fateman91].
+Minimizing the maximum number of cons cells in use at any instant (the "high
+water mark") seemed more of a concern than minimizing the number of calls to
+the <tt>cons</tt> routine.  Unfortunately, measuring the exact "high water
+mark" of a non-linear Lisp computation is problematical, since it theoretically
+requires performing a garbage collection for every single call to the
+<tt>cons</tt> routine
+
+<a href="BuriedStale.html">[Baker92BB].</a>
+
+Thus, we cannot tell for sure whether Bill's <tt>ptimes3</tt> actually
+achieved his goals.
+
+<h2>
+A SHORT TUTORIAL ON "LINEAR" LISP
+</h2>
+
+"Linear" Lisp is a style of Lisp programming in which every bound name is
+referenced exactly once.  Thus, each parameter of a function is used just once,
+as is each name introduced via other binding constructs such as <tt>let</tt>,
+<tt>let*</tt>, <tt>multiple-value-bind</tt>, etc.  A linear language requires
+more work from the programmer to make explicit any copying or deletion, but is
+paid back by better error checking during compilation and better utilization of
+resources (time, space) at run-time.  Unlike Pascal, Ada, C, and other
+languages providing explicit deletion, however, <i>a linear language does not
+have a dangling reference problem</i>.<p>
+
+The <tt>identity</tt> function is already linear, but <tt>five</tt> must
+dispose of its argument before returning the value <tt>5</tt>:
+
+<tt><pre>
+(defun identity (x) x)
+
+(defun five (x) (kill x) 5)           ; a true Linear Lisp would use "x" instead of "(kill x)"
+</pre></tt>
+
+The <tt>kill</tt> function, which returns <i>no</i> values, provides an
+appropriate "boundary condition" for the parameter <tt>x</tt>.  The appearance
+of <tt>kill</tt> in <tt>five</tt> signifies <i>non-linearity</i>.  (See
+
+<a href="LinearLisp.html">[Baker92LLL]</a>
+
+for a definition of <tt>kill</tt>).<p>
+
+The <tt>square</tt> function requires <i>two</i> occurrences of its argument,
+and is therefore also non-linear.  A second copy can be obtained by use of the
+<tt>dup</tt> function, which accepts one argument and returns <i>two</i>
+values--i.e., two copies of its argument.  (See
+
+<a href="LinearLisp.html">[Baker92LLL]</a>
+
+for a definition of <tt>dup</tt>).  The <tt>square</tt> function
+follows:
+
+<tt><pre>
+(defun square (x)
+  (multiple-value-bind (x x-prime) (dup x)   ; Dylan bind syntax [Shalit92] would be prettier.
+    (* x x-prime)))
+</pre></tt>
+
+Conditional expressions such as <tt>if</tt>-expressions require a bit of
+sophistication.  Since only one of the "arms" of the conditional will be
+executed, we relax the "one-occurrence" linearity condition to allow a
+reference in both arms.<a href="#fn1">[2]</a>  One should
+immediately see that linearity implies that an occurrence in one arm <i>if and
+only if</i> there is an occurrence in the other arm.  (This condition is
+similar to that for <i>typestates</i> [Strom83]).<p>
+
+The boolean expression part of an <tt>if</tt>-expression requires more
+sophistication.  Strict linearity requires that any name used in the boolean
+part of an <tt>if</tt>-expression be counted as an occurrence.  However, many
+predicates are "shallow", in that they examine only a small (i.e., shallow)
+portion of their arguments (e.g., <tt>null</tt>, <tt>zerop</tt>), and therefore
+a modified policy is required.  We have not yet found the best syntax to solve
+this problem, but provisionally use several new <tt>if</tt>-like expressions:
+<tt>if-atom</tt>, <tt>if-null</tt>, <tt>if-zerop</tt>, etc.  These
+<tt>if</tt>-like expressions require that the boolean part be a simple name,
+which does not count towards the "occur-once" linearity condition.  This
+modified rule allows for a shallow condition to be tested, and then the name
+can be reused within the arms of the conditional.<a
+href="#fn2">[3]</a><p>
+
+We require a mechanism to <i>linearly</i> extract both components of a Lisp
+cons cell, since a use of <tt>(car x)</tt> precludes the use of <tt>(cdr
+x)</tt>, and vice versa, due to the requirement for a single occurrence of
+<tt>x</tt>.  We therefore introduce a "destructuring let" operation
+<tt>dlet*</tt>, which takes a series of binding pairs and a body, and binds the
+names in the binding pairs before executing the body.  Each binding pair
+consists of a pattern and an expression; the expression is evaluated to a
+value, and the result is matched to the pattern, which consists of list
+structure with embedded names.  The list structure must match to the value, and
+the names are then bound to the portions of the list structure as if the
+pattern had been <i>unified</i> with the value.  Linearity requires that a name
+appear only once within a particular pattern.  Linearity also requires that
+each name bound by a <tt>dlet*</tt> binding pair must occur either within an
+expression in a succeeding binding pair, or within the body of the
+<tt>dlet*</tt> itself.  Using these constructs, we can now program the
+<tt>append</tt> and factorial (<tt>fact</tt>) functions:
+
+<tt><pre>
+(defun append (x y)
+  (if-null x (progn (kill x) y)                                ; trivial kill.
+    (dlet* (((carx . cdrx) x))
+      (cons carx (append cdrx y)))))                 ; cons will be optimized.
+
+(defun fact (n)
+  (if-zerop n (progn (kill n) 1)                               ; trivial kill.
+    (multiple-value-bind (n n-prime) (dup n)                    ; trivial dup.
+      (* n (fact (1- n-prime))))))
+</pre></tt>
+
+We "warm up" for FRPOLY by programming a simple univariate "dense" polynomial
+multiplication routine written in a linear fragment of Lisp, in which the
+polynomials are simply lists of integer coefficients.
+
+<tt><pre>
+(defun pplus (x y)                                               ; Return x+y.
+  (if-null x (progn (kill x) y)                                ; trivial kill.
+    (if-null y (progn (kill y) x)                              ; trivial kill.
+      (dlet* (((x0 . x) x) ((y0 . y) y)) ; decompose 1 cell from both x and y.
+        (cons (+ x0 y0) (pplus x y))))))             ; cons will be optimized.
+
+(defun pctimes (x0 y)                                           ; Return x0*y.
+  (if-null y (progn (kill x0) y)                               ; trivial kill.
+    (multiple-value-bind (x0 x0-prime) (dup x0)                 ; trivial dup.
+      (dlet* (((y0 . y) y))                         ; decompose 1 cell from y.
+        (cons (* x0 y0) (pctimes x0-prime y))))))    ; cons will be optimized.
+
+(defun ptimes (x y)                                              ; Return x*y.
+  (if-null x  (progn (kill y) x)                   ; possibly nontrivial kill.
+    (dlet* (((x0 . x) x))                           ; decompose 1 cell from x.
+      (if-null x (progn (kill x) (pctimes x0 y))               ; trivial kill.
+        (multiple-value-bind (y y-prime) (dup y)             ; nontrivial dup.
+          (pplus (pctimes x0 y)
+                 (cons 0 (ptimes x y-prime))))))))   ; cons will be optimized.
+
+(defun psquare (x)
+  (multiple-value-bind (x x-prime) (dup x)
+    (ptimes x x-prime)))
+
+(defun pexptsq (x n)
+  (if-zerop n (progn (kill x) (kill n) (cons 1 nil))        ; nontrivial kill.
+    (if-evenp n (psquare (pexptsq x (floor n 2)))
+      (multiple-value-bind (x x-prime) (dup x)
+        (ptimes x (psquare (pexptsq x-prime (floor n 2))))))))
+</pre></tt>
+
+Our Linear Lisp FRPOLY is completely analogous to this code, except that it
+manipulates a "sparse" representation which allows coefficients to recursively
+be polynomials in other variables.
+
+<h2>
+RESULTS FROM LINEAR FRPOLY BENCHMARK AND DISCUSSION
+</h2>
+
+The polynomial addition routines of FRPOLY required only minor modifications to
+be put into linear form.  The polynomial multiplication routines had to be
+completely rewritten, however.  The new style of these routines is analogous to
+that shown for univariate polynomial multiplication, above.<p>
+
+We also had to program the basic <tt>dup</tt>, <tt>kill</tt>, <tt>dlet*</tt>
+and <tt>cons</tt> routines for our linear fragment of Common Lisp.  Since the
+basic intuition behind Linear Lisp is that <i>all arguments to a function are
+consumed in the production of results from the function</i>.  This means that
+<tt>dlet*</tt> not only <i>binds</i> names to portions of a substructure, but
+also <i>recycles cons cells that it has destructured</i>.  We provided a
+private freelist for these recycled cons cells, and a modified <tt>cons</tt>
+routine utilizes these recycled cells first, prior to calling the system
+<tt>cons</tt> routine.  The <tt>kill</tt> routine dissolves a structure down to
+its atoms, and recycles all of its constituent cons cells.  The <tt>dup</tt>
+routine copies its argument using the modified <tt>cons</tt> routine, and
+returns both the original and the copy as results.  By utilizing these four
+primitives and the linearity restriction, one is guaranteed that no cons cells
+can be lost.<a href="#fn3">[4]</a>  This is because linearity is
+essentially the same as reference counting [Collins60], which additionally
+enforces a no-cycles policy.  Of course, our reference counts are always
+exactly 1, so that no actual reference count updating is ever needed!<a
+href="#fn4">[5]</a><p>
+
+For our FRPOLY benchmark, we measured <tt>(pexptsq r n)</tt>, for <tt>n</tt>
+from <tt>2</tt> to <tt>15</tt>.  Consider now <tt>n=15</tt>.  We counted the
+number of conses in the input r=x+y+z+1 (15 cons cells), the number of conses
+in the output r^15 (2038 cons cells), the number of calls to the <i>system</i>
+<tt>cons</tt> routine, and the number of recycled cells left on the private
+freelist after FRPOLY has finished.  The numbers tallied: #output - #input +
+#free - #consed = 0, indicating that all cells were accounted for.<p>
+
+In our first linear version of FRPOLY with <tt>n=15</tt>, the system
+<tt>cons</tt> routine was called 8375 times and 6352 recycled cells were left
+on the private freelist at the end.  Although 8375 was only a factor of 4
+larger than the 2038 cells in the output structure, we felt that we could do
+better.  We subsequently located several places in the code where <tt>dup</tt>
+was called just before a recursive call which performed a test and terminated
+the recursion.  In the process of termination, it called <tt>kill</tt> on the
+same structure which it had just <tt>dup</tt>'ed.  By moving the recursion
+termination test up into the previous recursion, the extra <tt>dup</tt> and
+<tt>kill</tt> were eliminated, which significantly reduced the calls to the
+system <tt>cons</tt> routine.  After these changes, FRPOLY called <tt>kill</tt>
+on a non-atom only once--for the original 15 input cells.  The other 112,617
+reused cells were recycled by <tt>dlet*</tt>.  FRPOLY called the system
+<tt>cons</tt> routine only 4821 times, and left 2798 recycled cells on the
+private freelist.  There were 3831 calls to <tt>dup</tt>, with a total of
+47,692 cells copied.  The <tt>dup</tt> per-call statistics were: mean 12.45
+cells, standard deviation 35.1 cells and max 1717 cells.<p>
+
+By simply interchanging the arguments to the last call to <tt>ptimes</tt> in
+the <tt>pexptsq</tt> routine, the following statistics were observed.  The
+total number of new conses was still 4821, <tt>kill</tt> was called once for
+the 15 input cells, and <tt>dlet*</tt> recycled 114,468 cells.  There were now
+4448 calls to <tt>dup</tt>, with a total of 48,926 cells copied.  The
+<tt>dup</tt> per-call statistics were: mean 11.0 cells, standard deviation
+20.06 cells, and max 346 cells.  The interchanged time was 1.8% slower.<p>
+
+In order to put these cell numbers in perspective, we must examine the workings
+of polynomial manipulation a bit closer.  In the course of computing r^15,
+<tt>pexptsq</tt> computes r^14=r^7*r^7.  Although space for one of the copies
+of r^7 is reused to compute r^14, the space for the other copy is not recycled
+until the end.  Therefore, <tt>pexptsq</tt> must require space for at least r,
+r^7 and r^14, all at the same time.  Although these space requirements still do
+not account for the total space used, they indicate that we are getting near
+the lower bound.<p>
+
+Our first timings were significantly worse than the standard FRPOLY benchmark.
+However, we quickly isolated a major cause of this inefficiency--the
+manipulations of the global variable which held the private freelist.  Through
+the use of machine-specific "subprimitives" of our Lisp system, we were able to
+reduce the cost of accessing a global variable to a single machine instruction.
+Since this freelist variable was extensively accessed, we achieved a major
+improvement through this change.  Obviously, a true Linear Lisp implementation
+would utilize a fast register to point to the top of the freelist, rather than
+a global memory cell.<p>
+
+Another major improvement in performance was achieved through the replacement
+of the <tt>rplaca</tt> and <tt>rplacd</tt> instructions by additional
+machine-specific "subprimitives".  This change allowed the <tt>cons</tt> from
+our private freelist to be slightly faster than the system <tt>cons</tt>.<p>
+
+We exploited a valuable optimization suggested by [Wakeling91]--to have the
+destructuring pattern-match "compiler" defer the generation of code to put
+cells back onto the global free-list until the end of the body of this form.
+This laziness allows any consing seen within the body to utilize these garbage
+cells immediately rather than allocating them from the freelist at run-time.
+This optimization saved about 20% of the running time.  Unfortunately, this
+optimization works only within a single function, so larger functions can be
+somewhat better optimized.  For this reason, we inlined <tt>pcoefadd</tt> and
+<tt>psimp</tt>.<p>
+
+Minor improvements in performance were obtained through various optimizations
+in the <tt>dup</tt> routine, which may do extensive work, even though it is
+seldom called.  Additional improvements came from making sure that <tt>dup</tt>
+and <tt>kill</tt> were called only for non-atoms, and from other similar
+restructurings of the code.<p>
+
+The net result of these improvements is that our latest linear version of
+FRPOLY runs only 6% slower than the standard benchmark on our machine (an 4
+Mbyte Apple Macintosh Plus with a 16MHz Radius 68020 processor card) running
+Coral Common Lisp version 1.2.  We believe that this timing is very competitive
+with the standard benchmark, since our linear FRPOLY timings include garbage
+collection, while the standard FRPOLY timings do not include garbage
+collection.<p>
+
+We also ran tests with an exponentiation routine that did <i>not</i> use
+squaring--i.e., it used straight-forward successive multiplications [Fateman74]
+[Fateman91].  We considered a version in which the smaller argument to
+<tt>ptimes</tt> was first ("normal") and the smaller argument to
+<tt>ptimes</tt> was second ("reversed").  Both the "normal" and "reversed"
+versions of the non-linear FRPOLY did 38,780 new conses, or about 79% of the
+conses of the squaring non-linear FRPOLY.  The running time on the non-linear
+FRPOLY was 59% of the squaring non-linear FRPOLY for both "normal" and
+"reversed" versions ([Fateman91] got 50% on a similar test).<p>
+
+Using multiplications in our linear FRPOLY instead of squarings reduced the
+space requirements.  The total number of new conses dropped to 3988 for
+"normal" and 2590 for "reversed".  In the "normal" run, there were <i>no</i>
+calls to <tt>kill</tt> non-atoms, and 72,611 cells were recycled by
+<tt>dlet*</tt>, while in the "reversed" run, there were also no calls to
+<tt>kill</tt>, and 79,709 cells were recycled by <tt>dlet*</tt>.  In the
+"normal" run, there were 1358 calls to <tt>dup</tt>, with a total of 25,823
+cells copied.  The per-call statistics for <tt>dup</tt> in the "normal" run
+were: mean 19.02 cells, standard deviation 82.92 cells and max 1717 cells.  In
+the "reversed" run, there were 3724 calls to <tt>dup</tt>, with a total of
+30,555 cells copied.  The per-cell statistics for <tt>dup</tt> in the
+"reversed" run were: mean 8.2 cells, standard deviation 16.2 cells, and max 283
+cells.  Although the "normal" required more space (3988 new conses) than the
+"reversed" (2590 new conses), it was 10% faster.  This "normal" linear run took
+only 65% of the time of the squaring non-linear FRPOLY!<p>
+
+The most surprising thing to us about all of these timings was not that the
+linear timings were slower than the standard FRPOLY timings, but that the
+linear timings were even remotely competitive.  After all, the general
+presumption is that polynomial manipulations require a lot of sharing, and that
+extensive copying should be significantly slower.  Furthermore, the linear
+FRPOLY cannot just simply <i>examine</i> a data structure--it must actually
+<i>destroy</i> it and then <i>reconstruct</i> it.  That this examination by
+destruction and reconstruction is at all competitive was quite a surprise to
+us.  On newer machines with a true data cache, such examination by destruction
+and reconstruction should be even more competitive than on our cacheless
+machine.
+
+<h2>
+CONCLUSIONS
+</h2>
+
+Contrary to some previous reports [Wakeling91], a linear programming style is
+not necessarily expensive, and for a popular benchmark, the Common Lisp FRPOLY
+benchmark for symbolic algebraic manipulation, our linear FRPOLY was
+competitive in space and time with the standard non-linear FRPOLY.
+Furthermore, the linear code is considerably easier to understand, because it
+does not use fluid/dynamic variables or (visible) side-effects.<p>
+
+Unlike the suggestions of some [Wakeling91], we feel that integers themselves
+<i>should</i> be linear--especially in a computer algebra system.  This is
+because the manipulation of large-precision integers (i.e., <i>bignums</i>)
+constitutes a significant fraction of the work of these systems, and it is
+essential that any garbage created be quickly recovered.  In fact, we believe
+that a bignum package would be one of the easiest and most efficacious uses of
+linearity in a symbolic algebra system.<p>
+
+While an efficient linear coding style occasionally copies a large structure
+all at once, it rarely lets a large structure go all at once.  The vast
+majority of the recycled cells are reclaimed one at a time by the primitive
+which performs a destructuring binding of new names to portions of a structure.
+(This behavior may shed some light on the question of the efficiency of
+"generational" garbage collection, as well as on the best mechanisms to update
+reference counts in a reference-counting system.)  This copy-all-at-once but
+deallocate-one-at-a-time behavior sheds light on the maximum space requirement
+for a symbolic computation which does not utilize sharing, since the
+elimination of all explicit copying can reduce this maximum space requirement.
+A non-copying coding style is different from a more usual style, in that many
+functions reconstruct and return their some of their arguments as additional
+results so that explict copies will not be required.  <p>
+
+We feel that the particular list data structure used in FRPOLY may not be
+optimum for a computer algebra system.  A sparse polynomial representation
+should probably use larger nodes which can hold an exponent, a coefficient, a
+reference count, and a pointer to the next node.  While true reference counting
+on Lisp's small 2-element nodes is probably too expensive, it might be
+efficient for 4-element nodes.  Destructuring these larger nodes would make
+good use of a computer's "load multiple" capability, an optimization Lisp
+implementations have so far not utilized.<p>
+
+A somewhat surprising result was our conclusion that an exponentiation
+algorithm using successive squarings is <i>more</i> expensive in both time and
+space than an exponentiation algorithm which simply does repeated
+multiplications.  Exponentiation by squaring may eventually be cheaper, but the
+break-even exponent is larger than 15.
+
+<h2>
+REFERENCES
+</h2>
+
+Abramsky, S.  "Computational interpretations of linear logic".  <i>Theor. Comp.
+Sci. 111</i> (1993), 3-57.<p>
+
+<a href="BuriedStale.html">[Baker92BB]</a>
+
+Baker, H.G.  "The Buried Binding and Dead Binding Problems of Lisp 1.5: Sources
+of Incomparability in Garbage Collector Measurements".  ACM <i>Lisp Pointers
+V</i>,2 (Apr.-June 1992), 11-19.<p>
+
+<a href="LinearLisp.html">[Baker92LLL]</a>
+
+Baker, H.G.  "Lively Linear Lisp -- 'Look Ma, No Garbage!'".  ACM <i>Sigplan
+Notices</i> <i>27</i>,8 (Aug. 1992), 89-98.<p>
+
+Chirimar, J., <i>et al</i>.  "Proving Memory Management Invariants for a
+Language Based on Linear Logic".  <i>Proc. ACM Conf. Lisp &amp; Funct.
+Prog</i>., San Francisco, CA, June, 1992, also ACM <i>Lisp Pointers V</i>,1
+(Jan.-Mar. 1992), 139.<p>
+
+Collins, G.E.  "A method for overlapping and erasure of lists".  <i>CACM
+3</i>,12 (Dec. 1960), 655-657.<p>
+
+Fateman, R.  "On the Computation of Powers of Sparse Polynomials".  <i>Studies
+Appl. Math. 53</i>,2 (1974), 145-155.<p>
+
+Fateman, R.  "FRPOLY: A Benchmark Revisited".  <i>Lisp &amp; Symbolic Comput.
+4</i> (1991), 155-164.<p>
+
+Gabriel, R.P.  <i>Performance and Evaluation of Lisp Systems</i>.  MIT Press,
+Camb., MA 1985.<p>
+
+Girard, J.-Y.  "Linear Logic".  <i>Theoretical Computer Sci. 50</i>
+(1987),1-102.<p>
+
+Mason, I.A.  <i>The Semantics of Destructive Lisp</i>.  CSLI LN 5, Stanford,
+CA, 1986.<p>
+
+Shalit, A.  <i>Dylan(TM): An object-oriented dynamic language</i>.  Apple
+Computer, Camb., MA, 1992.<p>
+
+Strom, R.E.  "Mechanisms for Compile-Time Enforcement of Security".  <i>Proc.
+10th ACM POPL</i>, Jan. 1983.<p>
+
+Wadler, P.  "Is there a use for linear logic?".  <i>Proc. ACM PEPM'91</i>, New
+Haven, June 1991, 255-273.<p>
+
+Wakeling, D., and Runciman, C.  "Linearity and Laziness".  <i>Proc. Funct.
+Progr. &amp; Computer Arch.</i>, LNCS 523, Springer-Verlag, Aug. 1991, 215-240.<p>
+
+<a name="fn0">[1]</a>
+The number of conses (79,140) listed in the "Meter for (Bench 15)" table of
+[Gabriel85,p.249] may be incorrect.  These additional conses may be used in
+bignum arithmetic in the expansion of (100000*(x+y+z+1))^15.<p>
+
+<a name="fn1">[2]</a>Any use of parallel or <i>speculative</i> execution of the
+arms of the conditional would require strict linearity, however.<p>
+
+<a name="fn2">[3]</a>Although this rule seems a bit messy, it is equivalent to
+having the shallow predicate return <i>two</i> values: the predicate itself and
+the unmodified argument.  This policy is completely consistent with linear
+semantics.<p>
+
+<a name="fn3">[4]</a>One cannot utilize non-local exits such as
+<tt>return-from</tt>, <tt>throw</tt>, <tt>go</tt>, etc., however, because these
+violate the "occur-once" linearity constraint for many of the bindings passed
+on the stack.  One could conceivably use <tt>unwind-protect</tt> to ensure the
+linearity constraints, but it could be quite messy.  Perhaps a new kind of
+"protect" form is needed for Linear Lisp.  (Schemers beware: a linear Scheme
+can have only return-once continuations.)<p>
+
+<a name="fn4">[5]</a>A "behind-the-scenes" reference count scheme can be used
+to implement fast <tt>dup</tt>'s and <tt>kill</tt>'s
+
+<a href="LinearLisp.html">[Baker92LLL],</a>
+
+but we did not utilize such a scheme in our implementation of FRPOLY.
+</body></html>

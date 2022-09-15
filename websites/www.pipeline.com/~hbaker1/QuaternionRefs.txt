@@ -1,0 +1,491 @@
+Abbott, Edwin A.  FLATLAND: A Romance of Many Dimensions.  Basil
+Blackwell-Oxford, 1962.
+
+Abonyi, I.  "Quaternion Representation of Lorentz Group for Classical
+Physics".  J. Phys. A. Math. & Gen. 24,14 (July 1991), 3245-3254.
+
+Aeberli, G.  Der Zusammenhang Zwischen quaternaeren quadratischen
+Formen und Idealen in Quaternionenringen.  Comment. Math. Helv. 33
+(1959), 212-239.
+
+Ahlfors, L.V.  "Moebius transformations of Rn expressed through 2x2
+matrices of Clifford numbers".  Complex Variables 5 (1986), 215-224.
+
+Albert, A.A.  "Absolute Valued Real Algebras".  Ann. of Math. 48,2
+(April 1947), 495-501.
+
+Althoen, S.C., et al.  "Rotational Scaled Quaternion Division
+Algebras".  J. Algebra 146,1 (Feb. 1992), 124-143.
+
+Altmann, Simon L.  Rotations, Quaternions, and Double Groups.
+Clarendon Press, Oxford 1986.
+
+Altman, Simon L.  "Hamilton, Rodriques and the Quaternion Scandal".
+Math. Mag. 62,5 (Dec. 1989), 291.
+
+Artin, E.  Geometric Algebra.  Interscience Publs., NY 1957.
+
+Barr, A.H., et al.  "Smooth Interpolation of Orientations with Angular
+Velocity Constraints using Quaternions".  Computer Graphics 26,2 (July
+1992), 313-320.
+
+Bell, S.B.M., & Mason, D.C.  "Tesseral Quaternions for the Octtree".
+Comp. J. 33,5 (1990), 386-397.
+
+Benn, I.W., and Tucker, R.W.  An Introduction to Spinors and Geometry.
+Adam Hilger, Bristol, 1988.
+
+Blaschke, W.  Kinematik und Quaternionen.  VEB Deutscher Verlag der
+Wiss, 1960.
+
+Bolker, E.  "The spinor spanner".  Am. Math. Month. 80, 9 (Nov. 1973),
+977-984.
+
+Brackx, F.F., Delanghe, R, and Sommen, F.  Clifford Analysis.  Pitman,
+1983.
+
+Bragdon, Claude.  A Primer of Higher Space.  Omen Press, Tucson, AZ,
+1972.
+
+Brand, L.  The roots of a quaternion.  Amer. Math. Monthly 49 (1942),
+519-520.
+
+Brown, D.M.  Arithmetics of rational generalized quaternion algebras.
+Bull. Amer. Math. Soc. 46 (1940), 899-908.
+
+Canny, J.  "Collision Detection for Moving Polyhedra".  MIT AI Lab.
+Memo 806, Oct., 1984.
+
+Canny, J.  "On Detecting Collisions Between Polyhedra".  Proc.
+ECAI-84, Advs. in Art. Intell., Elsevier North-Holland, 1984, 533-542.
+
+Carlbom, I., and Paciorek, J.  "Planar Projections and Viewing
+Transformations".  ACM Comput. Survs. 10,4 (Dec. 1978), 465-502.
+
+Carmody, K.  "Circular and Hyperbolic Quaternions, Octonions and
+Sedenions".  Appl. Math. & Comput. 28,1 (Oct. 1988), 47-72.
+
+Cayley, A.  "On certain results relating to quaternions".  Phil. Mag.
+xxvi (Feb. 1845), 141-145.
+
+Cayley, Arthur.  The Collected Mathematical Papers of Arthur Cayley,
+Sc.D., F.R.S.  Cambridge at the University Press, 1897, Johnson
+Reprint Corporation, New York.
+
+Chatteus, A.W.  "Matrices, Idealizers & ??? Quaternions".  J. Algebra
+150,1 (Aug. 1992), 45-56.
+
+Chisholm, J.S.R., and Common, A.K., eds.  Clifford Algebras and their
+Applications in Mathematical Physics, Reidel, Dordrecht, 1986.
+
+Chou, J.C.K., & Kamel, M.  "Finding the Position and Orientation of a
+Sensor on a Robot Manipulator Using Quaternions".  Int'l. J. Robot.
+Res. 10,3 (June 1991), 240-254.
+
+Chou, J.C.K.  "Quaternion Kinematic and Dynamic Differential
+Equations".  IEEE Trans. Robots. 8,1 (Feb. 1992), 53-64.
+
+Chung, W.S.  "Quaternion Solutions of 4-Dimensional Liouville and Sine
+Gordon Equations".  Mod. Phys. Letts. A 7,27 (Sept. 1992), 2527-2533.
+
+Cole, F.N.  "On Rotations in Space of Four Dimensions".  Amer. J.
+Math. XII (1890).
+
+Conway, A.W.  "The quaternionic form of relativity".  Phil. Mag. 24,
+(1912), 208-8.
+
+Conway.  Acta Pontifica Academia Scientiarum XII (1948), 259-278.
+
+Coxeter, H.S.M.  The binary polyhedral groups and other
+generalizations of the quaternion group.  Duke Math. J. 7 (1940),
+367-379.
+
+Coxeter, H.S.M.  Non-Euclidean Geometry, 5th. Ed.  U. of Toronto
+Press, Toronto, 1942.
+
+Coxeter, H.S.M.  "Quaternions and Reflections".  Am. Math. Monthly 53
+(1946), 136-46.
+
+Coxeter, H.S.M.  Regular Polytopes, 2nd Ed.  Macmillan, 1963.
+
+Coxeter, H.S.M.  Projective Geometry.  1964.
+
+Coxeter, H.S.M.  Regular Complex Polytopes, 2nd Ed.  Camb. U. Press,
+1991.
+
+Cullen, C.G.  An Integral Theorem for Analytic Intrinsic Functions on
+Quaternions.  Duke Math. J. 32 (1965), 139-148.
+
+Davenport, H.  The Higher Arithmetic: An Introduction to the Theory of
+Numbers, 6th Ed.  Cambridge U. Press, Cambridge, UK, 1952, 1992.
+
+Deavours, C.A.  "The Quaternion Calculus".  Am. Math. Monthly 80
+(1973), 995-1008.
+
+de Groote, H.F.  On the computational complexity of quaternion
+multiplication, preprint, 1975.  10 multiplications are sufficient
+for simultaneously computing XY and YX; referenced in Howell & Lafon.
+
+Deleo, S.  "Quaternion Scalar Field".  Phys. Rev. D 45,2 (1992), 575-.
+
+Dickson, Leonard Eugene.  The Collected Mathematical Papers of Leonard
+Eugene Dickson.  Chelsea Publishing Co., New York.
+
+Dickson, L.E.  "On Quaternions and Their Generalization and the
+History of the Eight Square Theorem".  Ann. Math. 20 (1919), 155-171.
+
+Dickson, L.E.  Arithmetic of Quaternions.  Proc. London Math. Soc. 20:
+(1921), 225-232.
+
+Dickson, L.E.  Quaternions and their Generalizations.
+Proc. Nat. Acad. Sci. USA 7 (1921), 109-114.
+
+Dickson, L.E.  On the Theory of Numbers and Generalized Quaternions.
+Amer. J. Math 46 (1924), 1-16.
+
+Dickson, L.E.  A New Simple Theory of Hypercomplex Integers.
+J. Math. Pures Appl., series 9, 2 (1923), 281-326.
+
+Dimitrov, V.S., et al.  "On the multiplication of reduced
+biquaternions and applications".  Info. Proc. Lett. 43 (1992),
+161-164.
+
+du Val.  Homographies, quaternions and rotations.  Clarendon Press,
+Oxford, 1964.
+
+Ehlers, J., et al.  "Quaternions, bivectors and the Lorentz group".
+in Perspectives in geometry and relativity; Essays in honor of Vaclav
+Hlavaty (ed. B. Hoffmann), 134-149.  Indiana U. Press, Bloomington,
+1966.
+
+Eves, Howard.  Elementary Matrix Theory.  Dover Publs., NY, 1966.
+
+Faugeras, O.D., and Hebert, M.  "A 3-D Recognition and Positioning
+Algorithm using Geometrical Matching between Primitive Surfaces".
+Proc. IJCAI-83, William Kaufmann, Los Altos, CA, 1983, 996-1002.
+
+Flanigan, F.J.  Complex Variables: Harmonic and Analytic Functions.
+Dover Publs., NY, 1972.
+
+Forsyth, A.R.  Geometry of Four Dimensions, Vol. I & II.  Camb. Univ.
+Press, 1930.
+
+Francis, G.K., and Kauffman, L.H.  "Air on the Dirac strings".  In
+Mathematical Legacy of Wilhelm Magnus.  AMS, Providence, RI 1994.
+
+Fueter, R.  Zur Theorie der Brandtschen
+Quaternionenalgebren. Math. Ann. 110 (1935), 650-661.
+
+Fueter, R.  "Analytische Funktionen einer Quaternionenvariablen".
+Commentarii Mathematici Helvetici 4 (1932), 9-20.
+
+Fueter, R.  "Integralsaetze fuer regulaere Funktionen einer
+Quaternionenvariablen".  Commentarii Mathematici Helvetici 10 (1937),
+306-315.
+
+Fueter, R.  "Functions of a Hyper Complex Variable".  (Written and
+Supplemented by H. Bareiss), Argonne Natl. Lab., Appl. Math. Div.,
+1948.
+
+Funda, J., et al.  "On Homogeneous Transforms, Quaternions and
+Computational Efficiency".  IEEE Trans. on Robots. 6,3 (June 1990),
+382-388.
+
+Funda, J., & Paul, R.P.  "A Computational Analysis of Screw
+Transformations in Robotics".  IEEE Trans. on Robots. 6,3 (June 1990),
+348-356.
+
+Ganguli, Surendra Mohan.  An Introduction to the Geometry of the
+Fourfold.  U. Calcutta, 1934.
+
+Gleicher, M., and Witkin, A.  "Through-the-Lens Camera Control".
+Computer Graphics 26,2 (July 1992), 331-340.
+
+Gormley, P.G.  "Stereographic projection and the linear fractional
+group of transformations of quaternions".  Proc. Roy. Irish. Acad.
+A51 (1947), 67-85.
+
+Gray, J.  "Olinde Rodrigues' paper of 1840 on transformation groups".
+Arch. for History of Exact Scis. 21 (1980), 375-385.
+
+Grosswald, Emil.  Representations of Integers as Sums of Squares.
+Springer-Verlag, NY, 1985.
+
+Hahn, Liang-shin.  Complex Numbers and Geometry.  Mathematical
+Association of America, Wash., DC, 1994.
+
+Hamilton, W.R.  "On quaternions; or on a new system of imaginaries in
+algebra".  Phil. Mag. xxv (July 1844), 10-13.
+
+Hamilton, W.R.  Lectures on Quaternions.  Hodges and Smith, Dublin,
+1853.
+
+Hamilton, W.R.  Elements of Quaternions, Vol. I-II, 2nd Ed.  Longmans,
+Green & Co., London, 1901, reprinted by Dover Publ., NY.
+
+Hardy, A.S.  Elements of Quaternions.  Ginn & Co., Boston, 1887.
+
+Hardy, G.H., and Wright, E.M.  An Introduction to the Theory of
+Numbers, 4th Ed.  Oxford U. Press, London, 1960.
+
+Hart, J.C., Francis, G.K., and Kauffman, L.H.  "Visualizing Quaternion
+Rotation".  ACM Trans. Graphics 13, 3 (July 1994), 256-276.
+
+Hartshorne, R.  Foundations of Projective Geometry.  Benjamin
+Cummings, Reading, MA, 1967.
+
+Herstein, I.N.  Noncommutative Rings.  Carus Math. Monographs 15,
+Math. Assoc. Amer., 1968.
+
+Hestenes, David.  Space-Time Algebra.  Gordon and Breach, NY, 1966.
+
+Hestenes, D.  New Foundations for Classical Mechanics.  Reidel
+Publ. Co., Dordrecht/Boston, 1985.
+
+Hestenes, D., and Sobczyk, G.  Clifford Algebra to Geometric Calculus.
+Reidel Publ. Co., Dordrecht/Boston, 1984.
+
+Hilbert, David, and Cohn-Vossen, Stephan.  Geometry and the
+Imagination.  Chelsea, NY 1952.
+
+Hinton, C. Howard.  The Fourth Dimension.  Sonnenschein, London, 1904.
+
+Horn, B.K.P.  "Closed-form solution of absolute orientation using unit
+quaternions".  J. Opt. Soc. Am. A 4,4 (April 1987), 629-642.
+
+Howell, Thomas D., and Lafon, Jean-Claude.  "The Complexity of the
+Quaternion Product".  TR75-245, Dept. of Computer Science, Cornell
+University, June 1975.  Quaternion product takes either 7 or 8
+multiplications; 8 multiplication method is shown.
+
+Ickes, B.P.  "A New Method for Performing Digital Control System
+Attitude Computations Using Quaternions".  AIAA J. 8,1 (Jan. 1976),
+13-17.
+
+Imaeda, K.  "Quaternionic formulation of classical electrodynamics and
+theory of functions of a biquaternion variable".  Fund. Physics Lab.
+FPL-1-83-1, Dept. of Electronic Sci., Okayama Univ. of Science, Japan,
+1983.
+
+Jongkind, W., et al.  "Quaternions for Large Reorientations of Robot
+Grippers".  In Kopacek, P., et al, eds.  Theory of Robots.  Pergamon
+Press, Oxford, 1986.
+
+Klumpp, A.R.  "Singularity-free Extraction of a Quaternion from a
+Direction-Cosine Matrix".  J. Spacecraft 13,12 (Dec. 1976), 754-755.
+
+Kyrala, A.  Theoretical Physics: Applications of Vectors, Matrices,
+Tensors and Quaternions.  W.B.Saunders Co., Philadelphia, 1967.
+
+Landau, L.D., and Lifshitz, E.M.  Statistical Physics.  Pergamon,
+1978.  Discusses crystalography.
+
+Linnik, Yu. V.  Quaternions and Cayley numbers: some applications of
+the arithmetic of quaternions, Uspehi Mat. Nauk. 4 no. 5 (33), (1949),
+49-98.
+
+Linnik, Yu. V.  Quaternions and Cayley numbers.  Math. Centrum
+Amsterdam (1959).
+
+Linnik, Yu. V.  Applications of the theory of Markov chains to the
+arithmetic of quaternions.  Uspehi Mat. Nauk. 9 No. 4 (62), (1954),
+203-210.
+
+Linnik, Yu. V.  Markov chains in the analytical arithmetic of
+quaternions and matrices.  Vestnik Leningrad Univ. 11 (1956), 63-68.
+
+MacLane, S., and Birkhoff, G.  Algebra.  MacMillan Co., NY, 1967.
+
+Manning, Henry Parker.  Geometry of Four Dimensions.  MacMillan Co.,
+NY 1914.
+
+Manning, Henry Parker.  The Fourth Dimension Simply Explained. Dover
+Publs., 1960.
+
+Marchiafara, S.  "Quantum Quaternions".  J. Math. Phys. 33,1 (Jan.
+1992), 171-173.
+
+Martin, E.Dale.  "A System of Three-Dimensional Complex Variables".
+TM-88318, NASA Ames, Moffett Field, CA, June 1986.
+
+Martin, E.Dale.  "Some Elements of a Theory of Multidimensional
+Complex Variables: Part I. General Theory".  J. Franklin Inst. 326, 5
+(1989), 611-647.
+
+Martin, E.Dale.  "Some Elements of a Theory of Multidimensional
+Complex Variables: Part II.  Expansions of Analytic Functions and
+Application to Fluid Flows".  J. Franklin Inst. 326, 5 (1989),
+649-681.
+
+Misner, C.W., et al.  Gravitation.  W.H.Freeman & Co., San Francisco,
+1973.
+
+Mitchell, E.E.L., & Rogers, A.E.  "Quaternion Parameters in the
+Simulation of a Spinning Rigid Body".  in Simulation: The Dynamic
+Modeling of Ideas and Systems with Computers, ed. John McLeod, P.E.,
+1968.
+
+Mukundan, R.  "Estimation of Quaternion Parameters from Two
+Dimensional Image Moments".  CVGIP 54,4 (July 1992), 345-350.
+
+Muses, C.  "Applied Hypernumbers: Computational Concepts".  Appl.
+Math. & Comput. 3 (1976), 211-226.
+
+Muses, C.  "Hypernumbers II.  Further Concepts and Computational
+Applications".  Appl. Math. & Comput. 4 (1978), 45-66.
+
+Muses, C.  "Hypernumbers and Quantum Field Theory with a Summary of
+Physically Applicable Hypernumber Arithmetics and their Geometries".
+Appl. Math. & Comput. 6 (1980), 63-94.
+
+Neumann, P.M., Stoy, G.A., and Thompson, E.C.  Groups and Geometry.
+Oxford University Press, Oxford, UK, 1994.  (Chapter 16: Complex
+numbers and quaternions.)
+
+Niven, I.  Equations in quaternions.  Amer. Math. Monthly 48 (1941),
+654-661.
+
+Niven, I.  The roots of a quaterion.  Amer. Math. Monthly 49 (1942),
+386-388.
+
+Niven, I.  A note on the number theory of quaternions.  Duke
+Math. J. 13 (1946), 397-400.
+
+Nussbaumer, H.J.  Fast Fourier Transform and Convolution Algorithms,
+2nd. Ed.  Springer-Verlag, Berlin, 1982.
+
+Ore, Oystein.  Number Theory and Its History.  McGraw-Hill, New York,
+1948.
+
+Pall, G.  "On the arithmetic of quaternions".  Trans. Amer. Math. Soc.
+47 (1940), 487-500.
+
+Pall, G.  Quaternions and sums of three squares.  Amer. J. Math. 64
+(1942), 503-513.
+
+Pertici, D.  Trace Theorems for Regular Functions of Several
+Quaternion Parameters.  Forum Math. 3,5 (1991), 461-478.
+
+Pervin, E., & Webb, J.A.  "Quaternions in Computer Vision and
+Robotics".  CMU-CS-82-150, Dept. of Computer Science, Carnegie-Mellon
+U., 1982.
+
+Pizer, A.  On the arithmetic of quaternion algebras I.  Acta Arith. 31
+(1976), no. 1, 61-89.
+
+Pizer, A.  On the arithmetic of quaternion algebras II.  J. Math. Soc.
+Japan 28 (1976), no. 4, 676-688.
+
+Pollak.  The equation t'at=b in a quaternion algebra.  Duke
+Math. J. 27 (1960), 261-271.
+
+Rao, K.N.S.  The Rotation and Lorentz Groups and Their Representations
+for Physicists.  Wiley & Sons., NY, 1988.
+
+Rinehart, R.F.  Elements of a theory of intrinsic functions on
+algebras.  Duke Math. J. 27 (1960), 1-19.
+
+Rodrigues, O.  "Des lois geometriques qui regissent les deplacements
+d'un systeme solide dans l'espace, et de la variation des coordonnees
+provenant de ses deplacements consideres independamment des causes qui
+peuvent les produire."  J. de Mathematiques Pures et Appliquees 5
+(1840), 380-440.
+
+Room, T.G., & Kirkpatrick, P.B.  Miniquaternion Geometry: An
+Introduction to the Study of Projective Planes.  Cambridge U. Press,
+Cambridge, UK, 1971.
+
+Salamin, Eugene.  "Application of Quaternions to Computation with
+Rotations".  Internal Working Paper, Stanford AI Lab., 1979.
+
+Salzer, H.E.  An elementary note on powers of quaternions.
+Amer. Math. Monthly 59 (1952), 298-300.
+
+Schuler, B.  Zur Theorie der regularen Funktionen einer
+Quaternion-variablen, Commentarii Mathematici Helvetici, vol. 10
+(1938), 327-342.
+
+Schwerdtfeger, Hans.  Geometry of Complex Numbers: Circle Geometry,
+Moebius Transformation, Non-Euclidean Geometry.  Dover Publs., NY,
+1962.
+
+Shoemake, K.  "Animating rotation with quaternion curves."  Computer
+Graphics 19,3 (July 1985), 245-254.
+
+Shimizu, H.  On zeta functions of quaternion algebras.  Ann. of
+Math. (2) 81 (1965), 166-193.
+
+Silberstein, L.  "Quaternionic form of relativity".  Phil. Mag. 23
+(1912), 790-809.
+
+Skolem. Th.  "On orthogonally situated points on spheres" (in
+Norwegian).  Norsk. Mat. Tidsskr. 23 (1941), 54-61.
+
+Skolem. Th.  "A relation between the congruence x^2+y^2+z^2+u^2=0 (mod m)
+and the equation x^2+y^2+z^2+u^2=m" (in Norwegian).  Norsk. Mat.
+Tidsskr.  25 (1943), 76-87.
+
+Sommerville, D.M.Y.  An Introduction to the Geometry of N Dimensions.
+Dover Publs., NY 1958.
+
+Sudbery, A.  "Quaternionic analysis".  Math. Proc. Cambridge Phil.
+Soc. 85 (1979), 199-225.
+
+Sylvester, James Joseph.  The Collected Papers of James Joseph
+Sylvester.  Chelsea Publishing Co., New York.
+
+Synge, J.L.  Relativity, the Special Theory.  North-Holland,
+Amsterdam, 1956.
+
+Synge, J.L.  "Quaternions, Lorentz transformations and the
+Conway-Dirac-Eddington matrices".  Comm. Dublin Inst. Adv. Studies,
+Ser. A-21 (1972), 1-67.
+
+Tait, P.G.  An elementary treatise on quaternions, 3rd. Ed.  Cambridge
+U. Press, Camb., 1890.
+
+Taylor, R.H.  "Planning and Execution of Straight Line Manipulator
+Trajectories".  IBM J. R&D 23,4 (July 1979), 424-436.
+
+Vainshtein, B.K.  Modern Crystallography.  Springer, 1981.
+
+Veblen, Oswald.  Projective Geometry, Vol. II.  Ginn & Co., Boston,
+1946.
+
+Vigneras, Marie-France.  Arithmetique des Algebres de Quaternions.
+Springer Lect. Notes in Math. 800, 1980.
+
+Ward, Robert L.  "A Fast Four Squares Algorithm".  June 10, 1992, 7
+pages.  Available from the author rlward1@betelgeuse.orion.ncsc.mil,
+12236 Shadetree Lane, Laurel, MD 20708-2832.  4 squares in
+O((logN)^3logloglogN) -- i.e., faster than factoring or primality
+testing.
+
+Ware, R.  "A note on Quaternion Groups as Galois Group".  Proc. AMS
+108,3 (March 1990), 621-625.
+
+Weyl, H.  The Theory of Groups and Quantum Mechanics, 1931.  Transl.
+by Robertson, H.P., Dover Publs., NY, 1950.
+
+Weyl, H.  Symmetry.  Princeton U. Press, Princeton, NJ, 1952.
+
+Williams, C.S., and Pall, G.  The thirty-nine systems of quaternions
+with a positive norm-form and satisfactory factorability.  Duke
+Math. J. 12 (1945), 527-539.
+
+Wolfram, S.  "Cellular Automaton Fluids 1: Basic Theory".  J. Stat.
+Phys. 45, 3/4 (1986), 471-526.
+
+Wybourne, B.G.  Classical Groups for Physicists.  Wiley, 1974.
+Includes Slansky, R. "Group Theory for Unified Model Building".  Phys.
+Rep. 79 (1981), 1.
+
+Yeshiva College Scripta Mathematica.  A Collection of Papers in memory
+of Sir William Rowan Hamilton, 1945.
+
+Zelinski, D.  Integral sets in quasiquaternion algebras.  Duke
+Math. J. 15 (1948), 595-662.
+
+Zhuang, H., et al.  "Practical Fusion Algorithms for Rotation
+Matrices: A Comparative Study".  J. Robotic Sys. 9,7 (1992), 915-931.
+

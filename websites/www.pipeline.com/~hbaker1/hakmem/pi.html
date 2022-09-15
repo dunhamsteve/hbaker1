@@ -1,0 +1,410 @@
+<html><head>
+<!-- Based on MIT AI Memo 239 "HAKMEM" -->
+<!-- by M. Beeler, R.W. Gosper, and R. Schroeppel, Feb. 29, 1972. -->
+<!-- This html version Copyright (c) 1995 by Henry G. Baker. -->
+<link rev="made" href="mailto:hbaker1@pipeline.com">
+<title>HAKMEM -- PI -- DRAFT, NOT YET PROOFED</title>
+
+</head><body>
+
+Beeler, M., Gosper, R.W., and Schroeppel, R.  <i>HAKMEM</i>.  MIT AI
+Memo 239, Feb. 29, 1972.
+
+Retyped and converted to <i>html</i> ('Web browser format) by
+
+<a href="http://home.pipeline.com/~hbaker1/home.html">Henry Baker,</a>
+
+April, 1995.
+
+<h2>PI</h2>
+
+<a href="flows.html">Previous</a>
+<a href="hakmem.html">Up</a>
+<a href="hacks.html">Next</a>
+
+<a name="item136"></a>
+
+<h3>ITEM 136:  GAUSSIAN INTEGERS (For use by next item.)</h3>
+
+Reference: Hardy and Wright, <i>Theory of Numbers.</i>  The <i>Gaussian integers</i> are x+<i>i</i>y
+where x and y are integers.  Unique factorization holds, except for powers of
+<i>i</i>, and the Gaussian primes are
+
+<ol>
+
+<li>a+b<i>i</i> if a^2+b^2 is prime and</li>
+
+<li>integer primes that = 3 mod 4.</li>
+
+</ol>
+
+If N(x+<i>i</i>y) = x^2+y^2, then N(u v) = N(u) N(v).  If p is prime and not=
+3 mod 4, then p = a^2+b^2 has exactly one solution.  If n = 3 mod 4,
+then n = a^2+b^2 has no solution.<p>
+
+To factor x+<i>i</i>y into Gaussian primes, first factor N(x+<i>i</i>y).
+
+<ol>
+
+<li>If 2 divides N(x+<i>i</i>y), then 1+<i>i</i> and 1-<i>i</i>
+divide x+<i>i</i>y.  Either factor may be used since <i>i</i> (<i>i</i>-1)
+= <i>i</i>+1.</li>
+
+<li>if p = 3 mod 4 divides N(x+<i>i</i>y), then p divides x+<i>i</i>y.</li>
+
+<li>If p = 1 mod 4 divides N(x+<i>i</i>y) and p = a^2+b^2, then
+a+<i>i</i>b or b+<i>i</i>a = <i>i</i> (a-<i>i</i>b) divides
+x+<i>i</i>y.  If both do, then p divides x+<i>i</i>y.</li>
+
+</ol>
+
+<a name="item137"></a>
+
+<h3>ITEM 137 (Salamin): GENERATION OF ARCTANGENT FORMULAS FOR PI</h3>
+
+n1 atan(y1/x1) + n2 atan(y2/x2) + ... = n1 arg(x1+<i>i</i>y1) + n2 arg(x2+<i>i</i>y2) + ...<p>
+
+If each x+<i>i</i>y is factored and the n's chosen so all prime factors except 1+<i>i</i>
+cancel out, the right hand side is a multiple K of <i>pi</i>/4.  Some care is needed
+because of the multiple valuedness of arg.  Then, if K = 0, we get an
+arctangent identity, otherwise we get a <i>pi</i> formula.  In the special case of
+atan(1/x), factorization of x+<i>i</i> is needed.  Then case (B) above can't occur,
+and in case (C), a+<i>i</i>b and a-<i>i</i>b can't both divide x+<i>i</i>.<p>
+
+Example:
+
+<pre>
+  2
+ 8  + 1 = 13 x 5
+
+  2             2
+18  + 1 = 13 x 5
+
+  2             3
+57  + 1 = 13 x 5  x 2
+</pre>
+
+From this we get the factorization
+
+<pre>
+ 8+i = (3+2i) (2-i)
+
+                   2
+18+i = (3-2i) (2-i)  i
+
+                   3
+57+i = (3-2i) (2+i)  (1-i)
+</pre>
+
+Since we only care about the phase, multiplication by a positive real number
+may be ignored below.
+
+<pre>
+     a       b       c         a-b-c      -a-2b+3c      c  b
+(8+i)  (18+i)  (57+i)  = (3+2i)      (2+i)         (1-i)  i
+</pre>
+
+We require a-b-c = 0 and -a-2b+3c = 0, which has the minimal
+non-trivial solution a = 5, b = 2, c = 3.  Then we have
+
+<pre>
+     5       2       3        3  2
+(8+i)  (18+i)  (57+i)  = (1-i)  i
+</pre>
+
+Taking the phase of both sides, we get<p>
+
+<pre>
+5 atan(1/8) + 2 atan(1/18) + 3 atan(1/57) = pi/4.
+</pre>
+
+<i>pi</i> formulas:
+
+<pre>
+pi/4 = atan(1/2) + atan(1/3)
+pi/4 = 2 atan(1/3) + atan(1/7)
+pi/4 = 4 atan(1/5) - atan(1/239)
+pi/4 = 2 atan(1/4) + atan(1/7) + 2 atan(1/13)
+pi/4 = 3 atan(1/4) + atan(1/13) - atan(1/38)
+pi/4 = 4 atan(1/5) - atan(1/70) + atan(1/99)
+pi/4 = 5 atan(1/8) + 2 atan(1/18) + 3 atan(1/57)
+pi/2 = 7 atan(1/4) - 5 atan(1/32) + 3 atan(1/132) - 4 atan(1/378)
+</pre>
+
+This last angle has been measured against the International Standard
+Platinum-Iridium Right angle and certified adequate for any purpose of the U.S.
+Government, when used in conjunction with a conscientiously applied program of
+oral hygiene and regular professional care.
+
+<pre>
+pi/4 = 7 atan(1/9) + atan(1/32) - 2 atan(1/132) - 2 atan(1/378)
+pi/4 = 7 atan(1/13) + 8 atan(1/32) - 2 atan(1/132) + 5 atan(1/378)
+</pre>
+
+There are many easily found arctangent identities.  Some are:
+
+<pre>
+  atan(1/31) = atan(1/57) + atan(1/68)
+             = atan(1/44) + atan(1/105)
+  atan(1/50) = atan(1/91) + atan(1/111)
+ atan(1/239) = atan(1/70) - atan(1/99)
+             = atan(1/408) + atan(1/577)
+atan(1/2441) = atan(1/1164) - atan(1/2225)
+             = atan(1/4774) + atan(1/4995)
+  atan(1/32) = atan(1/38) + atan(1/132) - atan(1/378)
+             = 2 atan(1/73) + atan(1/239) - atan(1/2943)
+</pre>
+
+Infinite sets of arctangent identities:
+
+<pre>
+     1          1            1
+atan(-) - atan(---) = atan(------)
+     n         n+1          2
+                           n +n+1
+</pre>
+
+Let x(0) = 1, y(0) = 0, x(n) = x(n-1) + 2 y(n-1), y(n) = x(n-1) + y(n-1).<p>
+
+x(n)/y(n) are the continued fraction approximants to sqrt(2).<p>
+
+<pre>
+       1             1              1
+atan(-----) + atan(-----) = atan(-------)
+     y(2n)         x(2n)         x(2n-1)
+
+       1             1              1
+atan(-----) - atan(-----) = atan(-------)
+     y(2n)         x(2n)         x(2n+1)
+</pre>
+
+<a name="item138"></a>
+
+<h3>ITEM 138 (Gosper):</h3>
+
+<i>pi</i> = 28 arctan (3/79) + 20 arctan (29/278)<p>
+
+<i>pi</i> = 48 arctan (3/79) + 20 arctan (1459/22049)<p>
+
+Which isn't too interesting except that it means that
+
+<pre>
+       48              20
+(79+3i)   (22049+1457i)
+</pre>
+
+is a negative real number.
+
+<a name="item139"></a>
+
+<h3>ITEM 139 (Ramanujan):</h3>
+
+<pre>
+ 4
+ -- =
+ pi
+
+ inf
+ ====     N
+ \    (-1)  (1123 + 21460 N) (1 3 5 ... (2N-1)) (1 3 5 ... (4N-1))
+  >   ------------------------------------------------------------
+ /                           2N+1   N   3
+ ====                     882     32  N!
+ N=0
+</pre>
+
+This series gives about 6 decimal places accuracy per term.
+
+<pre>
+     1
+ ---------- =
+ sqrt(8) pi
+
+ inf
+ ====
+ \     (1103 + 26390 N) (1 3 5 ... (2N-1)) (1 3 5 ... (4N-1))
+  >    ------------------------------------------------------
+ /                        4N+2   N   3
+ ====                   99     32  N!
+ N=0
+</pre>
+
+This series gives about 8 decimal places accuracy per term.  For other
+<i>pi</i> series, see Ramanujan's paper "Modular Equations and
+Approximations to Pi" in <i>Quarterly Journal of Pure and Applied
+Mathematics,</i> vol. 45, page 350 (1914).  For more goodies, see
+"Collected Papers of Srinivasa Ramanujan", Cambridge U.  Press (1927).
+
+<a name="item140"></a>
+
+<h3>ITEM 140:</h3>
+
+Counting the initial 3 as the zeroth, the 431st denominator in the
+regular continued fraction for <i>pi</i> is 20776.  (Choong, Daykin
+&amp; Rathbone, <i>Math. of Computation</i> 25 (1971) p. 387).<p>
+
+(Gosper) In the first 26491 terms of <i>pi,</i> the only other 5 digit
+terms are the 15543rd = 19055 and the 23398th = 19308.  (Computed from
+35570 terms of the (nonregular) fraction for 4 arctan 1.)
+
+<a name="item141"></a>
+
+<h3>ITEM 141:</h3>
+
+The fraction part of 10^760 <i>pi</i> begins: .49999998...
+
+<a name="item142"></a>
+
+<h3>ITEM 142 (Salamin):</h3>
+
+Some super-fast convergents to <i>pi</i> if one already has a super-fast computation
+of trig functions.<p>
+
+X approx <i>pi</i>:
+
+<ul>
+<li>X &lt;- X + sin X, epsilon &lt;- epsilon^3/6</li>
+
+<li>X &lt;- X - tan X, epsilon &lt;- -epsilon^3/3</li>
+
+</ul>
+
+X approx pi/2:
+
+<ul>
+<li>X &lt;- X + cos X, epsilon &lt;- epsilon^3/6</li>
+
+<li>X &lt;- X + cot X, epsilon &lt;- -epsilon^3/3</li>
+
+</ul>
+
+<a name="item143"></a>
+
+<h3>ITEM 143 (Salamin):</h3>
+
+Computation of elliptic integrals, log, and <i>pi</i>.<p>
+
+REFERENCES
+
+<ul>
+
+<li>Whittaker &amp; Watson, <i>Modern Analysis,</i> chap. 22.</li>
+
+<li>Abramowitz &amp; Stegun, <i>Handbook of Mathematical Functions,</i> sect. 17.3, 17.6</li>
+
+</ul>
+
+<h4>1.  ELLIPTIC INTEGRALS</h4>
+
+Define elliptic integrals:
+
+<pre>
+         1
+        /
+        [              1
+ K(m) = I  ------------------------- dt
+        ]             2          2
+        /  sqrt((1 - t ) (1 - m t ))
+         0
+
+ K'(m) = K(1 - m).<p>
+</pre>
+
+If A(0) and B(0) are given, and
+
+<ul>
+
+<li>A(n+1) = <i>arithmetic</i> mean of A(n) and B(n)</li>
+
+<li>B(n+1) = <i>geometric</i> mean of A(n) and B(n)</li>
+
+</ul>
+
+then define<p>
+
+AGM(A(0),B(0)) = lim A(n) = lim B(n)<p>
+
+This is called the <i>arithmetic-geometric</i> mean.<p>
+
+Quadratic convergence rate:
+
+<pre>
+                             2
+                  (A(n)-B(n))
+A(n+1) - B(n+1) = -----------
+                    8A(n+1)
+</pre>
+
+It is known that
+
+<pre>
+    2              pi
+K'(x ) AGM(1, x) = --    [see A&amp;S]
+                   2
+</pre>
+
+This gives a super fast method of computing elliptic integrals.  It is
+easy to compute AGM(1, x) for x in the complex plane cut from zero to
+infinity along the negative real axis.  So K'(m) can be computed for
+-2<i>pi</i> &lt; arg(m) &lt; 2<i>pi</i>, which covers the complex
+m-plane twice.  Handling the phase when taking square roots will
+permit exploration of more of the Riemann surface.<p>
+
+<h4>2.  LOGARITHMS</h4>
+
+For small m,<p>
+
+K(m) = (pi/2) (1 + m/4 + O(m^2))<p>
+
+e^-pi(K'(m)/K(m)) = (m/16) (1 + m/2 + O(m^2))<p>
+
+Solve for K'(m) and let m = 16/x^2.<p>
+
+K'(16/x^2) = log x + (4/x^2) (log x - 1) + O(log x/x^4).<p>
+
+For x sufficiently large,<p>
+
+log x = K'(16/x^2) = pi/(2 AGM(1, 4/x)).<p>
+
+Requiring a given number of bits accuracy in log x is equivalent to requiring<p>
+
+|K'(16/x^2) - log x)/log x| &lt; <i>epsilon</i><p>
+
+this becomes<p>
+
+|(4/x^2) (1 - 1/log x)| &lt; |4/x^2| &lt; <i>epsilon</i><p>
+
+|x| &gt; 2/sqrt(<i>epsilon</i>).<p>
+
+x can be complex.  If |x| is not too close to 1, x can be brought into range by
+reciprocating or repeated squaring.<p>
+
+<h4>3.  PI</h4>
+
+let x = <i>e</i>^n, then<p>
+
+<i>pi</i> = 2 n AGM(1, 4 e^-n).<p>
+
+Suppose <i>epsilon</i> = 10 to the minus a billion.<p>
+
+Than the above equation for <i>pi</i> is valid when n &gt; 1.15 billion.<p>
+
+<i>e</i>^-n is calculated by starting with 1/<i>e</i> and squaring k times.<p>
+
+Thus n = 2^k.  2^30 = 1.07 billion and 2^31 = 2.15 billion, so k = 30 gives
+0.93 billion places accuracy and k = 31 gives 1.86 billion places.
+
+<a name="item144"></a>
+
+<h3>ITEM 144 (Schroeppel):</h3>
+
+In the above, instead of x = <i>e</i>^n, use x = 2^n and x =
+<i>e</i>*2^n.  Then simultaneous equations can be solve to give both
+<i>pi</i> and log 2.  This avoids having to square <i>e</i>, but
+requires two AGM's, and therefore takes longer.<p>
+
+<a href="flows.html">Previous</a>
+<a href="hakmem.html">Up</a>
+<a href="hacks.html">Next</a>
+
+</body></html>

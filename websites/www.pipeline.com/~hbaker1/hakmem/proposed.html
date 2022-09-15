@@ -1,0 +1,276 @@
+<html><head>
+<!-- Based on MIT AI Memo 239 "HAKMEM" -->
+<!-- by M. Beeler, R.W. Gosper, and R. Schroeppel, Feb. 29, 1972. -->
+<!-- This html version Copyright (c) 1995 by Henry G. Baker. -->
+<link rev="made" href="mailto:hbaker1@pipeline.com">
+<title>HAKMEM -- PROPOSED COMPUTER PROGRAMS -- DRAFT, NOT YET PROOFED</title>
+
+</head><body>
+
+Beeler, M., Gosper, R.W., and Schroeppel, R.  <i>HAKMEM</i>.  MIT AI
+Memo 239, Feb. 29, 1972.
+
+Retyped and converted to <i>html</i> ('Web browser format) by
+
+<a href="http://home.pipeline.com/~hbaker1/home.html">Henry Baker,</a>
+
+April, 1995.
+
+<h2>PROPOSED COMPUTER PROGRAMS, IN ORDER OF INCREASING RUNNING TIME (Schroeppel)</h2>
+
+<a href="games.html">Previous</a>
+<a href="hakmem.html">Up</a>
+<a href="cf.html">Next</a>
+
+<a name="item77"></a>
+
+<h3>PROBLEM 77:</h3>
+
+Count the <a href="polyominos.html">polyominos</a> up to, say, order
+20.  From <i>Applied Combinatorial Mathematics,</i> pages 201 and 213:
+
+<tt><pre>
+ORDER   E. H.   NOT ENCLOSING HOLES
+1       1       1
+2       1       1
+3       2       2
+4       5       5
+5       12      12
+6       35      35
+7       108     107
+8       369     363
+9       1285    1248
+10      4655    4271
+11      17073
+12      63600
+13      238591
+14      901971
+15      3426576
+16      13079255
+17      50107911
+18      192622052
+</pre></tt>
+
+The order 13 through 18 data is from <i>Computers in Number
+Theory,</i> 1971, Atkin &amp; Birch, ed., Academic Press, which has
+not been independently checked.  It also gives bounds 3.72 &lt; limit
+as N goes to infinity of Nth root of number of polyominos of order N
+(including those enclosing holes) &lt; 4.5.  Also an asymptotic
+formula for the number of polyominos:<p>
+
+<pre>
+    N     -.98+-.02
+4.06  * (N         ) * constant.
+</pre>
+
+Polyominos may be constructed in 3-space (Soma-like) pieces) or higher
+dimensions; a curious thought is into how many dimensions does the
+average, say, 20-omino extend?
+
+<a name="item78"></a>
+
+<h3>PROBLEM 78:</h3>
+
+Solve "minichess", chess played on a 5 x 5 board where each side has lost the
+king's rook, knight, bishop, and 3 pawns, and the opponents are shoved closer
+together (1 empty row intervening, no double pawn moves).
+
+<a name="item79"></a>
+
+<h3>PROBLEM 79:</h3>
+
+Solve the tiger puzzle, a sliding block puzzle mentioned in
+<i>Scientific American</i> February 1964, pages 122-130.
+
+<a name="item80"></a>
+
+<h3>PROBLEM 80:</h3>
+
+Find smallest <i>squared square</i> (a square composed entirely of
+smaller, unequal squares).  Smallest known has 24 small squares
+(Martin Gardner's <i>Scientific American</i> Book, vol. 2, page 206).
+See also the following two illustrations.  Recently, someone
+constructed a squared rectangle with sides in the ratio 1:2.  It
+contains 1353 squares.<p>
+
+<a href="Figure3a.html">Figure 3(a).</a> The smallest known (in 1961,
+and yet today as far as we know) squared square.  Reprinted by special
+permission from Martin Gardner, <i>The Second Scientific American Book
+of Mathematical Puzzles and Diversions,</i> 1961, Simon and Schuster,
+New York, New York.<p>
+
+<a href="Figure3b.html">Figure 3(b).</a> A squared rectangle found by
+Schroeppel using "String Handling Interpretive Translator", a string
+processing language written by Samson.  Sides are 884808 = 2^3 * 3^2 *
+12289 and 752225 = 5^2 * 30089; semiperimeter is 1637033 = 419 * 3907.
+this has 28 squares, which is more than most published squared
+rectangles.
+
+<a name="item81"></a>
+
+<h3>PROBLEM 81:</h3>
+
+Count the magic squares of order 5.  There are about 320 million, not
+counting rotations and reflections.
+
+<a name="item82"></a>
+
+<h3>PROBLEM 82:</h3>
+
+List (that is, count) the semigroups of 7 elements; also, the groups
+of 256 elements (estimated: 11000).
+
+<a name="item83"></a>
+
+<h3>PROBLEM 83 (Gosper):</h3>
+
+Compute the integer-valued step function F(R), 0&lt;R&lt;1, the number of
+circles of radius R which fit into a unit circle.  F skips the value 6, and
+probably 18.  How many and how big are the gaps in the range of F?  What
+happens in n dimensions (including n = infinity)?
+
+<a name="item84"></a>
+
+<h3>PROBLEM 84:</h3>
+
+Solve pentominos on an 8 x 8 checkerboard game(s).<p>
+
+Rules:
+
+<ol>
+
+<li>The checkerboard is for aid in orienting only; black and white are the
+same.</li>
+
+<li>The two players may each have a full complement of 12 pentominos, or they may
+"choose up" their half of one set.</li>
+
+<li>Players alternate placing pentominos on the board.  Pentominos must not
+overlap.</li>
+
+<li>The last player to place a pentomino wins.</li>
+
+</ol>
+
+<a name="item85"></a>
+
+<h3>PROBLEM 85:</h3>
+
+With regard to dissection theorems, the following are known: a
+triangle into a square, 4 pieces (proven minimal); a pentagon into a
+square, 6 pieces (best known) etc.  ("Geometric Dissections" by Harry
+Lindgreen, <i>Scientific American</i> November 1961).  A program can
+probably check the known dissections for minimality!  See following
+illustration, for example.<p>
+
+<a href="Figure4.html">Figure 4.</a> A surprising square &lt;--&gt;
+hexagon dissection, adapted from page 164 of the November, 1961 issue
+of <i>Scientific American,</i> which see for further diagrams and
+discussion.
+
+<a name="item86"></a>
+
+<h3>PROBLEM 86:</h3>
+
+Find the number of <i>domino coverings</i> for various objects.  for
+example, an asymptotic formula is known for rectangles; also, on a
+square board, if side mod 4 = 0, coverings appears to be a square; on
+a square board, if side mode 4 = 2, coverings appears to be twice a
+square.  See <i>Applied Comb. Math.,</i> chap. 4.4-4.6, p. 105-121.
+Article by E. W. Montroll.
+
+<a name="item87"></a>
+
+<h3>PROBLEM 87:</h3>
+
+Analyze <i>giveaway chess,</i> which is as follows:
+
+<ol>
+
+<li>captures must be made, although you can choose which capture to make</li>
+
+<li>pawns must be promoted to queens</li>
+
+<li>king is just another piece</li>
+
+<li>player to give away all pieces first wins</li>
+
+</ol>
+
+<a name="item88"></a>
+
+<h3>PROBLEM 88:</h3>
+
+Analyze "escalation chess", where white gets 1 move, black 2, white 3, etc.  If
+a player is in check, he must get out of check on his first move.  He may not
+move into check.  Taking your opponent's king is verboten, but you can pile up
+triple checks, etc.  A player is checkmated if he can't get his king out of
+check on his first move.
+
+<a name="item89"></a>
+
+<h3>PROBLEM 89:</h3>
+
+In the game "4 pawns", black has 4 pawns, a king, and two moves to white's one.
+Prove the pawns win.  The object in this game is to capture the king.  Black is
+allowed to move through check.
+
+<a name="item90"></a>
+
+<h3>PROBLEM 90:</h3>
+
+Solve Scarne's game, "Teeko", which is played on a 5 x 5 board by two players
+who alternate placing, one at a time, their 4 counters each, after which the
+counters are moved around (including diagonally).  4 in a row or square wins.
+
+<a name="item91"></a>
+
+<h3>PROBLEM 91:</h3>
+
+Solve "five-in-a-row" on an infinite board.
+
+<a name="item92"></a>
+
+<h3>PROBLEM 92:</h3>
+
+Solve <i>Tic-Tac-Toe</i> on a 4 x 4 x 4 board.  The consensus is a win
+for the first player, but it's unproven.  The first player wins on 4 x
+4 x 4 x 4.
+
+<a name="item93"></a>
+
+<h3>PROBLEM 93:</h3>
+
+Solve <i>checkers.</i>  There are about 10^12 positions.  (Computing time currently
+estimated (Schroeppel) at 1 year).<p>
+
+Programs below this line are considered unfeasible.
+
+<a name="item94"></a>
+
+<h3>PROBLEM 94:</h3>
+
+Solve <i>Hex</i> on large boards (11 to 23 on a side); through order 7
+have been analyzed by hand.  There is a proof that in games where
+having an extra move can never (repeat: never) hurt you, the worst the
+first player can be forced to do is draw.  Thus, with <i>Hex,</i> in
+which there is no draw, the first player can always win.
+
+<a name="item95"></a>
+
+<h3>PROBLEM 95:</h3>
+
+Solve <i>chess.</i> There are about 10^40 possible positions; in most
+of them, one side is hopelessly lost.
+
+<a name="item96"></a>
+
+<h3>PROBLEM 96:</h3>
+
+Solve <i>Go.</i>  About 10^170 positions.<p>
+
+<a href="games.html">Previous</a>
+<a href="hakmem.html">Up</a>
+<a href="cf.html">Next</a>
+
+</body></html>

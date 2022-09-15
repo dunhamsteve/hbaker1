@@ -1,0 +1,173 @@
+<html><head>
+<!-- Based on MIT AI Memo 239 "HAKMEM" -->
+<!-- by M. Beeler, R.W. Gosper, and R. Schroeppel, Feb. 29, 1972. -->
+<!-- This html version Copyright (c) 1995 by Henry G. Baker. -->
+<link rev="made" href="mailto:hbaker1@pipeline.com">
+<title>HAKMEM -- BOOLEAN ALGEBRA -- DRAFT, NOT YET PROOFED</title>
+
+</head><body>
+
+Beeler, M., Gosper, R.W., and Schroeppel, R.  <i>HAKMEM</i>.  MIT AI
+Memo 239, Feb. 29, 1972.
+
+Retyped and converted to <i>html</i> ('Web browser format) by
+
+<a href="http://home.pipeline.com/~hbaker1/home.html">Henry Baker,</a>
+
+April, 1995.
+
+<h2>BOOLEAN ALGEBRA</h2>
+
+<a href="recurrence.html">Previous</a>
+<a href="hakmem.html">Up</a>
+<a href="random.html">Next</a>
+
+<a name="item17"></a>
+
+<h3>ITEM 17 (Schroeppel):</h3>
+
+Problem: synthesize a given logic function or set of functions using the
+minimum number of two-input AND gates.  NOT gates are assumed free.  Feedback
+is not allowed.  The given functions are allowed to have X (don't care) entries
+for some values of the variables.  P XOR Q requires three AND gates.
+MAJORITY(P,Q,R) requires 4 AND gates.  "PQRS is a prime number" seems to need
+seven gates.  The hope is that the best Boolean networks for functions might
+lead to the best algorithms.
+
+<a name="item18"></a>
+
+<h3>ITEM 18 (Speciner):</h3>
+
+<tt><pre>
+        Number of monotonic increasing Boolean
+N       functions of N variables
+-       --------------------------------------
+0       2       (T, F)
+1       3       (T, F, P)
+2       6       (T, F, P, Q, P AND Q, P OR Q)
+3       20
+4       168 = 8 * 3 * 7
+5       7581 = 3 * 7 * 19^2
+6       7,828,354 = 2 * 359 * 10903  (Ouch!)
+</pre></tt>
+
+N from 0 to 4 suggest that a formula should exist, but 5 and 6 are
+discouraging.  A difficult generalization: Given two partial orderings, find
+the number of maps from one to the other that are compatible with the ordering.
+A related puzzle: A partition of N is a finite string of non-increasing
+integers that add up to N.  Thus 7 3 3 2 1 1 1 is a partition of 18.  Sometimes
+an infinite string of zeros is extended to the right, filling a half-line.  The
+number of partitions of N, P(N), is a fairly well understood function.<p>
+
+The generating function is
+
+<pre>
+     infinity
+      ======
+      \              n           1
+       >       P(n) X  = ------------------
+      /                  infinity
+      ======              /===\
+      n = 0                ! !           k
+                           ! !     (1 - X )
+                           ! !
+                          k = 1
+</pre>
+
+A <i>planar</i> partition is like a partition, but the entries are in
+a two-dimensional array (the first quadrant) instead of a string.
+Entries must be non-increasing in both the x and y directions.  A
+planar partition of 34 would be:
+
+<tt><pre>
+1
+3 1
+3 2 2 1
+7 6 4 3 1
+</pre></tt>
+
+Zeros fill out the unused portion of the quadrant.  The number of planar
+partitions of n, PL(n), is not a very well understood function.<p>
+
+The generating function is
+
+<pre>
+    infinity
+     ======
+     \               n           1
+      >       PL(n) X  = -------------------
+     /                   infinity
+     ======               /===\
+     n = 0                 ! !           k k
+                           ! !     (1 - X )
+                           ! !
+                          k = 1
+</pre>
+
+No simple proof of the generating function is known.  Similarly, one can define
+cubic partitions with entries in the first octant, but no one has been able to
+discover the generating function.  Some counts for cubic partitions and a
+discussion appear in Knuth, Math. Comp. 1970 or so.
+
+<a name="item19"></a>
+
+<h3>ITEM 19 (Schroeppel):</h3>
+
+The 2-NOTs problem: Synthesize a black box which computes NOT-A, NOT-B,
+and NOT-C from A, B, and C, using an arbitrary number of ANDs and ORs,
+but only 2 NOTs.<p>
+
+Clue: (Stop! Perhaps you would like to work on this awhile.)<p>
+
+Lemma:  Functions synthesizable with one NOT are those where the image of any
+upward path (through variable space) has at most one decrease (that is, from T
+to F).
+
+<a name="item20"></a>
+
+<h3>ITEM 20 (Roger Banks):</h3>
+
+A Venn diagram for N variables where the shape representing each variable is
+convex can be made by superimposing successive M-gons
+(M = 2, 4, 8, ...), every other side of which has been pushed out to the
+circumscribing circle.  If you object to superimposed boundaries, you may
+shrink the nested M-gons
+a very slight amount which depends on N.
+
+<a name="item21"></a>
+
+<h3>ITEM 21 (Schroeppel &amp; Waltz):</h3>
+
+PROBLEM: Cover the Execuport character raster completely with the minimum
+number of characters.  The three characters I, H and # works.  Using capital
+letters only, the five characters B, I, M, V and X is a minimal solution.  Find
+a general method of solving such problems.
+
+<a name="item22"></a>
+
+<h3>ITEM 22 (Gosper):</h3>
+
+PROBLEM: Given several binary numbers, how can one find a mask with a minimal
+number of 1 bits, which when AND-ed
+with each of the original numbers preserves their distinctness from each other?
+What about permuting bit positions for minimum numerical spread, then taking
+the low several bits?
+
+<a name="item23"></a>
+
+<h3>ITEM 23 (Schroeppel):</h3>
+
+(A AND B) + (A OR B) = A + B = (A XOR B) + 2 (A AND B).
+
+<a name="item24"></a>
+
+<h3>ITEM 24 (Minsky):</h3>
+
+There exists a convex figure n congruent copies of which, for any n, form a
+Venn diagram of 2^n regions.<p>
+
+<a href="recurrence.html">Previous</a>
+<a href="hakmem.html">Up</a>
+<a href="random.html">Next</a>
+
+</body></html>

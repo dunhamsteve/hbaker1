@@ -1,0 +1,250 @@
+<html><head>
+<!-- Based on MIT AI Memo 239 "HAKMEM" -->
+<!-- by M. Beeler, R.W. Gosper, and R. Schroeppel, Feb. 29, 1972. -->
+<!-- This html version Copyright (c) 1995 by Henry G. Baker. -->
+<link rev="made" href="mailto:hbaker1@pipeline.com">
+<title>HAKMEM -- FLOWS AND ITERATED FUNCTIONS -- DRAFT, NOT YET PROOFED</title>
+
+</head><body>
+
+Beeler, M., Gosper, R.W., and Schroeppel, R.  <i>HAKMEM</i>.  MIT AI
+Memo 239, Feb. 29, 1972.
+
+Retyped and converted to <i>html</i> ('Web browser format) by
+
+<a href="http://home.pipeline.com/~hbaker1/home.html">Henry Baker,</a>
+
+April, 1995.
+
+<h2>FLOWS AND ITERATED FUNCTIONS</h2>
+
+<a href="series.html">Previous</a>
+<a href="hakmem.html">Up</a>
+<a href="pi.html">Next</a>
+
+<a name="item126"></a>
+
+<h3>ITEM 126 (Schroeppel):</h3>
+
+An analytic flow for Newton's method square root:
+
+<pre>
+                2
+               X  + K
+Define F(X) by ------ ; then
+                2 X
+
+                                         N                 N
+                                        2                 2
+                           (X + sqrt(K))   + (X - sqrt(K))
+F(F(F(...(X)))) = sqrt(k)  ---------------------------------
+                                         N                 N
+                                        2                 2
+                           (X + sqrt(K))   - (X - sqrt(K))
+
+which = sqrt(K) (coth 2  (arccoth X/sqrt(K))).
+</pre>
+
+<a name="item127"></a>
+
+<h3>ITEM 127 (Schroeppel):</h3>
+
+P and Q are polynomials in X; when does P(Q(X)) = Q(P(X)) ?  (That is,
+P composed with Q = Q composed with P.)<p>
+
+Known solutions are:
+
+<ol>
+
+<li>Various linear things.</li>
+
+<li>X to different powers, sometimes multiplied by roots of 1.</li>
+
+<li>P and Q are each another polynomial R composed with itself different numbers
+of times.</li>
+
+<li>Solutions arising out of the flow of X^2 - 2, as follows:<p>
+
+suppose X = Y + 1/Y, then Y^N + Y^-N
+can be written as a polynomial in X.<p>
+
+For example, P = the expression for squares = X^2 - 2 (N = 2) and Q =
+the expression for cubes = X^3 - 3 X (N = 3)</li>
+
+<li>Replace X by Y-A,
+then add A to the original constants in both P and Q.  For example, P = X^2 and
+Q = X^3, then P = 1 + (Y-1)^2 = Y^2 - 2 Y + 2 and Q = 1 + (Y-1)^3,
+then P(Q) = 1 + (Y-1)^6 = Q(P).  Similarly, replacing X with A Y + B works.</li>
+
+<li>There are no more through degrees 3 and 4 (checked with Mathlab); but are
+there any more at all?</li>
+
+</ol>
+
+<a name="item128"></a>
+
+<h3>ITEM 128 (Schroeppel):</h3>
+
+<a href="Figure7.html">Figure 7.</a>
+
+A map of the process n-&gt; binary string -&gt; interpret as radix -2,
+iterated.  To convert a number to base -2:<p>
+
+(n + ...101010) XOR (...101010) (reversible).
+
+<a name="item129"></a>
+
+<h3>ITEM 129 (Schroeppel):</h3>
+
+PROBLEM: Given F(X) as a power series in X with constant term = 0, write the
+flow power series.
+
+<pre>
+FLOW sub ZERO = X
+FLOW sub ONE = F(X)
+FLOW sub TWO = F(F(X))
+etc.
+</pre>
+
+NOTE (Gosper): If we remove the restriction that F has a power series, the
+functions that satisfy an equation of the form F(F(X)) = sin X can be put into
+one-to-one correspondence with the set of all functions.
+
+<a name="item130"></a>
+
+<h3>ITEM 130 (Salamin):</h3>
+
+If F(X) = X^N, the P-th
+flow is X^N^P, which has a branch point if N^P is non-integer.  Under the
+hypotheses of the previous problem, it is possible to find the power series
+coefficients for P rational, but there is no guarantee the series will
+converge.<p>
+
+PROBLEM: Is the flow interpolation unique?  If it is not, what extra conditions
+are necessary to make it unique for natural cases like X^N ?
+
+<a name="item131"></a>
+
+<h3>ITEM 131 (Schroeppel):</h3>
+
+Taking any two numbers A and B, finding their arithmetic mean and their
+geometric mean, and using these means as a new A and B, this process, when
+repeated, will approach a limit which can be expressed in terms of elliptic
+integrals.  (See PI section.)
+
+<a name="item132"></a>
+
+<h3>ITEM 132 (Gosper): LOOP DETECTOR</h3>
+
+If a function F maps a finite set into itself, then its flow must
+always be cyclic.  If F is one step of a pseudorandom number
+generator, or the CDR operation on a self referent list, or any
+function where it is easy to supply former values as arguments, then
+there are easy ways to detect looping of the flow (Knuth, <i>The Art
+of Computer Programming, volume 2, Seminumerical Algorithms,</i> sec.
+3.1, prob. 7, page 7).  If, however, the process or iterated
+application of the function is inexorable, (i.e., there is no easy way
+to switch arguments to the function), then the following algorithm
+will detect repetition before the third occurrence of any value.<p>
+
+Set aside a table TAB(J), 0 &lt;= J &lt;= log 2 (Largest possible period).  Let
+C = the number of time F has been applied, initially 0.  Compare each new value
+of F for equality with those table entries which contain old values of F.
+These will be the first S entries, where S is the number of times C can be
+right shifted before becoming 0.  No match means F hasn't been looping very
+long, so increment C and store this latest value of F into TAB(J), where J is
+the number of trailing zero bits in the binary of C.  (The first 16 values of J
+are: 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 4, ...; Eric Jensen calls
+this the RULER function.)  A match with entry E means the loop length is 1 more
+than the low E+2 bits of C - 2^(E+1).
+
+<a name="item133"></a>
+
+<h3>ITEM 133 (Schroeppel, Gosper, Henneman &amp; Banks) (from Dana Scott?):</h3>
+
+The "3N+1 problem" is iteratively replacing N by N/2 if N is even or by 3 N + 1
+if N is odd.  Known loops for N to fall into are:
+
+<ol>
+
+<li>1 the zero loop, 0 -&gt; 0</li>
+
+<li>2 a positive loop, 4 -&gt; 2 -&gt; 1 -&gt; 4</li>
+
+<li>3 three negative loops
+
+(equivalent to the 3N-1 problem with positive N)
+
+<ul>
+
+<li>-2 -&gt; -1 -&gt; -2</li>
+
+<li>-5 -&gt; -7 -&gt; -10 -&gt; -5</li>
+
+<li>-17 -&gt; -25 -&gt; -37 -&gt; -55 -&gt; -82 -&gt; -41 -&gt; -61 -&gt; -91 -&gt; -136 -&gt; -68 -&gt; -34 -&gt; -17</li>
+
+</ul></li>
+
+</ol>
+
+In the range -10^8 &lt; N &lt; 6 * 10^7, all N fall into the above loops.  Are there any other
+loops?  Does N ever diverge to infinity?
+
+<a name="item134"></a>
+
+<h3>ITEM 134 (Schroeppel, Gosper):</h3>
+
+Let N be iteratively replaced by (FLATSIZE (LONGHAND N)), the number
+of letters in N written longhand (e.g., 69 -&gt; SIXTY NINE -&gt; 9
+(10 counting blanks)).  The process invariably loops at 4 = FOUR.
+
+<a name="item135"></a>
+
+<h3>ITEM 135 (Gosper): The "C" Curve</h3>
+
+A brilliant archeologist is photographing a strange drawing on the wall of a
+cave.  He holds the camera upright for some shots, moves it, and turns it 90
+degrees for the rest.  When he sees is prints he is amazed to find one of them
+apparently taken with the camera turned 45 degrees.  After a moment's
+reflection, he correctly concludes that it is merely a double exposure.<p>
+
+What was the drawing?<p>
+
+Answer: It is a cousin to both the dragon and snowflake curves (and arose as a
+bug in a spacefilling curve).  It can be constructed as follows.  Start with a
+line segment.  Replace it with the two legs of the isosceles right triangle of
+which it is the hypotenuse.  Repeat this for the two new segments, always
+bulging outward in the same direction.  We now have four segments forming half
+a square, with the middle two segments collinear.  Replacing these four
+segments with eight and then sixteen, we find the middle two segments
+superimposed.  As the process continues, the curve crosses itself more and more
+often, eventually taking on the shape of a wildly curly letter C which forms
+the envelope of a myriad of epicyclic octagons.<p>
+
+A faster way to approach the same limiting curve is to substitute the curve
+itself for each of its 2^2^n segments, starting with a 90 degree "&lt;".<p>
+
+Yet another way to construct it is to iteratively connect opposite ends of two
+copies at a 90 degree angle.  (The archeologist did this with his double
+exposure.)  If we reduce the scale by sqrt(2) each time, the distance
+between the endpoints stays the same.  If the initial line segment is red and
+there is some other blue shape elsewhere in the picture, the iteration will
+simultaneously proliferate and shrink the blue shapes, until they are all piled
+up along the red "C".  Thus, no matter what you start with, you eventually get
+something that looks like the "C" curve.<p>
+
+There are other pictures besides the C curve which are preserved by this
+process, but they are of infinite size.  You can get them by starting with
+anything and running the iteration backwards as well as forwards, superimposing
+all the results.  A backward step consists of rotating the two copies in
+directions opposite those in the forward step and stretching by sqrt(2)
+instead of shrinking.  David silver has sketched an arrangement of mirrors
+which might do this to a real scene.<p>
+
+<a href="Figure8.html">Figure 8.</a>  Two orders of the "C" curve.<p>
+
+<a href="series.html">Previous</a>
+<a href="hakmem.html">Up</a>
+<a href="pi.html">Next</a>
+
+</body></html>

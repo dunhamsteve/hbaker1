@@ -1,0 +1,1855 @@
+<html><head>
+<!-- This document was created from RTF source by rtftohtml version 2.7.5 -->
+
+<title>A Decision Procedure for Common Lisp's SUBTYPEP Predicate</title>
+
+<link rev="made" href="mailto:hbaker1@pipeline.com">
+
+<h1>A Decision Procedure for Common Lisp's SUBTYPEP Predicate</h1>
+
+<address>
+<a href="home.html">Henry G. Baker</a>
+</address>
+
+<address>
+Nimble Computer Corporation, 16231 Meadow Ridge Way, Encino, California 91436<br>
+(818) 986-1436  (818) 986-1360 (FAX)
+</address>
+
+<address>
+This work was supported in part by the U.S. Department of Energy Contract No. DE-AC03-88ER80663.<br>
+</address>
+
+<address>
+A later version of this paper appeared in <i>Lisp and Symbolic Computation 5</i>, 3 (Sept 1992), 157-190.
+</address>
+
+<p><b>Abstract</b><p>
+
+<i>Common Lisp</i> [CL84]
+
+<a href="http://www.cs.cmu.edu:8001/Web/Groups/AI/html/cltl/cltl2.html">[CL90]</a>
+
+includes a dynamic datatype system of moderate
+complexity, as well as predicates for checking the types of language objects.
+Additionally, an interesting predicate of two "type
+specifiers"--<tt>SUBTYPEP</tt>--is included in the language.  This
+<tt>subtypep</tt> predicate provides a mechanism with which to query the Common
+Lisp type system regarding containment relations among the various built-in and
+user-defined types.  While <tt>subtypep</tt> is rarely needed by an
+applications programmer, the efficiency of a Common Lisp implementation can
+depend critically upon the quality of its <tt>subtypep</tt> predicate: the
+run-time system typically calls upon <tt>subtypep</tt> to decide what sort of
+representations to use when making arrays; the compiler calls upon
+<tt>subtypep</tt> to interpret user <i>declarations</i>, on which efficient
+data representation and code generation decisions are based.<p>
+
+As might be expected due to the complexity of the Common Lisp type system,
+there may be type containment questions which cannot be decided.  In these
+cases <tt>subtypep</tt> is expected to return "can't determine", in order to
+avoid giving an incorrect answer.  Unfortunately, most Common Lisp
+implementations have abused this license by answering "can't determine" in all
+but the most trivial cases.  <i>In particular, most Common Lisp implementations
+of <tt>SUBTYPEP</tt> fail on the basic axioms of the Common Lisp type system
+itself </i>[CL84,p.33].  This situation is particularly embarrassing for
+Lisp--the premier "symbol processing language"--in which the implementation of
+complex symbolic logical operations should be relatively easy.  Since
+<tt>subtypep</tt> was presumably included in Common Lisp to answer the
+<i>hard</i> cases of type containment, this "lazy evaluation" limits the
+usefulness of an important language feature.<p>
+
+This paper shows how those type containment relations of Common Lisp which can
+be decided at all, can be decided simply and quickly by a decision procedure
+which can dramatically reduce the number of occurrences of the "can't
+determine" answer from <tt>subtypep</tt>.  This decision procedure does
+<i>not</i> require the conversion of a type specifier expression to conjunctive
+or disjunctive normal form, and therefore does not incur the exponential
+explosion in space and time that such a conversion would entail.<p>
+
+The lattice mechanism described here for deciding <tt>subtypep</tt> is also
+ideal for performing <i>type inference</i>
+
+<a href="TInference.html">[Baker90];</a>
+
+the particular
+implementation developed here, however, is specific to the type system of
+Common Lisp [Beer88].<p>
+
+Categories and Subject Descriptors: Lisp, dynamic typing, compiler
+optimization, type inference, decision procedure.
+
+</head><body>
+
+<h2>1.  Introduction</h2>
+
+The Common Lisp functions <tt>typep</tt> and <tt>subtypep</tt> are the basic
+predicates of the Common Lisp type system [CL84,p.72].  Loosely speaking,
+<tt>(typep x y)</tt> poses the question of whether the <i>object</i> <tt>x</tt>
+is an <i>element</i> of the <i>type</i> <tt>y</tt>, while <tt>(subtypep y
+z)</tt> poses the question of whether the <i>type</i> <tt>y</tt> is a
+<i>subset</i> of the <i>type</i> <tt>z</tt>.  While <tt>typep</tt> is heavily
+used to distinguish object types at run-time, and indeed the common
+<tt>typecase</tt> construct [CL84,p.118] depends upon <tt>typep</tt>,
+<tt>subtypep</tt> is considered by most Common Lisp applications programmers to
+be an obscure language function of only theoretical interest.  However, if
+these programmers were aware that the quality of the optimization of their
+programs depended critically on the quality of the implementation of
+<tt>subtypep</tt>, they might take more notice.  For example, these programmers
+might become exasperated if a program with a variable declared as a
+<tt>bit</tt> (taking on only the integer values 0 or 1) actually runs
+<i>slower</i> than when the same variable is declared as a <tt>fixnum</tt>
+(taking on any small integer values).  They would be similarly distressed by an
+implementation which gave them a general vector of type <tt>(array t (*))</tt>,
+when <tt>make-array</tt> was called with an <tt>element-type</tt> of
+<tt>(integer 0 63)</tt>, even though the Lisp system was capable of providing
+specialized arrays of signed 8-bit integers.<a
+href="#fn1">[1]</a>  These problems can both be traced to
+deficiencies in the particular Lisp system's implementation of
+<tt>subtypep</tt>.<p>
+
+The problem that a Common Lisp implementation is typically trying to solve when
+calling <tt>subtypep</tt> is to determine the storage requirement for a given
+object, as specified by a Common Lisp type specifier expression.  The more
+accurate <tt>subtypep</tt> is, the smaller the storage required for the user's
+program, and the faster it can be as a result of manipulating more compact
+objects.<p>
+
+Optimizing Common Lisp compilers also attempt to remove type checks from a
+user's program, whether they were inserted by the programmer, the expansion of
+a macro, or a code expansion during code generation.  Eliminating such type
+checking is essential to achieving high execution speed on modern RISC
+architectures.  If the compiler can prove, by calling <tt>subtypep</tt>, that
+the type check will always be satisfied, then the type check is redundant code,
+and can be eliminated without any ill effects.  Once again, the quality of the
+implementation is directly related to the quality of <tt>subtypep</tt>.<p>
+
+Many programmers from outside the Lisp community are accustomed to including
+type declarations in their programs, and start programming in Lisp by including
+complete type declarations.  This information can be valuable for the compiler,
+since compilers for non-Lisp architectures can often make use of declarations
+to improve execution speed.  Supplying the most specific declarations can also
+be valuable for program maintenance, because such declarations provide
+excellent documentation.  However, in many Common Lisp implementations this
+attention to detail is penalized.  Highly specialized declarations may actually
+make programs run <i>slower</i> than less specialized declarations, because
+poor implementations of <tt>subtypep</tt> may not be capable of correctly
+interpreting the more complex type specifier expressions.<p>
+
+Thus, a high-quality <tt>subtypep</tt> implementation is a prerequisite for a
+high-quality Common Lisp implementation, especially when the host processor is
+an architecture not well suited for dynamic typing.  Yet the level of
+<tt>subtypep</tt> implementation among current commercial Common Lisp's is not
+high.  Informal tests on various implementations showed problems ranging from
+ignorance--almost always returning "don't know"--to inconsistency--violating
+the transitivity of the <tt>subtypep</tt> relation.  However, even the best
+ones fail to decide the basic set of axioms covering Common Lisp datatypes
+[CL84,p.33].<p>
+
+This paper gives a <i>decision procedure</i> for <tt>subtypep</tt>, which will
+answer any question posed to <tt>subtypep</tt> that does not include the
+<tt>satisfies</tt> clause.  This restriction is forced by the fact that the
+general solution to <tt>subtypep</tt> with the <tt>satisfies</tt> clause is
+recursively undecidable.<p>
+
+We describe the datatypes of Common Lisp in section 2, describe the language of
+type specifier expressions in section 3, and discuss the possible meanings of
+Common Lisp datatypes in section 4.  In section 5 and 6, we gain additional
+insight into the nature of the Common Lisp type system and <tt>subtypep</tt> by
+showing where an <i>ad hoc</i> approach to deciding <tt>subtypep</tt> fails,
+and we see why by considering other hard questions that could be decided by
+using <tt>subtypep</tt> as a subroutine.  Section 7 deals with the
+<tt>subtypep</tt> decision procedure itself, while section 8 indicates its
+complexity.  Finally, section 9 discusses the sensitivity of the decision
+procedure to the particulars of the Common Lisp, and section 10 concludes.
+
+<h2>2.  Common Lisp data types</h2>
+
+Before we can decide the solution to the type containment problems of Common
+Lisp, we must first understand its type system.  Common Lisp
+
+<a href="http://www.cs.cmu.edu:8001/Web/Groups/AI/html/cltl/cltl2.html">[CL90]</a>
+
+has a
+moderately complex type system, including limited precision integers, unlimited
+precision integers, rational numbers, floating-point numbers in four different
+formats, complex numbers of various types and sizes, characters of considerable
+diversity, a host of specialized types such as <tt>compiled-function</tt>'s and
+<tt>readtable</tt>'s, arrays of various ranks, sizes and element types, and
+user-defined <tt>structure</tt>'s and <tt>class</tt>'es (<i>records</i> in
+other languages).  Common Lisp prescribes certain containment and
+disjointedness relations among the built-in types for <i>all</i>
+implementations, and allows certain other containment and disjointedness
+relations to depend upon the implementation
+
+<a href="http://www.cs.cmu.edu:8001/Web/Groups/AI/html/cltl/cltl2.html">[CL90,p.37-41].</a>
+
+<p>
+
+For example, Common Lisp prescribes that the types <tt>real</tt> (which
+contains both <tt>rational</tt> and <tt>float</tt>) and <tt>complex</tt> shall
+be pairwise disjoint subtypes of <tt>number</tt>.  However, depending upon the
+implementation, there may be numeric elements which are <i>not</i> real or
+complex.  In fact, an interesting question for a "portable" Common Lisp program
+to ask an implementation is whether there are any numbers other than
+<tt>real</tt> and <tt>complex</tt> numbers.  This question can be posed to
+<tt>subtypep</tt> by asking whether <tt>number</tt> is a subset of the union of
+<tt>real</tt> and <tt>complex</tt>.<p>
+
+The Common Lisp type system has its nits.  For example, while
+"<tt>3/1</tt>"--the rational number with numerator <tt>3</tt> and denominator
+<tt>1</tt>--is a member of <tt>rational</tt>, because <tt>3/1</tt> is an
+integer, and all integers are rational numbers, "<tt>#C(3/1 0)</tt>"--the
+complex number with real part <tt>3/1</tt> and imaginary part <tt>0</tt>--is
+not a member of <tt>(complex rational)</tt>, because <tt>#C(3/1 0)</tt> is
+normalized to the rational number <tt>3/1</tt>, and the Common Lisp standard
+says that the types <tt>rational</tt> and <tt>complex</tt> are disjoint, and
+therefore that <tt>(complex rational)</tt>--a subtype of <tt>complex</tt>--is
+disjoint from <tt>rational</tt>, as well.<p>
+
+Figure 1 is a chart classifying Common Lisp datatypes into 5 different
+"kingdoms".
+
+<pre>
+flat elementary types		<tt>symbol</tt>, <tt>character</tt>, <tt>readtable</tt>, <tt>complex</tt>, etc.
+numeric ranges			<tt>(integer * *)</tt>, <tt>(ratio * *)</tt>, <tt>(short-float * *)</tt>, etc.
+array types			<tt>(array </tt><i>rep-type1</i><tt> *)</tt>, <tt>(array </tt><i>rep-type2</i><tt> (* 3))</tt>, etc.
+<tt>defstruct</tt> type hierarchy	<i>structure-name-1</i>, <i>structure-name-2</i>, etc.
+CLOS type partial order		<i>class-name-1</i>, <i>class-name-2</i>, etc.
+
+Figure 1.  Chart of Common Lisp data type kingdoms.
+</pre>
+
+<h2>3.  Common Lisp type specifier expressions</h2>
+
+Type containment questions in Common Lisp are posed by calling
+<tt>subtypep</tt> with two "type specifiers", which are expressions in a formal
+language.  These type specifier expressions denote the types whose containment
+is to be decided.  The power of <tt>subtypep</tt> is directly related to the
+"expressiveness" of this type specifier language; on the other hand, the more
+expressive the language, the more difficult it is to decide the questions.<p>
+
+The Common Lisp type system allows for the construction of "type specifier"
+expressions which include the basic type symbols, as well as a number of
+operations involving those type symbols and (recursively) other type specifier
+expressions.  Thus, type specifiers consist of basic type symbols such as
+<tt>integer</tt>, <tt>float</tt>, <tt>character</tt>, numeric ranges such as
+<tt>(integer 3 6)</tt>, meaning the integers
+{<tt>3</tt>,<tt>4</tt>,<tt>5</tt>,<tt>6</tt>}, and array types such as
+<tt>(array float (3 *))</tt>, meaning all 2-dimensional arrays whose containers
+are specialized to hold floating point numbers, and whose first dimension must
+be <tt>3</tt>.  Furthermore, a type can be specified by the <tt>member</tt>
+construct, where <tt>(member <i>a</i> <i>b</i> <i>c</i>)</tt> is just the
+finite set of Lisp objects
+{<tt><i>a</i></tt>,<tt><i>b</i></tt>,<tt><i>c</i></tt>}.  A type can also be
+specified operationally using a predicate, as in <tt>(satisfies oddp)</tt>,
+meaning all Lisp objects <i>x</i> such that <tt>(oddp </tt><i>x</i><tt>)</tt>
+is true.  Finally, simple type specifiers can be composed into compound type
+specifiers by means of the connectives <tt>and</tt>, <tt>or</tt>, and
+<tt>not</tt>.<p>
+
+The Common Lisp type system allows the basic type system to be extended by the
+user in three ways through the use of <tt>deftype</tt>, <tt>defstruct</tt>, and
+<tt>defclass</tt>.  The first, <tt>deftype</tt>, is simply a macro facility for
+type specifier expressions; thus, no new functionality is introduced through
+<tt>deftype</tt>, but brevity is facilitated.  The other two ways of type
+system extension, <tt>defstruct</tt> and CLOS's <tt>defclass</tt>, allow the
+creation of new types of Lisp objects which are disjoint from every other type
+(except when otherwise specified).  As we will later show, the change in
+functionality of the type system introduced by <tt>defstruct</tt> types is
+minimal and relatively self-contained.<p>
+
+Common Lisp has recently been extended with the "Common Lisp Object System", or
+CLOS, for short [Bobrow88].  CLOS objects (<i>instances</i>) are elements of
+<i>classes</i>, which are different from Common Lisp <i>types</i>, but which
+map into the Common Lisp type system.  Loosely speaking, this mapping from
+classes to types strips all <i>intensional</i> meaning from the class, and
+produces the <i>extensional</i> set of elements (called <i>instances</i>) of
+the class.  Given this interpretation, we will see that CLOS usually causes no
+problems for the <tt>subtypep</tt> decision procedure, as we can continue to
+work with only the <i>type</i> structure and not the <i>class</i> structure of
+CLOS objects.<p>
+
+Common Lisp also defines two additional type specifier constructs:
+<tt>function</tt> and <tt>values</tt>.  However, these constructs are expressly
+prohibited from calls to <tt>typep</tt>, and hence from calls to
+<tt>subtypep</tt>
+
+<a href="http://www.cs.cmu.edu:8001/Web/Groups/AI/html/cltl/cltl2.html">[CL90,p.57].</a>
+
+If these specifiers were not prohibited by
+Common Lisp from appearing in calls to <tt>subtypep</tt>, they would make a
+decision procedure for <tt>subtypep</tt> impossible.  For example,
+<tt>subtypep</tt> could then have been asked about the functional equivalence
+of two lambda-expressions, a problem which is known to be undecidable.
+
+<pre>
+Type Names	<tt>integer</tt>, <tt>number</tt>, <tt>symbol</tt>, <tt>null</tt>, <tt>t</tt>, etc.
+Numeric Ranges	<tt>(integer </tt><i>low</i> <i>high</i><tt>)</tt>, <tt>(float </tt><i>low</i> <i>high</i><tt>)</tt>, etc.
+Arrays		<tt>(array bit (3 *))</tt>, <tt>(string </tt><i>size</i><tt>)</tt>, etc.
+Individuals	<tt>(member </tt><i>object1</i> <i>object2</i> ...<tt>)</tt>
+Predicates	<tt>(satisfies </tt><i>predicate-name</i><tt>)</tt>
+Connectives	<tt>(not </tt><i>specifier</i><tt>)</tt>, <tt>(and </tt><i>specifier1</i> <i>specifier2</i><tt>)</tt>, <tt>(or </tt><i>specifier1</i> <i>specifier2</i><tt>)</tt>
+
+Figure 2.  Chart of Common Lisp "type specifier" expressions.
+</pre>
+
+<h2>4.  The meaning of a Common Lisp "type"</h2>
+
+So far, we have a notion of a datatype and a language for specifying datatypes,
+but have not yet related the two.  In this section, we give meaning to type
+specifier expressions by modelling the syntactic constructs of the language
+with operations on datatypes.<p>
+
+There are several ways to interpret the notion of <i>type</i>.  One can
+interpret <i>type</i> as a <i>set</i> of elements, in which it has the
+<i>extensional</i> meaning of a set--an <i>extensional type</i> is no more or
+less than an unordered list of its elements.  One can also interpret a
+<i>type</i> as a member of a mathematical <i>lattice</i> (see Appendix I) in
+which the subtype relation is a purely formal concept, and in which the type
+names themselves have some meaning; i.e., this is an <i>intensional</i> notion
+of type [Scott76].  The types-as-lattices concept has been utilized for years
+as a representation of the <i>meaning</i> of a program, and by compilers for
+performing data flow analysis (including <i>type inference</i> [Kaplan80]).
+The Common Lisp standard says in no uncertain terms that "a data type is a
+(possibly infinite) <i>set</i> of Lisp objects" (
+
+<a href="http://www.cs.cmu.edu:8001/Web/Groups/AI/html/cltl/cltl2.html">[CL90,p.12],</a>
+
+italics added for
+emphasis).  Thus, in determining the meaning of <tt>subtypep</tt>, a Common
+Lisp implementor is required to implement the <i>extensional</i>, or
+<i>set</i>, notion of type, and hence answer <tt>subtypep</tt> questions from
+an extensional point of view.<p>
+
+How do these notions of intensional and extensional types differ in practice?
+One way the notions differ is in whether <tt>subtypep</tt> questions are to be
+answered for <i>this</i> implementation, or for <i>all</i> Common Lisps.  Thus,
+one Common Lisp may implement a numeric type which is not <tt>real</tt> and not
+<tt>complex</tt> (e.g., exact representations of irrational extensions
+implemented through symbolic algebraic techniques [Loos83]), hence in this
+implementation, <tt>number</tt> is not intensionally or extensionally the same
+as the union of <tt>real</tt> and <tt>complex</tt>.  However, if no such
+numeric elements exist in another implementation of Common Lisp, then in that
+implementation, <tt>number</tt> <i>is</i> extensionally the same as the union
+of <tt>real</tt> and <tt>complex</tt>, even though <tt>number</tt> is
+<i>not</i> intensionally the same.  <u>Common Lisp clearly intends this
+extensional view of </u><cite>types</cite>.<a href="#fn2">[2]</a><p>
+
+Thus, the extensional notion of types is equivalent to the notion of
+containment of sets, so the familiar laws of <i>Boolean algebra</i> hold (see
+Appendix I).  Since Boolean algebras are also lattices, the lattice "&lt;="
+operation becomes equivalent to <i>subset</i>, which is therefore the model for
+<tt>subtypep</tt>.  Additionally, the lattice operations of <i>least upper
+bound</i> and <i>greatest lower bound</i> become equivalent to the <i>union</i>
+and <i>intersection</i> of sets, respectively, and these can also be utilized
+wherever lattice operations are required (e.g., for type inference [Kaplan80],
+[Beer88]).<p>
+
+Several additional complications regarding <tt>subtypep</tt> are more easily
+dealt with using the Boolean algebra interpretation of types, due to its
+isomorphism with the standard Boolean algebra of <i>sets</i>: namely, the
+ability to ask questions about particular elements (utilizing the
+<tt>member</tt> construct), and the ability to talk about the complement of a
+set (using the <tt>not</tt> construct).  Such questions would have to be dealt
+with on an <i>ad hoc</i> basis with a lattice interpretation, or not at all.<p>
+
+The algebraic laws for the manipulation of Boolean algebras are simpler and
+more familiar than those of lattices (see Appendix I).  The intuition most
+people have of lattice manipulations is very restricted, and one must be very
+careful not to use Boolean thought processes when they are not appropriate.
+For example, most people would assume that it is appropriate to
+<i>distribute</i> ("multiply out") <tt>and</tt> over <tt>or</tt> in the type
+specifier expression <tt>(and float (or single-float null))</tt> to produce the
+result: <tt>single-float</tt>.  In the obvious data-type lattice, however, the
+answer without the distribution would have been <tt>float</tt>.  This curious
+result obtains because the obvious Common Lisp type lattice is
+<i>non-modular</i> and hence not <i>distributive;</i> therefore it cannot be
+Boolean, since Boolean lattices are distributive [MacLane67].
+
+<h2>5.  Current implementations of subtypep</h2>
+
+The Common Lisp standards committee noted that "[<tt>subtypep</tt> questions
+involving] <tt>and</tt>, <tt>or</tt>, <tt>not</tt>, and <tt>member</tt> are ...
+very messy to deal with"
+
+<a href="http://www.cs.cmu.edu:8001/Web/Groups/AI/html/cltl/cltl2.html">[CL90,p.97-98].</a>
+
+We agree that the Common Lisp type
+system itself is very messy, but this messiness can be dealt with through a
+uniform bit-vector representation in which the messiness is confined to the
+contents of these bit-vectors.  However, in order to understand the need for
+this representation, it is instructive to examine the <i>ad hoc</i> approach
+typical of current implementations.
+
+<tt><pre>
+(defun o-t-subtypep (x y)
+  ; o-t-subtypep = "obviously-trivial-subtypep"
+  (cond
+    ((and (eq x 'fixnum) (eq y 'float))	; Do all pairs of type symbols.
+     nil)
+    ((and (eq x ...) (eq y ...))	; ad nauseum.
+     t/nil)
+    ((eq x nil) t)			; 1st arg empty disjunction.
+    ((eq (car x) 'or)			; 1st arg disjunction easy.
+     (every #'(lambda (nx)
+               (o-t-subtypep nx y))
+            (cdr x)))
+    ((eq (car x) 'member)		; ditto.
+     (every #'(lambda (xelt)
+               (typep xelt y))
+            (cdr x)))
+    ((eq y t) t)			; 2nd arg empty conjunction.
+    ((eq (car y) 'and)			; 2nd arg conjunction easy.
+     (every #'(lambda (ny)
+               (o-t-subtypep x ny))
+            (cdr y)))
+    ((and (eq (car x) 'not)		; Contrapositive easy.
+          (eq (car y) 'not))
+     (o-t-subtypep (cadr y) (cadr x))
+    ((eq x t) ???)			; 1st arg empty conjunction.
+    ((and (eq (car x) 'and)		; Partial for 1st arg conjunct.
+          (some #'(lambda (nx)
+                   (o-t-subtypep nx y))
+                (cdr x)))
+     t)
+    ((eq y nil) ???)			; 2nd arg empty disjunction.
+    ((and (eq (car y) 'or)		; Partial for 2nd arg disjunct.
+          (some #'(lambda (ny)
+                   (o-t-subtypep x ny))
+                (cdr y)))
+     t)
+    ((eq (car y) 'member) ???)
+    (...)				; ???
+</pre></tt>
+
+In this example, we see that the hacker approach fails to make progress after
+the <i>monotonicity</i> rule has been used in every conceivable way.  In order
+to make any further progress, we must make use of the other properties of
+Boolean algebras, and this will require breaking up the problem along different
+dimensions.<p>
+
+The incompleteness of the <i>ad hoc</i> approach is not its only problem.  Its
+soundness is also difficult to demonstrate.  With a program of this complexity
+(some implementations go on like this for 4-5 pages), it is difficult to
+determine its correctness, and indeed some Common Lisp <tt>subtypep</tt>'s
+violate the basic axioms of a <i>partial order</i>--like transitivity.  Yet
+even after all of this work, most implementations still cannot decide the basic
+propositions that the Common Lisp specifications pose as axioms.
+
+<h2>6.  What is the power of subtypep?</h2>
+
+In this section, we explain the difficulties in properly implementing
+<tt>subtypep</tt>, by showing what other questions that can be decided using
+<tt>subtypep</tt> as a subroutine.  This "reduction" technique thus proves that
+deciding <tt>subtypep</tt> is at least as hard as deciding any of these other
+questions.  <u>These reductions, however, depend critically on the "set"
+interpretation for "type".</u><p>
+
+Using <tt>subtypep</tt>, one can ask whether:
+
+<ul>
+
+<li>a type is empty (<tt>nil</tt>)</li>
+
+<li>two types are disjoint</li>
+
+<li>two types are equal</li>
+
+<li>an object is an element of a given type</li>
+
+<li>two objects are identical (<tt>eql</tt>)</li>
+
+<li>an object is a member of a given finite set</li>
+
+<li>one finite set is a subset of another finite set</li>
+
+<li>a number is positive</li>
+
+<li>one number is less than or equal to another.</li>
+
+</ul>
+
+The code below shows each of these reductions of the given question to a
+<tt>subtypep</tt> question.
+
+<tt><pre>
+(defun type-null (x) (subtypep x nil))
+
+(defun type-disjoint (x y) (subtypep `(and ,x ,y) nil))
+
+(defun type-equal (x y)
+  (multiple-value-bind (x&lt;=y okxy) (subtypep x y)
+    (multiple-value-bind (y&lt;=x okyx) (subtypep y x)
+      (values (and x&lt;=y y&lt;=x) (and okxy okyx)))))
+
+(defun typep (x y) (values (subtypep `(member ,x) y)))
+
+(defun eql (x y) (values (type-equal `(member ,x) `(member ,y))))
+
+(defun member (x y) (values (subtypep `(member ,x) `(member ,@y))))
+
+(defun subsetp (x y) (values (subtypep `(member ,@x) `(member ,@y))))
+
+;;; The following are restricted to rational numbers only.
+(defun plusp (x) (values (subtypep `(rational ,x *) '(rational (0) *))))
+
+(defun &lt;= (x y) (values (subtypep `(rational * ,x) `(rational * ,y))))
+</pre></tt>
+
+One can even perform "pattern-matched" database retrieval by storing the
+database records as a large union of arrays of equal rank whose declared
+dimensions encode the data; <tt>subtypep</tt> can determine if a given
+pattern-encoded-as-array-type matches any of the arrays in the union.  The code
+below implements this form of database retrieval using <tt>subtypep</tt>.  It
+works by storing the data records as elements of a relation.  A query
+consisting of a record without "<tt>*</tt>" components is decided by
+determining whether the element sought is <i>not</i> in the <i>complement</i>
+of the union of stored records; if so, then it <i>is</i> in the database.  A
+query consisting of a record with "<tt>*</tt>" components defines another
+relation on the same domain as that of the database.  If this query relation is
+not completely contained within the complement of the stored relation, then
+there exists an element of the query that is <i>not</i> in the
+<i>complement</i> of the union of the database records, hence <i>is</i> in the
+union, and hence <i>is</i> in one of the records.
+
+<tt><pre>
+(defvar *database* nil)
+
+(defun store-record (record)
+  ; record = (&lt;i&gt; &lt;j&gt; ... &lt;n&gt;), i,j,k non-negative integers.
+  (push `(array t ,record) *database*))
+
+(defun retrieve-record (record)
+  ; record = (&lt;i/*&gt; &lt;j/*&gt; ... &lt;n/*&gt;), i,j,k non-negative integers
+  (not (subtypep `(array t ,record)
+                 `(not (or ,@*database*)))))
+</pre></tt>
+
+However, there are certain questions one <i>cannot</i> ask with
+<tt>subtypep</tt>.  <tt>subtypep</tt> cannot be asked what <i>size</i> a set is
+(other than whether it is empty); it cannot be asked to do arithmetic, it
+cannot be asked hypothetical questions.  As a result, a decision procedure for
+<tt>subtypep</tt> does not have to deal with alternation of quantifiers, Skolem
+functions, or any other device that could cause multi-exponential inefficiency
+in a decision procedure.<p>
+
+Before going into the details of the implementation of <tt>subtypep</tt>, we
+notice that <tt>subtypep</tt> could have been defined in terms of the simpler
+type specifier predicate <tt>type-null</tt> (given below), if the language
+designers had been more confident of an efficient implementation.  (<i>NB:</i>
+<tt>type-null</tt> is not the same as <tt>null</tt>, since the argument for
+<tt>type-null</tt> is evaluated as a type-specifier, while the argument for
+<tt>null</tt> is evaluated as a Lisp expression.)
+
+<tt><pre>
+(defun subtypep (x y)
+  ; TYPE-NULL determines if its argument is
+  ;  a type specifier for the empty type.
+  (type-null `(and ,x (not ,y))))
+</pre></tt>
+
+<h2>7.  The subtypep decision procedure</h2>
+
+Our decision procedure for <tt>subtypep</tt> will divide and conquer.  We will
+utilize separate decisions procedures for the <i>disjoint</i> "kingdoms" of
+data types in the Common Lisp type system.<a
+href="#fn3">[3]</a>  By utilizing the fact that the Boolean
+algebra for the Common Lisp type system is the <i>Cartesian product</i> of the
+Boolean algebras for each of these disjoint "kingdoms" of types, we will then
+be able to handle the general case.  (This approach is analogous to the use of
+the Chinese Remainder Theorem to solve problems involving integers by mapping
+the problems into several homomorphic images.)<p>
+
+In many cases, <tt>subtypep</tt> will depend upon <tt>typep</tt> for its
+answer.  <tt>typep</tt> itself may be extremely complex in the general
+case--especially when CLOS types are involved.  Nevertheless, <tt>typep</tt> is
+required by Common Lisp to be a decision procedure, so we can depend upon
+<tt>typep</tt>'s answers.
+
+<h2>7.1  Implementing subtypep for primitive elementary types</h2>
+
+Once we have focussed on the <i>set</i> interpretation of data type, it should
+be possible to answer  subtype questions by simply comparing the membership of
+the sets.  However, for the Common Lisp datatypes with large or infinite sets
+(e.g., <tt>integer</tt>), this implementation is either impractical or
+impossible.  The work of the comparison process can be reduced by noting that
+due to the limitations of the language of type specifications involved, most
+elements of the various sets are <i>indistinguishable</i>, and that any member
+of such a group of indistinguishable elements will always be treated the same
+under all the set operations.  These sets of indistinguishable elements are
+called <i>equivalence classes</i>.  With the exception of ranges, arrays and
+user-defined types, the number of equivalence classes for Common Lisp types is
+<i>finite</i>.  Thus, for the built-in types, excluding ranges, arrays and
+user-defined types, we can accurately answer any <tt>subtypep</tt> question
+with a simple subset test on two finite sets.  With this reduction of the
+comparison problem, implementing <tt>subtypep</tt> involves the selection of a
+<i>representative</i> element from each of the equivalence classes of elements,
+and performing Boolean operations on these sets of representatives instead of
+on the whole sets.<p>
+
+The next step is to choose correct representative elements from the equivalence
+classes.  We can choose representative elements using the same principle that
+medical students use to organize the wide variety of diseases and symptoms:
+<i>differential diagnosis.</i>  We need each element to somehow be different
+from each other element, in the sense that some set (type) includes one but not
+the other.  If we choose extra representatives from an equivalence class, they
+will slow down our decision procedure slightly, but will not cause any
+incorrect answers.  However, if we fail to choose an element which
+distinguishes between two sets, then those sets may be incorrectly determined
+by <tt>subtypep</tt> to be equivalent, when in fact they are not.  This problem
+will be examined later in more detail, under the <tt>member</tt> construct and
+user-defined type discussions.<p>
+
+In the case of the built-in Common Lisp types, the choice of representatives is
+straightforward.  We must select at least one representative member of each
+built-in type (assuming that they have any members at all); a <tt>fixnum</tt>,
+a <tt>bignum</tt>, a <tt>ratio</tt>, a <tt>short-float</tt>, a
+<tt>single-float</tt>, a <tt>character</tt>, etc.  We may need some additional
+elements when there are complex relationships; e.g., in the characters, where
+we need a <tt>base-character</tt>, a non-base <tt>character</tt>, and an
+<tt>extended-character</tt> which is not a <tt>character</tt>.<p>
+
+How many representatives are required?  For the built-in types, not including
+ranges and arrays, fewer than 30 elements are required.  Applying the standard
+trick of representing finite sets with integers interpreted as bit-vectors,
+then mapping union, intersection and complement onto <tt>logior</tt>,
+<tt>logand</tt>, and <tt>lognot</tt>, we can represent these sets using
+relatively small integers which fit into a single machine word--i.e.,
+<tt>fixnum</tt>'s.  Thus, not only can we answer <tt>subtypep</tt> questions
+involving the basic Common Lisp types accurately, we can also answer them
+quickly using a few logical operations on word-size quantities.<p>
+
+An example of an implementation of <tt>subtypep</tt> for built-in datatypes
+using this technique can be found in Appendix II.
+
+<h2>7.2  How to handle the MEMBER construct</h2>
+
+The <tt>member</tt> construct adds complexity to our problem by rendering the
+<i>a priori</i> selection of representatives, as described above, inadequate.
+Instead of asking questions about anonymous <tt>short-float</tt> or
+<tt>base-character</tt> elements, one can now ask questions about specifically
+<i>mentioned</i> elements.  Using the <tt>member</tt> construct, one can also
+ask questions about anonymous arbitrary finite sets of Lisp objects, with no
+reference to the rest of the Common Lisp type system at all.  Both of these
+forms of question can be seen in our emulation of <tt>typep</tt> and
+<tt>subsetp</tt> in section 5.<p>
+
+The trick to efficiently handling <tt>member</tt> is to <i>include the
+mentioned elements</i> as additional representatives for our finite sets.  This
+requires two passes through the type specifier expression: the first to find
+all elements mentioned in <tt>member</tt> constructs and make them additional
+representatives; and the second to evaluate the type specifier expression using
+Boolean operations on bit-vectors.  The only complication involves small sets
+(such as <tt>null</tt>, which has only one element--<tt>nil</tt>), and obvious
+elements such as the <tt>fixnum</tt> 0 (zero).  To handle finite subset
+questions in which the <i>only</i> clauses are <tt>member</tt> constructs, we
+have to <i>register</i> our representatives.  By <i>registration</i> we mean
+determining, in advance, the canonical bit-position within the bit-vector which
+will represent the registered element.  This registration procedure makes sure
+that, for example, the type specifier <tt>(member nil)</tt> will have exactly
+the same representation as the type specifier <tt>null</tt>.<p>
+
+An additional problem with <tt>member</tt> is that one could conceivably ask
+whether a type consisted of exactly one particular element; if the element
+mentioned just happened to be the representative chosen, our implementation of
+<tt>subtypep</tt> would give out the wrong answer.  Therefore, whenever an
+element is explicitly mentioned in <tt>member</tt>, and it was previously used
+as the anonymous representative of other elements, we must somehow generate an
+alternative element (if one exists) to be used as the new anonymous
+representative.  This procedure will ensure that the type system will not give
+out wrong answers under these conditions.  We will call this situation the
+<i>aliasing</i> problem.<p>
+
+The aliasing problem is relatively easily solved.  The aliasing problem cannot
+happen with numbers, because the interval representation (as discussed later)
+handles the general case.  With most other Lisp object types, the Lisp reader
+generates a brand-new object which is guaranteed not to alias with any other
+object of the same type, hence the representative for that type can never
+become aliased.  From this, we can see that the only possible aliasing problems
+are with <tt>symbol</tt>'s and <tt>character</tt>'s.<a
+href="#fn4">[4]</a><p>
+
+The aliasing problem for symbols can be dealt with by either utilizing a very
+long symbol name (e.g., <tt>anonymous</tt> itself, or
+<tt>rumpelstiltskin</tt>), or by utilizing a name guaranteed to be unknown to
+the caller of <tt>subtypep</tt>--an <i>un-interned</i> symbol.<p>
+
+The aliasing problem is the most severe for <i>characters</i>, because the set
+of characters is (normally) finite, and it is conceivable that a user will want
+to utilize the Common Lisp type system to answer complex questions about sets
+of explicitly-named characters (e.g., "upper-case", "lower-case", "digit",
+"alphabetic", etc.).  Thus, during the element registration procedure, if a
+character is registered that was previously the anonymous representative, then
+another character must be generated that has not yet been mentioned.  This
+requires an <i>enumerator</i> for the various subsets of characters:
+<tt>character</tt>, <tt>base-character</tt>, and <tt>extended-character</tt>,
+which generates a new character that has not yet been mentioned.  Another
+alternative is to pre-register <i>all</i> characters, although this would slow
+down <tt>subtypep</tt> for the vast majority of questions which did not involve
+characters at all.  A compromise solution would be to temporarily--for a
+particular call to <tt>subtypep</tt>--register all characters when <i>any</i>
+character is explicitly mentioned.<p>
+
+The example implementation of <tt>subtypep</tt> in Appendix II includes a
+registration procedure, and therefore handles <tt>member</tt> correctly.
+
+<h2>7.3  How to handle numeric intervals</h2>
+
+Interval type specifiers such as <tt>(integer 3 (7))</tt> (which means those
+integers between 3, inclusive, and 7, exclusive; i.e., {3,4,5,6}), cause
+problems because there is no <i>a priori </i>finite set of representatives
+which could answer all interval questions.  Also, it is not at all obvious how
+to generate an appropriate set of representatives at run-time.  Therefore, we
+will have to develop a different representation from the bit-vector
+representation we have used so far, in order to handle numeric interval type
+specifiers.<p>
+
+The general representation for numeric interval type specifiers that we will
+use is an ordered union of disjoint simple intervals.  In our representation, a
+simple interval is a single clause of the form <tt>(</tt><i>ntype</i><tt>
+</tt><i>low</i><tt> </tt><i>high</i><tt>)</tt>, where <i>ntype</i> is one of
+(<tt>integer</tt>, <tt>ratio</tt>, <tt>short-float</tt>, <tt>single-float</tt>,
+<tt>double-float</tt>, <tt>long-float</tt>) and <i>low</i>,<i>high</i> are the
+range end-points.<a href="#fn5">[5]</a>  In the ordered union
+the simple intervals are not allowed to <i>touch</i> one another, where
+<i>touching</i> is defined as abutting so closely that the two simple intervals
+could have been coalesced into one.  This representation is closed under the
+Boolean operations of finite union, finite intersection and complement.  All of
+these operations are essentially <i>linear</i> in the size of the unions, since
+they involve a simple <i>merging</i> process for the ordered unions.<p>
+
+There is a slight complication in the definition of "touch" when doing unions
+in the various number formats.  For example, <tt>(ratio 2/3 (1))</tt>
+<i>touches</i> <tt>(ratio (1) 13/2)</tt>, while <tt>(ratio 2/3 (7/8))</tt> does
+not touch <tt>(ratio (7/8) 13/2)</tt>.  Touching is not a property of the
+<i>end-points</i> of a simple interval, but of whether there are any numbers
+<i>in between</i> the two simple intervals.  <tt>1</tt> is between <tt>(ratio
+2/3 (1))</tt> and <tt>(ratio (1) 13/2)</tt>, but <tt>1</tt> is an
+<tt>integer</tt>, not a <tt>ratio</tt>, so there are no <tt>ratio</tt>'s
+between the two sets, thus they <i>do</i> touch.  <tt>7/8</tt> is between
+<tt>(ratio 2/3 (7/8))</tt> and <tt>(ratio (7/8) 13/2)</tt>, but since
+<tt>7/8</tt> is a <tt>ratio</tt>, the two simple intervals <i>do not</i>
+touch.<p>
+
+The one complication remaining is the handling of different types of numbers.
+By keeping different unions of intervals in the 6 different number classes
+(<tt>integer</tt>, <tt>ratio</tt>, <tt>short-float</tt>, <tt>single-float</tt>,
+<tt>double-float</tt>, <tt>long-float</tt>)<a href="#fn6">[6]</a> we can handle not only all
+straight-forward cases, but also all intersections, unions, and complements as
+well.<p>
+
+Consider the following example.  We know that <tt>rational</tt> is the disjoint
+union of <tt>integer</tt> and <tt>ratio</tt>, so we can represent the simple
+interval <tt>(rational (2/3) 13/2)</tt> by 
+
+<tt><pre>
+(or (integer (2/3) 13/2) (ratio (2/3) 13/2)), or after simplification,
+
+(or (integer 1 6) (ratio (2/3) 13/2)),
+</pre></tt>
+
+where the integers {1,2,3,4,5,6} are represented in the first set, and the
+<i>non-integer</i> rationals <i>r</i>, 2/3 &lt; <i>r</i> &lt;= 13/2, are
+represented in the second set.  Notice that
+
+<tt><pre>
+(and rational (not (integer 1 6)) becomes (or (integer * 0) (integer 7 *) (ratio * *)),
+</pre></tt>
+
+which means all the non-positive integers, plus the integers greater than 6,
+plus all non-integer rational numbers.<a href="#fn7">[7]</a><p>
+
+Using this union of disjoint simple intervals representation, we can
+canonicalize <tt>member</tt> constructs into equivalent numeric ranges.<a
+href="#fn8">[8]</a>  This simplifies the processing of
+<tt>member</tt> type specifier clauses.  As an example of this process, we
+transform <tt>(member 3 2/3 3.4s0)</tt> into
+
+<tt><pre>
+(or (integer 3 3) (ratio 2/3 2/3) (short-float 3.4 3.4)).
+</pre></tt>
+
+There are some technical problems which arise with floating-point number type
+specifiers.  In order to represent these numbers as numeric intervals (with
+"open" and "closed" end-points), we have implicitly assumed that floating-point
+numbers within each floating-point format are <i>totally ordered</i>.  This
+means that for any two floating-point numbers x,y of the same format, either
+x&lt;y, x&gt;y, or x=y; exactly one of these three conditions must hold.<p>
+
+Requiring that floating point numbers be totally ordered has several
+implications.  First, if the underlying implementation supports the IEEE
+floating point standard [IEEE82], with its "not-a-numbers" ("NaN's"), then the
+set of supported bit-patterns of the floating-point format may not be totally
+ordered.  For example, a <i>projective</i>, or unsigned, infinity, is not
+totally ordered with respect to the normal floating point values.  One result
+of the existence of these "NaN's" is that the type specifier
+<tt>single-float</tt> is no longer identical to the type specifier
+<tt>(single-float * *)</tt>, because the first contains the NaN's, while the
+second contains only the finite floating point numbers.  (Note that the IEEE
+NaN's +infinity and -infinity are also not included in
+<tt>(single-float * *)</tt>.)<p>
+
+Second, the total order on floating-point numbers must be consistent with
+<tt>eql</tt>, rather than <tt>=</tt>, else the canonicalization of <tt>(member
+</tt>x<tt>)</tt> into <tt>(single-float </tt>x<tt> </tt>x<tt>)</tt> is not
+valid.  This is because <tt>member</tt> is defined in terms of <tt>eql
+</tt>[CL84,p.44], while intervals are defined in terms of <tt>&lt;</tt>,
+<tt>&gt;</tt>, and =.  The only <i>numeric</i> value this should cause trouble
+for is <i>minus zero</i> (<tt>-0.0</tt>).<a href="#fn9">[9]</a>
+<tt>-0.0</tt> causes real headaches because it cannot be distinguished from
+<tt>0.0</tt> by the numeric comparison predicates (=, &lt;, &gt;, etc.), but it
+<i>can</i> be distinguished by <tt>eql</tt> [CL84,p.79].  The determination of
+the numeric intervals such as <tt>(float 0.0 1.0)</tt> is performed by the
+standard numeric ordering predicates (<tt>&lt;</tt>, <tt>&lt;=</tt>, etc.),
+while <tt>(member -0.0)</tt> is defined to use <tt>eql</tt> for its
+determination [CL84,p.44].  Our canonicalizing procedure above would represent
+<tt>(member -0.0)</tt> as <tt>(single-float -0.0 -0.0)</tt>, which is exactly
+the same set as <tt>(single-float 0.0 0.0)</tt>--i.e.,
+{<tt>-0.0</tt>,<tt>0.0</tt>}--because the numeric ordering predicates cannot
+distinguish between <tt>0.0</tt> and <tt>-0.0</tt>.  In other words, our
+representation--as presented so far--cannot handle the singleton set
+{<tt>-0.0</tt>}.  The simplest way to fix this problem is to define a new set
+of ordering predicates (<tt>&lt;</tt>', <tt>&lt;=</tt>', etc.), which
+<i>can</i> distinguish between <tt>0.0</tt> and <tt>-0.0</tt>, and then to use
+these predicates in the internal workings of our ordered union operations.
+When canonicalizing using these predicates, we must be careful to fix up
+intervals which came in from <i>outside</i> <tt>subtypep</tt> and involve
+<tt>0.0</tt> as an end-point before further processing.  This is necessary
+since these intervals implicitly include <tt>-0.0</tt> due to the lack of
+resolution of the standard comparison functions.  This "fixup" would add
+<tt>-0.0</tt> to the interval; for example, converting <tt>(float 0.0 1.0)</tt>
+into <tt>(float -0.0 1.0)</tt>.  (Needless to say, many computer scientists
+wish that <tt>-0.0</tt> would go quietly away.)<p>
+
+Thus, to handle floating-point numbers correctly, we must handle NaN's as a
+discrete type separately from the normal floating point numeric ranges (i.e.,
+<tt>(and single-float (not (float * *)))</tt> contains the
+<tt>single-float</tt> NaN's and is treated as an elementary type disjoint from
+<tt>(single-float * *)</tt>), while within the numeric ranges we use an
+ordering predicate which is consistent with <tt>eql</tt>.<p>
+
+So far we have talked only about <tt>rational</tt> and <tt>float</tt> numbers,
+but not about <tt>complex</tt> numbers.  It was not clear in Common Lisp-84
+whether type specifier expressions such as <tt>(complex fixnum)</tt> or
+<tt>(complex (integer -10 10))</tt> were legal, and if legal, how they were to
+be interpreted.  The only requirement was that both the real and imaginary
+parts of a complex number were of the same type [CL84,p.19].  Common Lisp-90
+provides a new function <tt>upgraded-complex-part-type</tt>
+
+<a href="http://www.cs.cmu.edu:8001/Web/Groups/AI/html/cltl/cltl2.html">[CL90,p.68],</a>
+
+which
+legitimizes and defines type specifiers such as <tt>(complex (integer -10
+10))</tt>.  If the range of the function <tt>upgraded-complex-part-type</tt> is
+the set {<tt>rational</tt>, <tt>short-float</tt>, <tt>single-float</tt>,
+<tt>double-float</tt>, <tt>long-float</tt>}, then the various subsets of
+<tt>complex</tt> can be easily handled by a small number of representatives and
+treated as discrete types.  If, however, the range of this upgrading function
+includes subranges of these types, then in order to properly implement a
+decision procedure for <tt>subtypep</tt>, we are required to represent unions
+of <i>rectangles</i> on the complex plane, and while this is straight-forward,
+it is very tedious.  (Note, however, that similar algorithms already exist in
+most computer graphics "window systems".)<p>
+
+The Common Lisp non-complex <i>numbers</i> are thus seen to be the Cartesian
+product of the 6 numeric types mentioned above, where each numeric type can be
+represented by an ordered union of disjoint simple intervals.  Once we can put
+the simple range type specifiers into a canonic form which is an ordered union
+of disjoint simple intervals, we can then combine them using <tt>and</tt>
+(intersection), <tt>or</tt> (union) and <tt>not</tt> (complement).  It is then
+trivial to test it for emptiness, i.e., determine <tt>type-null</tt>.
+
+<h2>7.4  Handling arrays</h2>
+
+Type specifiers for array types utilize the following form: <tt>(array
+</tt><i>element-type</i><tt> </tt><i>bounds</i><tt>)</tt>, where
+<i>element-type</i> is another type specifier expression and <i>bounds</i> is a
+form specifying what information is known about the bounds of this array.
+Specifiers such as <tt>string</tt> and <tt>bit-vector</tt> are expanded into
+<tt>(array string-char (*))</tt><a href="#fn10">[10]</a> and
+<tt>(array bit (*))</tt>, as if they had been defined by <tt>deftype</tt>.  We
+actually use an internal form for array type specifiers which incorporates
+"simplicity" (<tt>simple</tt>/non-<tt>simple)</tt> information as another
+component; this complication adds additional complexity but no additional
+insight.<p>
+
+The type specifier <tt>(array </tt><i>element-type</i><tt>
+</tt><i>bounds</i><tt>)</tt> can actually be canonicalized into <tt>(array
+</tt><i>x</i><tt> </tt><i>bounds</i><tt>)</tt>, where <i>x</i> is the
+"smallest" of the finite number of array-element-types that the implementation
+provides which is large enough to hold <i>element-type</i> (here "smallest" and
+"large enough" refer to <tt>subtypep</tt> recursively).  <i>Element-type</i>
+can also be the lexical element "*".  In this case the expression represents
+the union of array types <tt>(array </tt><i>x</i><tt>
+</tt><i>bounds</i><tt>)</tt>, where <i>x</i> ranges over all of the
+array-element-types that the implementation supports.<p>
+
+The bounds specifier can be "*", meaning no information, "<i>n</i>", meaning
+all rank-<i>n</i> arrays, or "(<i>m</i> <i>n</i>...<i>p</i>)", meaning all
+arrays with bounds (<i>m</i> <i>n</i>...<i>p</i>).  Finally, one or more of the
+<i>m</i>, <i>n</i>, ...<i>p</i> can be "*", meaning "no information for this
+dimension".  Clearly, <tt>(array </tt><i>x</i><tt> *)</tt> is the countable
+union of <tt>(array </tt><i>x</i><tt> </tt><i>i</i><tt>)</tt>, for all
+non-negative integers <i>i</i>, <tt>(array </tt><i>x</i><tt> (*))</tt> is the
+countable union of <tt>(array </tt><i>x</i><tt> (</tt><i>j</i><tt>))</tt>, for
+all non-negative integers <i>j</i>, and <tt>(array </tt><i>x</i><tt> (4
+*))</tt> is the countable union of <tt>(array </tt><i>x</i><tt> (4
+</tt><i>j</i><tt>))</tt>, for all non-negative integers <i>j</i>, etc.<p>
+
+A decision procedure for array type specifier expressions is complicated by the
+fact that <tt>subtypep</tt> can ask some difficult questions about arrays, such
+as:
+
+<tt><pre>
+(subtypep '(array short-float (3 4))
+          '(and (array * (* 4)) (array single-float (3 *))))
+</pre></tt>
+
+The answer is <i>true</i> for an implementation in which <tt>short-floats</tt>
+and <tt>single-floats</tt> have the same representation.  The question is
+complicated by whether the implementation utilizes different type
+<i>containers</i> in the different arrays, and also whether <tt>subtypep</tt>
+is smart about array bounds.<p>
+
+We first note that an implementation usually implements arrays of a finite
+number <i>k</i> of <i>element-type</i>'s and maps all other arrays into those
+<i>k</i> different kinds of arrays.  Common Lisp requires <i>k</i> to be at
+least 3--general arrays, character arrays, and bit-arrays [CL84,p.29]).  We
+will treat each of the <i>k</i> implementation-dependent array-types similarly
+but separately.  Within each of those array types, we need to handle each of
+the different possible array-bounds cases.<a
+href="#fn11">[11]</a><p>
+
+In order to handle the different possibilities of array-bounds, we must choose
+representatives for every array <i>rank</i> (at least up to
+<tt>array-rank-limit</tt>), and then within that rank, choose appropriate
+representatives.  If Common Lisp allowed only type specifiers such as:
+<tt>(array * 3)</tt> or <tt>(array * *)</tt>, then rank differences would be
+the only issue, and we could choose our representatives in advance: associate
+the integer 2^i with rank i, and the integer -1 with rank "*".  Under this
+scheme, using two's-complement integers, -1 would represent <i>all</i> of the
+different ranks [0,infinity), while each particular rank would be
+associated with a positive power of 2.  This preselection strategy for
+representatives will not work, however, for those more complex questions
+allowed by Common Lisp, an example of which was shown above.<p>
+
+We are thus led to a strategy by which appropriate representatives are chosen
+after a particular type specifier expression is examined.  We will continue to
+utilize integers (as infinite bit-vectors) to represent array bounds, but we
+will allocate more than one bit position for any array bounds whose integer
+indices are <i>mentioned</i> in the type specifier expression; e.g., (3 4), (3
+*), and (* 4), above.  In the particular case above, we will require a single
+representative for the bounds (), (*),  (* * *), (* * * *), etc., but we will
+require the following 4 representatives for the rank-two bounds: (3 4), (3 @),
+(@ 4), and (@ @).  We use "@" to represent the "@nonymous" representative of
+the un-mentioned bounds.<p>
+
+We find that only (3 4) belongs to the set represented by the specifier "(3
+4)", but both (3 4) and (3 @) belong to the set "(3 *)", both (3 4) and (@ 4)
+belong to "(* 4)", and all four elements belong to "(* *)".  In other words,
+array bounds specifiers like "(3 *)" represent <i>slices</i> through a
+multidimensional rectangular box of bits, each of which is a particular
+representative for the array bounds mentioned in its coordinate position.  The
+process of choosing representatives and allocating bit-positions is similar to,
+but much more complicated than that for <i>registering</i> elements in a
+<tt>member</tt> construct.  In general, the number of bit positions required
+for rank r is equal to (d1+1)(d2+1)...(dr+1), where the di are the number of
+distinct integers mentioned in dimension i (not counting "*").  In the case
+where no specific dimensions are mentioned, the formula gives 1 bit position,
+which is equivalent to the unmentionable bounds (@ @ ... @).<p>
+
+In the example above, we will need 1 bit position for arrays of rank 0, 1 bit
+position for arrays of rank 1, 4 bit positions for arrays of rank 2, and 1 bit
+position for arrays of rank 3 and above.  Rank 0 is mapped into bit position 0,
+rank 1 is mapped into bit position 1, rank 2 is mapped into bit positions 2-5,
+rank 3 is mapped into bit position 6 and so forth for higher ranks.  For the
+row dimensions, we assign "3" the index 0 and "@" the index 1; for the column
+dimensions, we assign "4" the index 0 and "@" the index 1; we utilize the same
+row-major order as Common Lisp.  Thus, the encoding for <tt>(array * (3
+4))</tt> (ignoring the element-types) is <tt>#B00000100</tt> or <tt>+4</tt>;
+the encoding for <tt>(array * (3 *))</tt> is <tt>#B00001100</tt> or
+<tt>+12</tt>; the encoding for <tt>(array * (* 4))</tt> is <tt>#B00010100</tt>
+or <tt>+20</tt>; the encoding for <tt>(array * (* *))</tt> is
+<tt>#B00111100</tt> or <tt>+60</tt>.  Since <tt>(logand 12 20)</tt>=<tt>4</tt>,
+the two type specifier expressions are equivalent (not considering element-type
+and simplicity).  (Notice that <tt>(array * 3)</tt> is encoded as 2^6=64, while
+<tt>(array * *)</tt> is encoded as -1.)<p>
+
+We do not even require the use of an entire integer for our bit-vector, since
+for any given type specifier expression, only a finite number of different
+array ranks are actually mentioned.  If we allocate 1 more bit position than
+the highest rank actually mentioned, then we will be sure to include at least
+one representative for all the higher-ranked arrays.  Using this technique, we
+can allocate the array bounds bit-vectors for all different specialized
+element-types and simplicities as subsequences of a single bit-vector.
+Furthermore, this array bit-vector could be a portion of the bit-vector for the
+basic non-array type information.<p>
+
+Handling the <tt>member</tt> construct with elements which are array objects is
+somewhat problematical.  Unless a type specifier is constructed at run-time, it
+is impossible to ask a non-trivial <tt>subtypep</tt> question about array
+objects.  This is due to the fact that the types of arrays created by the
+reader are defined by Common Lisp [CL84, p.346-357] as being simple vectors of
+element-types <tt>bit</tt>, <tt>string-char</tt> or <tt>t</tt>, or simple
+arrays of element-type <tt>t</tt>.<a href="#fn12">[12]</a>
+However, the simulation of <tt>typep</tt> using <tt>subtypep</tt> above
+requires the ability to handle any type of object within a <tt>member</tt>
+construct, including array objects.<p>
+
+Handling actual array objects in a <tt>member</tt> construct is possible using
+our algorithm by increasing the number of bits within the subsequence of the
+bit-vector which are allocated to the actual bounds of the given array.  In
+other words, if an array of actual dimensions (3 4) were mentioned in a
+<tt>member</tt> construct, then we would need to allocate at least two bits for
+arrays of dimension "(3 4)" in the bit-vector; one bit for this specifically
+mentioned array, and one bit for all the anonymous, un-mentioned arrays of the
+same dimensions.  However, for non-<tt>simple</tt> arrays, the actual
+dimensions may not be well-defined, because they can be changed by
+<tt>adjust-array</tt> if they are <tt>adjustable</tt>.  (This is the only
+situation within Common Lisp-84 [CL84] where an object can change its type and
+remain <tt>eq</tt> to itself--a highly undesirable situation.)<p>
+
+For these reasons, we recommend against including array objects as elements in
+a <tt>member</tt> construct, or trying to handle this case in a more
+algorithmic manner, until Common Lisp defines the semantics more completely.
+
+<h2>7.5  Handling user-defined data types</h2>
+
+There are three kinds of user-defined data types in Common
+Lisp--<tt>deftype</tt> types, <tt>defstruct</tt> types and <tt>defclass</tt>
+(CLOS) types.  <tt>deftype</tt> types are easily dismissed as type specifier
+"macros" which are expanded every time they appear, and expand into
+non-recursive type specifier expressions.  Thus, <tt>deftype</tt> types are
+used for brevity only, and do not require much additional machinery to handle
+properly.  In this manner, many Common Lisp built-in type specifiers can be
+treated as <tt>deftype</tt>'s--<tt>bit</tt>, <tt>(mod </tt><i>n</i><tt>)</tt>,
+<tt>(signed-byte </tt><i>s</i><tt>)</tt>, <tt>(string
+</tt><i>size</i><tt>)</tt>, etc.--an approach used by many Common Lisp
+implementations.<p>
+
+<tt>defstruct</tt> types are so called, because they are defined by the user
+with the <tt>defstruct</tt> construct, which defines a new "structured" type
+with components (like a <i>record</i> in other languages).  If one
+<tt>defstruct</tt> type "extends" another by including all of its components,
+then the second type is considered a subtype of the first.  Objects for a
+particular <tt>defstruct</tt> type, also called "instances" of the
+<tt>defstruct</tt> type, are normally created using an automatically-defined,
+specialized function <tt>make-&lt;typename&gt;</tt>.  CLOS types are those
+types added by CLOS as new classes are defined by <tt>defclass</tt>.  For the
+purposes of our decision procedure, <tt>defclass</tt> types act analogously to
+<tt>defstruct</tt> types.<p>
+
+<tt>defstruct</tt> and <tt>defclass</tt> types are more troublesome than
+<tt>deftype</tt> types, because they materially extend the Common Lisp type
+system at run-time.  As a result, they introduce some ambiguities in the
+interpretation of <tt>subtypep</tt>.  For example, if <tt>foo</tt> is a
+<tt>defstruct</tt> type, and no instances of <tt>foo</tt> have yet been created
+using the function <tt>make-foo</tt>, what should be the answer to the question
+<tt>(subtypep 'foo nil)</tt>?  At the time the question is asked, the answer is
+yes (<tt>t</tt>), but once an instance has been created, the answer should be
+no (<tt>nil</tt>).  Unfortunately, if one requires <tt>subtypep</tt> to
+accurately answer any such question regarding user-defined type elements,
+<tt>subtypep</tt> would be required to be able to enumerate all elements of the
+given type.  This process could require a very long time, and would be
+unnecessary in all but the most perverse circumstances.<p>
+
+It is unreasonable to expect Common Lisp's <tt>subtypep</tt> predicate to
+register as representatives every instance of a <tt>defstruct</tt> datatype
+ever created.  Yet without such a registration procedure, <tt>subtypep</tt>
+will never be able to properly answer all possible questions about those
+objects.  This is because the user can always remember each created instance
+himself, and then ask--utilizing <tt>member</tt>--whether the list of instances
+was equal to the entire set; <tt>subtypep</tt> would have to remember all the
+instances itself in order to answer correctly.  However, if we change the
+interpretation of user-defined data types slightly, we can correctly answer all
+questions regarding user-defined data types.<p>
+
+We propose that <tt>defstruct</tt> itself always create at least one "dummy"
+anonymous instance of the data type.  Since the user cannot become acquainted
+with this "dummy" instance, he will never be able to ask a <tt>type-equal</tt>
+question, but only a type containment question.  Every user-defined datatype is
+then non-empty at birth, since the "dummy" anonymous element is created and
+registered with the type system.  Yet since every call to <tt>make-xxx</tt>
+creates a brand-new instance never before seen, the user can never ask the
+precise question about exactly which instances are elements of the type.<p>
+
+This policy is reasonable, since it is already followed for the built-in
+types--it would be most unusual if a Common Lisp system did not create at least
+one element of each of the built-in datatypes at initialization or system
+construction time.  (We have already seen a similar problem with
+<tt>symbol</tt>'s--we need a symbol not mentioned or mentionable by the
+user--hence the <tt>rumpelstiltskin</tt> symbol.)  Therefore, the existence of
+anonymous elements of user-defined datatypes which the user cannot name should
+not be unsettling.<a href="#fn13">[13]</a><p>
+
+Another interesting question arises from the need of all Lisp systems to
+perform garbage collection.  Suppose that all instances of <tt>foo</tt> are
+garbage-collected; will <tt>(subtypep 'foo nil)</tt> now answer true?  If a
+"dummy" instance of <tt>foo</tt> is still held by the type system, then it will
+not be garbage-collected, and the answer will be "no".  This interpretation is
+equivalent to saying, "yes, the type <tt>foo</tt> has elements, but they are
+not accessible".  Since the determination of accessibility is extremely
+expensive, requiring an immediate full garbage collection, a more efficient,
+and hence more useful <tt>subtypep</tt> is obtained using the simpler
+interpretation of including inaccessible elements in the type.<p>
+
+Handling <tt>defclass</tt> (CLOS) types is even easier for <tt>subtypep</tt>
+than handling <tt>defstruct</tt> types.<a href="#fn14">[14]</a>
+This is because CLOS is more explicit about the meaning of classes, as well as
+the mapping of classes into types.  A class cannot be <tt>type-equal</tt> to
+one of its superclasses or subclasses
+
+<a href="http://www.cs.cmu.edu:8001/Web/Groups/AI/html/cltl/cltl2.html">[CL90,p.774],</a>
+
+and CLOS goes on to require
+certain additional answers to <tt>subtypep</tt> questions where certain
+built-in types are concerned.  The fact that a class cannot be
+<tt>type-equal</tt> to a sub- or super-class, guarantees that our technique of
+always registering a single dummy element for each different class will always
+work.<a href="#fn15">[15]</a>  That dummy element serves as a
+distinguishing element which distinguishes that class from every other class.<a
+href="#fn16">[16]</a><p>
+
+Our decision procedure does not handle certain cases where CLOS is used to
+extend the Common Lisp-84 primitive datatypes, specifically numbers and arrays,
+which <tt>subtypep</tt> handles specially.  Let us first consider the problem
+of extended numbers.  If the numeric type which is being extended has the
+<i>metaclass</i> <tt>built-in-class</tt>--the normal case--then any extension
+is an error
+
+<a href="http://www.cs.cmu.edu:8001/Web/Groups/AI/html/cltl/cltl2.html">[CL90,p.781].</a>
+
+If the numeric type has the metaclass
+<tt>standard-class</tt>, then the new type will be a proper subtype of its
+parent, which means that any numeric operations applicable to the parent type
+will be applicable to the new type.  This is because Common Lisp numeric
+operations are <i>not</i> "generic"
+
+<a href="http://www.cs.cmu.edu:8001/Web/Groups/AI/html/cltl/cltl2.html">
+[CL90,p.1024],</a>
+
+and therefore cannot be
+specialized to operate differently for this new type.  However, this lack of
+specialization applies also to slots.  Since the numeric operations are not
+specialized, they cannot access any slots specific to the new type, and
+therefore their behavior will be exactly the same as with instances of the
+parent type--i.e., "normal" numbers.  The instances of the extended type will
+be numbers with some "hidden" slots which only we know about, and since most
+arithmetic operations will generate a new "normal" number, these hidden slots
+will not be propagated.  These "extended numbers" are thus essentially
+useless.<p>
+
+A more interesting possibility is that posed by extending the <tt>array</tt>
+type/class.  Since the standard array manipulating functions are not "generic"
+
+<a href="http://www.cs.cmu.edu:8001/Web/Groups/AI/html/cltl/cltl2.html">[CL90,p.1024],</a>
+
+we would have the same problem that we had with extended
+numbers--the behavior of these functions could not be specialized to the
+extended type.  However, array manipulations tend to create new array instances
+much less frequently than numeric calculations create new numbers, so the lack
+of propagation of any extended type-specific slots would not be a problem.  The
+major problem for such an extended type is how an instance could be created.
+<tt>make-array</tt> could not be used, since it would create a normal array
+type.  Since the array type is extensible, it is presumably an instance of
+<tt>standard-class</tt>, in which case there is an overloaded definition of
+<tt>make-instance</tt> which works for this type, which can be used to overload
+<tt>make-instance</tt> for the extended type.  Extending our <tt>subtypep</tt>
+decision procedure to handle such array types could be quite difficult.<p>
+
+As a result of these observations, we expect that most CLOS implementations
+will have all numeric and array types "built-in", and hence incapable of
+extension/subclassing.  In such implementations, numbers and arrays will then
+be disjoint from all other CLOS classes, as well as from each other, and so our
+"divide and conquer" strategy for dealing with numbers and arrays will continue
+to work.<p>
+
+There is one other aspect of CLOS which is quite troublesome for our type
+system.  This is the possibility of an object <i>changing its type</i>
+dynamically during run-time.  With the sole exception of non-simple arrays,
+which can change their array bounds (and hence their type) dynamically, every
+other Common Lisp-84 object has a static type--i.e., the type of an object does
+not change after creation.  The CLOS function <tt>change-class</tt> and the
+macro <tt>defclass</tt> can both modify the type system in such a way that an
+object's type can change dynamically.  Both operations have the possibility of
+inflicting major damage on the type system, and are therefore quite dangerous.
+Given the major uses of <tt>subtypep</tt> in Common Lisp--for declarations and
+storage allocation--it appears that much is lost through these dynamically
+changing types.
+
+<h2>7.6  Handling SATISFIES</h2>
+
+The existence of <tt>satisfies</tt> clauses in a type specifier expression
+could be considered sufficient grounds for <tt>subtypep</tt> answering "can't
+determine".  We can handle many of the easier forms of <tt>subtypep</tt>
+involving <tt>satisfies</tt>, however, if we first expand the argument type
+specifier expressions in the manner indicated in the "obviously trivial"
+version of <tt>subtypep</tt> previously described in section 5.  If this
+expansion is performed in the proper order, <tt>subtypep</tt> should at least
+be able to answer trivial questions such as: 
+
+<tt><pre>
+(subtypep '(and integer (satisfies oddp)) 'integer).
+</pre></tt>
+
+While this is not a decision procedure, this set of heuristics should be
+capable of handling many of the easier questions; it may also slightly speed up
+questions not involving <tt>satisfies</tt>.<p>
+
+One could also extend the basic (non-<tt>satisfies</tt>) decision procedure to
+handle certain cases of <tt>satisfies</tt> as follows.  Treat each predicate
+symbol that occurs in a <tt>satisfies</tt> clause as an <i>uninterpreted</i>
+type name, and use a decision procedure for uninterpreted monadic predicate
+symbols [Church56] [Rackoff75] to decide the <tt>subtypep</tt> question.  Such
+an extended <tt>subtypep</tt> decision procedure would then be well-defined,
+and would answer "can't determine" only when the answer would depend upon the
+specific interpretation of the predicate symbol--i.e., the actual semantics of
+the predicate.  This extended <tt>subtypep</tt> decision procedure would then
+be NP-complete, since we could use it to do tautology-testing.<a
+href="#fn17">[17]</a>  While strictly more powerful than the
+non-extended decision procedure, we do not recommend this approach, since the
+additional machinery could slow down <i>every</i> <tt>subtypep</tt> decision,
+even when it did not involve <tt>satisfies</tt>.
+
+<h2>7.7  Putting it all together</h2>
+
+In order to decide a <tt>subtypep</tt> question, we divide the whole question
+into several sub-questions by computing the homomorphic image of the
+type-specifier expressions for each of the kingdoms.  For example, the
+homomorphic image of <tt>(or symbol (member 3) bit-vector)</tt> is <tt>(or
+symbol nil nil)</tt>=<tt>symbol</tt>, <tt>(integer 3 3)</tt>, or <tt>(array bit
+*)</tt>, etc., depending upon the kingdom being decided.  Each of these
+subquestions is then passed in turn to decision "experts" for each of the main
+type "kingdoms" of Common Lisp: flat or discrete types, numeric ranges, array
+specifiers, and user-defined types.  The answer to the whole question is only
+true if <i>all</i> of the kingdom experts answers true.  This conjunction
+results from the nature of the Lisp datatype Boolean algebra as the Cartesian
+product of the disjoint kingdoms.<p>
+
+Thus, we have shown how any <tt>subtypep</tt> question without the
+<tt>satisfies</tt> construct can be answered by building a constructive model
+of the types (= sets) involved, and then performing Boolean operations on those
+sets.  It has also been shown that, if ranges are not involved, the
+representation of any type specifier expression can be a single binary integer,
+and that any subtype question can be answered with a single logical bit-vector
+computation.  The size in bits of these integers is relatively small in
+practice (perhaps 50 bits), although in the worst case, they can grow
+exponentially in the size of the type specifier expression (due to the
+explosion of bits required for complex expressions involving higher-order
+arrays).<p>
+
+The independent computation for each of the classes of types: basic types,
+ranges and arrays, are all performed in parallel (hence the ability to
+implement most of the work using bit-strings).  Thus, the worst case for a
+<i>meet</i> or a <i>join</i> operation is the logical <i>and</i> or <i>or</i>
+of several bit strings, along with a  number of <i>range-meet</i> or
+<i>range-join</i> operations for each of the different numeric range types.<p>
+
+The code to implement this <tt>subtypep</tt> decision procedure, in addition to
+being fast, is also quite small, typically requiring fewer lines of code than
+the <tt>subtypep</tt> that is most likely provided with most implementations
+(e.g., 3 pages for Kyoto Common Lisp's <tt>subtypep</tt>, 15 pages for
+Symbolics Common Lisp, 18 pages for Spice Common Lisp's <tt>subtypep</tt>).
+Furthermore, it works on even the most complicated type specifier expressions,
+eliminating the need to analyze some very complex code (e.g.,
+<tt>hairy-subtypep</tt> and friends).<p>
+
+As a side-effect of this effort, one also gets the lattice operations of
+<tt>meet</tt> (= <tt>and</tt>) and <tt>join</tt> (= <tt>or</tt>) for the Common
+Lisp type system, which can be used for type inference
+
+<a href="TInference.html">[Baker90].</a>
+
+Additionally, one gets a very interesting representation and manipulation
+package for range arithmetic that can handle ranges with holes; e.g., the
+domain of the reciprocal function 1/x.  Unfortunately, <tt>meet</tt> and
+<tt>join</tt> produce their answers in a highly stylized canonical form, and
+converting from this form back into a readable type specifier expression
+produces very complex and hard-to-understand type specifier expressions.  One
+can attempt to produce more readable expressions, but producing the shortest
+(or simplest?) type specifier expression equivalent to a particular canonical
+form is an NP-complete problem.
+
+<h2>8.  Complexity</h2>
+
+The time and space required to execute the decision procedure described above
+can be determined by examining each of the components.  We will measure
+complexity relative to the size of the arguments to <tt>subtypep</tt>.  The
+basic operations are as follows:<p>
+
+ * splitting the problem into disjoint domains
+ * solving the problem for
+each domain
+ * putting the answers together<p>
+
+Splitting the problem into disjoint domains requires work linear in the size of
+the input argument, and putting the results back together is a simple
+conjunction whose size is proportional to the number of kingdoms.  This
+splitting leaves most of the complexity within the domain specific decisions.<p>
+
+Discrete types are the built-in elementary types, excluding numeric ranges and
+arrays.  We show in Appendix II an implementation of a decision procedure for
+discrete types which utilizes perhaps 30 representatives for the built-in
+Common Lisp discrete types.  Decisions involving <tt>member</tt> can cause the
+bit vectors to grow, but still in proportion to the <i>elements</i>
+mentioned.<a href="#fn18">[18]</a>  The actual set operations
+with the bit-vectors will be of approximately <i>quadratic</i> complexity,
+since both the number of operations, as well as their size, will be
+proportional to the size of the input argument.  The registering procedure
+itself can take anywhere from constant time per element registered to a time
+proportional to the total number of registered elements; this will be
+implementation dependent.  This implementation dependency arises because during
+the registration of an element, we must call <tt>typep</tt> for each discrete
+type known to the system, so that their bit-vectors can be updated.<p>
+
+Numeric range decisions generally involve the manipulations of ordered unions
+of intervals, where the size of the unions is relatively small.  However, one
+could construct examples where the unions attain lengths which are exponential
+in the size of the input argument.  These cases are highly artificial, however,
+because they involve continually subdividing intervals into smaller and smaller
+pieces.  In the typical case, the unions are extremely short--generally one or
+two intervals.<p>
+
+Array type decisions involve the manipulations of relatively short bit-vectors.
+However, one can construct artificial examples where the lengths of the
+bit-vectors are exponential in the size of the input argument.  A certain
+amount of this complexity is forced, since we can ask the sort of database
+retrieval question posed in section 6 using array types.  However, we consider
+such examples artificial, since they arise from arrays of high rank and widely
+varying dimensions.<p>
+
+User-defined type decisions (without <tt>member</tt>) involve the manipulation
+of a number of representatives which is proportional to the number of
+user-defined types.  Note, however, that any work in registering these
+representatives is not charged to <tt>subtypep</tt>, because these types cannot
+be defined within a call to <tt>subtypep</tt>.  While the amount of work
+involved in registration might be substantial, charging it to the creation of
+the type rather than to <tt>subtypep</tt> is reasonable.  (The work of
+registering representatives is also likely to be completely swamped by the
+other activities involved in the creation of a type.)  If there are a large
+number of built-in types, the normal expectation is that once defined, these
+types remain relatively constant, while <tt>subtypep</tt> could be called a
+large number of times.  Thus, the amount of work charged to <tt>subtypep</tt>
+is at most a large constant times the size of the input specifier.<p>
+
+Including actual objects in a <tt>member</tt> construct will cause the
+registration of those objects to be charged to <tt>subtypep</tt>, however.  In
+such cases, a significant amount of work may have to be done if there are a
+large number of user-defined types, as the work to register is proportional to
+the number of user-defined types.<p>
+
+In summary, the typical user of <tt>subtypep</tt> will see its execution taking
+an amount of time linearly proportional to the size of the input specifiers,
+while heavy users of <tt>member</tt> and user-defined types will experience a
+more quadratic performance.  Only the most perverse user will experience the
+exponential worst case behavior of this algorithm.<a
+href="#fn19">[19]</a>
+
+<h2>9.  Implications for future type systems</h2>
+
+The decision procedure developed for Common Lisp depends critically upon the
+exact language of type specifiers.  Changes in the type system in the direction
+of more specificity or changes in the combining operators allowing more
+generality would have a profound effect on the ability of a mechanical
+procedure to decide <tt>subtypep</tt> questions.  For example, the equivalence
+of functional types is undecidable, so any change in the direction of Scheme
+[Rees86] for allowing the comparison of functions will make the problem
+intractable for Common Lisp.<p>
+
+On the other hand, Common Lisp's use of <tt>eql</tt> semantics for the
+<tt>member</tt> type specifier makes many problems trivially decidable--for
+example, those of "equivalent" functions.  Whether <tt>eql</tt> semantics is
+the most practical semantics within <tt>subtypep</tt> is not known.<p>
+
+The attempt by CLOS to overload the predicate <tt>subtypep</tt> with the
+meaning "subclassp" is quite unfortunate.  Common Lisp already has a precise
+meaning for <tt>subtypep</tt>--extensional subset--while CLOS attempts to
+convert it into a predicate about intensions.  This CLOS meaning destroys the
+possibility of building <i>abstract</i> data types whose implementation is
+hidden, because the ability to test for "subclassp" means the ability to
+determine the superclasses of a class, and hence the slots of the class.  The
+CLOS meaning thereby confuses membership ("is-a") with implementation
+("composed-from").  For example, one should not be able to deduce that a "set"
+is a "sequence" just because one happens to use a "sequence" to implement a
+"set".  We suggest that CLOS implement instead a predicate <tt>subclassp</tt>,
+and base method selection on this predicate, while allowing <tt>defclass</tt>
+to independently specify extensional inclusion of the generated type.<p>
+
+We also suggest that Common Lisp provide an "uninstantiable" specification for
+user-defined types which specifies when a new type is not allowed to have any
+direct instances, so that the intention of user-defined types which are
+partitioned into subtypes which have direct instances can be specified.  This
+terminology is introduced by McAllester in his very interesting paper
+[McAllester86] which provides a consistent interpretation for inheritance in a
+class system which has been completed into a Boolean algebra.<p>
+
+The current Common Lisp type specifier system does not provide the best
+possible information regarding types in declarations for use in highly
+optimizing compilers.  For example, one cannot specify ranges which are bounded
+by a run-time variable in Common Lisp.  Such type information is highly useful
+in Ada, for example, for removing redundant run-time range checks [Ada83].
+Common Lisp curiously does not provide descriptive information about the types
+of items in its list structures, yet this information can be invaluable in
+producing highly efficient code for manipulating lists [Milner78].
+Unfortunately, neither of these capabilities can be handled by the decision
+procedure described here.<p>
+
+However, there are a few type specifier changes which <i>could</i> be handled
+by our techniques.  One of these is the ability to describe the "alignment" of
+an integer as being divisible by 2, 4, 8, etc.  Such information would be
+extremely valuable in compiling the most efficient code for RISC architectures
+which can access objects only on certain address alignments.<p>
+
+The current Common Lisp type system does not provide for any kind of
+<i>context</i> marker for the interpretation of <tt>typep</tt> and
+<tt>subtypep</tt> questions.  Such a context marker would be very helpful in
+distinguishing between compile-time and run-time type environments, especially
+where user-defined types are involved.  The lack of such a context marker makes
+the algorithm for deciding <tt>subtypep</tt> a lot easier, but a lot less
+useful.  This is because the important issue within a compiler is what values a
+object could take on in the environment of the run-time system, not what values
+it can take on in the compile-time environment.  As a result of this omission,
+Common Lisp compilers will almost certainly utilize a different
+<tt>subtypep</tt> than the standard run-time version, and the compile-time
+version will have to be less precise in order to allow for the differences
+between the compile-time and the run-time environments.
+
+<h2>10.  Conclusions</h2>
+
+Logicians have long known that two logical systems related to the Common Lisp
+type system are known to be decidable: the first-order theory of uninterpreted
+sets [Church56] [Rackoff75], and the first-order theory of rational order
+[Ferrante77] [Ferrante75] (a much easier version of Tarski's theory of <i>real
+closed fields</i> [Tarski51]).  It is almost obvious that these two results
+make the Common Lisp type system (without <tt>satisfies</tt>) decidable.
+However, both of these decision procedures have multiply-exponential time
+bounds, and are of theoretical interest only.<p>
+
+The decision procedure described here is similar to that for the first-order
+theory of uninterpreted sets in that it builds a constructive <i>model</i>
+using objects gleaned from the input arguments.  This procedure is very much
+cleaned up, however,  for efficient implementation.  Our decision procedure for
+intervals is new, although it is a reasonably obvious extension of standard
+interval arithmetic.  It has not been described before most likely because
+programming it in Fortran is too painful to contemplate.
+
+<h2>Acknowledgments</h2>
+
+Jeff Hirsch provided invaluable help in editing earlier versions of this paper.
+We are also indebted to Carolyn Talcott and Richard Gabriel who refereed this
+paper and gave many valuable criticisms.
+
+<h2>References</h2>
+
+Ada83.  <i>Reference Manual for the Adareg. Programming Language</i>.
+ANSI/MIL-STD-1815A-1983, US GPO, Wash, DC, 1983.<p>
+
+Aho86.  Aho, Alfred V.; Sethi, Ravi; and Ullman, Jeffrey D.  <i>Compilers:
+Principles, Techniques, and Tools</i>.  Addison-Wesley, 1986.<p>
+
+<a href="TInference.html">Baker90.</a>
+
+Baker, Henry G.  "The Nimble Type Inferencer for Common Lisp-84".
+Technical Report.  Nimble Computer Corporation, 1990.<p>
+
+Bauer74.  Bauer, Alan M., and Saal, Harry J.  "Does APL really need run-time
+checking?"  <i>Software Practice and Experience</i>, v.4, 1974,pp.129-138.<p>
+
+Beer88.  Beer, Randall D.  "The compile-time type inference and type checking
+of Common Lisp programs: a technical summary".  TR 88-116, Ctr. for Automation
+and Intelligent Sys. Research, Case Western Reserve Univ., May 1988.<p>
+
+Bobrow88.  Bobrow, et al.  "Common Lisp Object System Specification X3J13",
+<i>ACM SIGPLAN Notices</i>, v.23, Sept. 1988; also <i>Lisp and Symbolic
+Computation 1</i>, 3-4, pp245-394; also X3J13 Document 88-002R, June 1988.<p>
+
+Borning82.  Borning, Alan H. and Ingalls, Daniel H. H.  "A Type Declaration and
+Inference System for Smalltalk"  <i>ACM POPL 9</i>, 1982, pp.133-141.<p>
+
+Budd88.  Budd, Timothy.  <i>An APL Compiler</i>.  Springer-Verlag, NY, 1988.<p>
+
+Church56.  Church, A.  <i>Introduction to Mathematical Logic, Vol. I.</i>
+Princeton University Press, 1956.<p>
+
+CL84.  Steele, Guy L., Jr.  <i>Common Lisp: The Language</i>.  Digital Press,
+1984.<p>
+
+<a href="http://www.cs.cmu.edu:8001/Web/Groups/AI/html/cltl/cltl2.html">CL90.</a>
+
+Steele, Guy L., Jr.  Common Lisp: The Language, Second Edition.  Digital
+Press, Bedford, MA, 1990.<p>
+
+Ferrante, J., and Rackoff, C.  "A decision procedure for the first order theory
+of real addition with order".  <i>SIAM J. Comput. 4</i>, 1 (1975),69-76.<p>
+
+Ferrante, J. and Geiser, J.  "An efficient decision procedure for the theory of
+rational order".  <i>Theor. Computer Sci. 4</i>, 2 (1977),227-234.<p>
+
+Hughes68.  Hughes, G.E., and Cresswell, M.J.  <i>An Introduction to Modal
+Logic</i>.  Methuen and Co., 1968.<p>
+
+IEEE82.  Floating-Point Working Group 754 of the Microprocessor Standards
+Committee.  "A Standard for Binary Floating-Point Arithmetic".  IEEE, 345 E.
+47'th St., New York, NY 10017, 1982.<p>
+
+Loos83.  Loos, R.  "Computing in Algebraic Extensions".  In Buchberger, et al.
+<i>Computer Algebra: Symbolic and Algebraic Computation, Second Edition</i>.
+Springer-Verlag, New York, 1983, pp.173-187.<p>
+
+Kaplan80.  Kaplan, Marc A., and Ullman, Jeffrey D.  "A Scheme for the Automatic
+Inference of Variable Types".  JACM 27,1, Jan. 1980, pp.128-145.<p>
+
+Ma, Kwan-Liu, and Kessler, Robert R.  "TICL--A Type Inference System for Common
+Lisp".  <i>SW--Prac.&amp;Exper. 20</i>,6 (June 1990),593-623.<p>
+
+MacLane67.  MacLane, Saunders and Birkhoff, Garrett.  <i>ALGEBRA</i>.
+Macmillan, 1967.<p>
+
+McAllester, David, and Zabih, Ramin.  "Boolean Classes".  <i>Proc. '86 OOPSLA,
+Sigplan Notices 21</i>,11 (Nov. 1986),417-423.<p>
+
+Milner78.  Milner, Robin.  "A Theory of Type Polymorphism in Programming"
+<i>JCSS</i> 17, 1978,pp.348-375.<p>
+
+Morris73.  Morris, J.H.  "Types are Not Sets".  <i>ACM POPL</i>, 1973,
+pp.120-124.<p>
+
+Rackoff75.  Rackoff, C.W.  "The complexity of theories of the monadic predicate
+calculus".  IRIA Rep. 136, Roquencourt, France, 1975.<p>
+
+Rees86.  Rees, J. and Clinger, W., et al.  "Revised Report on the Algorithmic
+Language Scheme".  <i>SIGPLAN Notices 21</i>, 12 (Dec. 1986), 37-79.<p>
+
+Scott76.  Scott, D.  "Data types as lattices".  <i>SIAM J. Computing</i>, 5,3
+(Sept. 1976), 522-587.<p>
+
+Steele78.  Steele, Guy L., Jr.  <i>Rabbit: A Compiler for SCHEME (A Study in
+Compiler Optimization)</i>.  AI-TR-474, Artificial Intelligence Laboratory,
+MIT, May 1978.<p>
+
+Suzuki81.  Suzuki, Norihisa.  "Inferring Types in Smalltalk".  <i>ACM POPL 8,
+</i>1981,pp.187-199.<p>
+
+Tarski51.  Tarski, A.  <i>A Decision Method for Elementary Algebra and
+Geometry</i>, 2nd ed., Univ. of Cal. Press, Berkeley, 1951.
+
+<h2>Appendix I.  Axioms for Lattices and Boolean Algebras [MacLane67].</h2>
+
+A <i>lattice</i> is a set U together with a predicate &lt;= on U.<p>
+
+<pre>
+For all x, x &lt;= x.						(Reflexivity)
+If x &lt;= y and y &lt;= x, then x = y.				(Antisymmetry)
+If x &lt;= y and y &lt;= z, then x &lt;= z.				(Transitivity)
+
+Define x ^ y to be <i>greatest lower bound</i> of x,y under &lt;=.
+Define x V y to be <i>least upper bound</i> of x,y under &lt;=.
+
+x ^ x = x, x V x = x						(Idempotency)
+x ^ y = y ^ x, x V y = y V x					(Commutativity)
+x ^ (y ^ z) = (x ^ y) ^ z, x V (y V z) = (x V y) V z		(Associativity)
+x ^ (x V y) = x V (x ^ y) = x					(Absorption)
+x ^ y = x if and only if x V y = y if and only if x &lt;= y	(Consistency)
+If y &lt;= z, then x ^ y &lt;= x ^ z and x V y &lt;= x V z		(Monotonicity)
+x ^ (y V z) &gt;= (x ^ y) V (x ^ z),				(Distributive <i>in</i>equalities)
+x V (y ^ z) &lt;= (x V y) ^ (x V z)
+If x &lt;= z, then x V (y ^ z) &lt;= (x V y) ^ z.			(Modular <i>in</i>equality)
+</pre>
+
+A <i>Boolean algebra</i> is a lattice with B (bottom) and T (top) which is modular,
+distributive and complemented.<p>
+
+<pre>
+If x &lt;= z, then x V (y ^ z) = (x V y) ^ z			(Modularity)
+x ^ (y V z) = (x ^ y) V (x ^ z),				(Distributivity)
+x V (y ^ z) = (x V y) ^ (x V z)
+
+Let x' denote the <i>complement</i> of x.				(Complemented)
+x ^ x' = B, x V x' = T, x'' = x
+(x ^ y)' = x' V y', (x V y)' = x' ^ y'				(DeMorgan)
+</pre>
+
+<h2>Appendix II.  Simple implementation of subtypep for a trivial type system</h2>
+
+The following code is purely pedagogical; no production system would implement
+<tt>subtypep</tt> exactly this way.  In particular, we apologize for the use of
+side-effects.  However, for "anonymous" types created by <tt>member</tt>, one
+must either register them for the current call to <tt>subtypep</tt>, or
+register them once and for all.  Depending upon the situation, either version
+could be more efficient: the temporary registration policy would be better if
+the type is only used once, while the permanent registration policy would be
+better if the type is used many times--e.g., if <tt>subtypep</tt> were called
+with the anonymous type within a loop.
+
+<tt><pre>
+(defconstant *standard-type-specifiers*
+  '(FIXNUM BIGNUM FLOAT RATIO COMPLEX INTEGER RATIONAL CHARACTER
+    NULL SYMBOL KEYWORD LIST etc.)
+  "List of all built-in type names")
+
+(defconstant *representatives*
+  '(0 43574358734543 1.0 3/4 #C(1 1) #\S nil t :foo
+    #(1 2) "Foo" #*10110 #2A((1 2) (3 4)) #.*standard-input*)
+  "List of representatives for all equivalence classes")
+
+(defun rep-bit (elt)
+  "Return a bit-vector with bit set for this element"
+  (let ((pos (position elt *representatives*)))
+    (if pos (ash 1 pos)
+        (progn (nconc *representatives* `(,elt)) (rep-bit elt)))))
+
+(defun register (elt)
+  "Register this element with all known types; return rep-bit"
+  (dolist (typ *standard-type-specifiers*)
+    (if (and (typep elt typ)
+             (zerop (logand (rep-bit elt) (eval typ))))
+        (incf (symbol-value typ) (rep-bit elt))))
+  (rep-bit elt))
+
+(defun elements (&amp;rest elts)
+  "Register elements and return OR of element bits"
+  (reduce #'logior (mapcar #'register elts)))
+
+(dolist (typ *standard-type-specifiers*) (set typ 0))
+
+(apply #'elements *representatives*) ; Register all representatives
+
+(defun subtypep (x y)
+  "Predicate for subtype testing; map into bit-vector algebra"
+  (let ((exp (sublis '((and . logand) (or . logior)
+                       (not . lognot) (member . elements))
+                     `(and ,x (not ,y)))))
+  (eval exp) ; Dress rehersal to make sure elements are registered.
+  (values (zerop (eval exp)) t))
+</pre></tt>
+
+<a name="fn1">[1]</a>
+
+The new function <tt>upgraded-array-element-type</tt> is supposed to fix this
+problem, but only succeeds in hiding the problem at a lower level.  Since this
+new function is required to be lattice-monotonic
+
+<a href="http://www.cs.cmu.edu:8001/Web/Groups/AI/html/cltl/cltl2.html">[CL90,67-68],</a>
+
+and since the
+upgraded type of <tt>'bit</tt> is required to be <tt>'bit</tt>
+
+<a href="http://www.cs.cmu.edu:8001/Web/Groups/AI/html/cltl/cltl2.html">[CL90,p.33],</a>
+
+we
+can use this function to test for the emptiness of an arbitrary type
+specifier--a problem we later show to be equivalent to <tt>subtypep</tt>.
+
+<tt><pre>
+(defun type-null (x)
+  (values (and (eq 'bit (upgraded-array-element-type `(or bit ,x)))
+               (not (typep 0 x))
+               (not (typep 1 x)))
+          t))
+</pre></tt>
+
+<a name="fn2">[2]</a>
+
+There could also conceivably be an alternative <i>modal</i> view of Common
+Lisp types, where the modal constructs "may" and "must" would represent the
+differences in implementations (or <i>worlds</i>, see [Hughes68]).  "May" would
+be interpreted as "there could conceivably exist an implementation", and "must"
+would be interpreted as "for all conceivable implementations".  Under this
+modal view, there would be <i>undecidable</i> <tt>subtypep</tt> questions even
+in the absence of <tt>satisfies</tt>, because there would be specifiers
+<i>t1</i> and <i>t2</i> such that the answer to the question <tt>(subtypep
+</tt><i>t1</i><tt> </tt><i>t2</i><tt>)</tt> would differ depending upon the
+implementation, and hence it would be impossible for <tt>subtypep</tt> to
+answer with certainty any question for which
+
+<tt><pre>
+ (or (must (subtypep t1 t2)) (must (not (subtypep t1 t2))))
+</pre></tt>
+
+was not true.  We reject this modal view as not being useful for a program to
+want to query because most programs would be more interested in <i>this</i>
+implementation--i.e., the one the program is running on, or being compiled
+for.<p>
+
+<a name="fn3">[3]</a>
+
+In some implementations, <tt>defstruct</tt> and
+<tt>defclass</tt> types may overlap with the elementary Common Lisp
+types--e.g., <tt>stream</tt>.  Since we utilize the same mechanism for these
+three kingdoms, we can collapse these three kingdoms into one for the
+implementation of <tt>subtypep</tt>.  However, we insist that numeric ranges
+and arrays be disjoint from each other and from the previous three kingdoms.<p>
+
+<a name="fn4">[4]</a>
+
+Some Common Lisp readers <i>coalesce</i>
+
+<a href="http://www.cs.cmu.edu:8001/Web/Groups/AI/html/cltl/cltl2.html">[CL90,p.694]</a>
+
+all
+quoted expressions, meaning that quoted lists which <i>print</i> the same, may
+actually <i>be</i> the same (<tt>eq</tt>); since coalescing is done in a
+bottom-up fashion, sub-expressions are also coalesced.  In such a case, one may
+have to resort to the "<tt>#,</tt>" notation of Common Lisp to guarantee
+non-aliased representatives from the reader.<p>
+
+<a name="fn5">[5]</a>
+
+Our representation is a slight generalization of the
+Common Lisp subrange specifier
+
+<a href="http://www.cs.cmu.edu:8001/Web/Groups/AI/html/cltl/cltl2.html">[CL90,p.61-62],</a>
+
+because we do not require that
+<i>ntype</i> {<i>low</i>,<i>high</i>}, but allow the endpoints to be any
+orderable numbers; this representation is well-defined due to a recent change
+in Common Lisp making numeric comparisons precise
+
+<a href="http://www.cs.cmu.edu:8001/Web/Groups/AI/html/cltl/cltl2.html">[CL90,p.290].</a>
+
+<p>
+
+<a name="fn6">[6]</a>
+
+In the case where one or more of the differently named floating-point types
+are actually identical ("aliased"), we map the named type into the
+representational type.  For example, <tt>(short-float * *)</tt> may map into
+<tt>(single-float * *)</tt> during canonicalization if there is no separate
+<tt>short-float</tt> type.<p>
+
+<a name="fn7">[7]</a>
+
+In our representation of rational ranges, we have assumed
+that <tt>rational</tt>=<tt>integer</tt> U <tt>ratio</tt>, as in most
+Common Lisp implementations.  Common Lisp may allow for implementations with
+rationals which are not integers or ratios
+
+<a href="http://www.cs.cmu.edu:8001/Web/Groups/AI/html/cltl/cltl2.html">[CL90,p.39],</a>
+
+but standard
+mathematics requires that these other numbers <i>act</i> like integers and
+ratios--i.e., they can be compared using &lt;,=,&gt;,etc., and arithmetic can
+be performed using +,-,*,etc.  Our scheme ignores the differences between these
+"fake" integers/ratios and "real" integers/ratios, and treats them both as if
+they were "true" integers and ratios.  In this sense our scheme ignores the
+<i>representation</i> of a number and focuses on its <i>value</i>.<p>
+
+<a name="fn8">[8]</a>
+
+This canonicalization relies on <tt>type-of</tt>
+
+<a href="http://www.cs.cmu.edu:8001/Web/Groups/AI/html/cltl/cltl2.html">[CL90,p.65-67]</a>
+
+to produce the correct number type for labelling the
+single-point simple "interval".  This usage neatly finesses the problem of
+"aliased" floating-point types, where an implementation may call a single
+floating-point type both <tt>short-float </tt>and <tt>single-float</tt>.<p>
+
+<a name="fn9">[9]</a>
+
+The various infinities are not numeric values.<p>
+
+<a name="fn10">[10]</a>
+
+Although <tt>string-char</tt> is no longer a defined
+Common Lisp type
+
+<a href="http://www.cs.cmu.edu:8001/Web/Groups/AI/html/cltl/cltl2.html">[CL90,p.460],</a>
+
+we here use "<tt>string-char</tt>" to mean the
+union of possible string element types.  We could alternatively expand
+"<tt>string</tt>" as "the union of [the] one or more specialized vector types"
+that are used to implement strings
+
+<a href="http://www.cs.cmu.edu:8001/Web/Groups/AI/html/cltl/cltl2.html">[CL90,p.460].</a>
+
+<p>
+
+<a name="fn11">[11]</a>
+
+Some Common Lisp array implementations may remember the
+precise actual array element type that was used when the array was
+created--i.e., the function <tt>upgraded-array-element-type</tt> produces a
+canonical representation of the given argument type.  Such an implementation
+would appear to have an infinite number of different
+<tt>array-element-type</tt>'s.  In this case, <tt>subtypep</tt> must  keep
+track of the <tt>array-element-type</tt>'s actually mentioned, as we do for the
+different dimensions, rather than attempting to canonically represent all
+possible <tt>array-element-type</tt>'s.<p>
+
+<a name="fn12">[12]</a>
+
+The one type of non-trivial question one could ask is
+<tt>(type-equal (member "a") (member "a"))</tt>, i.e., does the reader share
+constant strings or not?  This issue was discussed before in the footnote on
+the "<tt>member</tt>" section.<p>
+
+<a name="fn13">[13]</a>
+
+Some <tt>defstruct</tt> types are not intended to have
+instances, but are provided for the convenience of two or more other
+<tt>defstruct</tt> types which "include" the first.  Since Common Lisp does not
+provide any mechanism for a programmer to enforce this intention, our scheme is
+consistent.<p>
+
+<a name="fn14">[14]</a>
+
+Note that in this paper, we show how to implement
+<tt>subtypep</tt>, not <tt>typep</tt>.  This means that we depend upon a
+correct implementation of <tt>typep</tt> for the proper behavior of
+<tt>subtypep</tt>.  For CLOS classes, the implementation of <tt>typep</tt>
+might be quite involved and complicated.  Some CLOS implementations might even
+find it advantageous to implement <tt>(typep x y)</tt> as <tt>(values (subtypep
+(type-of x) y))</tt>, since the <tt>subtypep</tt> implementation described here
+already provides the machinery to answer the hard questions.  However, the
+proper implementation of <tt>typep</tt> is outside the scope of this paper.<p>
+
+<a name="fn15">[15]</a>
+
+CLOS defines <tt>(subtypep </tt>c<tt> </tt>d<tt>)</tt> =
+d elt cpl(c), where cpl(c) is the "class precedence list" of c
+
+<a href="http://www.cs.cmu.edu:8001/Web/Groups/AI/html/cltl/cltl2.html">
+[CL90,p.774,780-781],</a>
+
+i.e., cpl(c) = {x elt Classes | <tt>(subtypep
+</tt>c<tt> </tt>x<tt>)</tt>=<tt>t</tt>}.  However, <tt>(subtypep</tt> c
+d<tt>)</tt> if and only if d elt cpl(c) if and only if cpl(c) includes
+cpl(d).  Since the bit-vectors for c,d encode information equivalent to the
+sets cpl(c),cpl(d), our comparing of the bit-vectors is formally equivalent to
+the CLOS definition.<p>
+
+<a name="fn16">[16]</a>
+
+Unlike the situation with structures, a Common Lisp
+programmer can (obliquely) express his intention that no direct instances of a
+particular class be created, by overloading <tt>make-instance</tt> to signal an
+error.  In such a case, our dummy element is a bastard.  Since CLOS does not
+allow any subclass of this class to be <tt>type-equal</tt> to the class, even
+though the sets of (direct and indirect) instances may in fact be the same,
+CLOS thus destroys the extensionality of types.  [McAllester86] calls classes
+of this kind <i>uninstantiable classes</i>.  We believe that CLOS should allow
+a programmer to assert that a class is <tt>uninstantiable</tt>.  We discuss
+this issue again in Section 9.<p>
+
+<a name="fn17">[17]</a>
+
+McAllester's boolean class system [McAllester86]
+utilizes a similar system to determine whether a certain class in an
+intentionally specified class system is allowed to have any members.  His
+classes are defined by (essentially) uninterpreted monadic predicates among
+which certain subset relations are posited.<p>
+
+<a name="fn18">[18]</a>
+
+The set of representatives need grow only as the
+<i>logarithm</i> of the number of types, since <i>n</i> representatives can
+distinguish 2^<i>n</i> different types.<p>
+
+<a name="fn19">[19]</a>This exponential behavior is caused only by the perverse
+use of arrays.  Unlike [McAllester86], in which certain questions are co-NP
+complete because questions are asked about <i>all</i> interpretations of a
+system of subsets, our procedure is fast because it is asking about a
+<i>particular</i> system of subsets.
+
+</body></html>

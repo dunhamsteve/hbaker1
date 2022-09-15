@@ -1,0 +1,108 @@
+<title>"Factoring Redundancy", Comm. of the ACM 34,5 (May 1991), 98-99.</title>
+<p>
+Nimble Computer Corporation<br>
+16231 Meadow Ridge Way<br>
+Encino, CA  91436<br>
+(818) 986-1436<br>
+FAX: (818) 986-1360<br></p>
+<p>
+February 14, 1991<br></p>
+<p>
+Editors<br>
+<cite>Communications of the ACM</cite><br>
+Association for Computing Machinery<br>
+11 West 42nd St.<br>
+New York, NY  10036<br>
+<p>
+Dear Sirs:<br></p>
+
+<p>The overview article, "Software Safety in Embedded Computer
+Systems", by Nancy Leveson in the February, 1991, issue of the
+<cite>Communications of the ACM</cite> provides some valuable insights
+into some of the problems of developing safe software for the
+ever-increasing number of software-intensive online and control
+systems.  I was amazed, however, that I could not find the word
+<em>redundancy</em> at any place in this relatively long article.
+Engineered redundancy is the fundamental tool for reducing the errors
+in communications systems, and also forms the basis for many of the
+techniques Dr. Leveson recommends for software practise.</p>
+
+<p>While much remains to be done in providing proper specifications
+for software systems to avoid high-level hazards, there are a number
+of low-level hazards for which redundancy tools already exist, but
+which are not currently being used.  We refer specifically to
+programming errors which cannot currently be caught by a compiler's
+typing system, but can be caught by a proper system of run-time type
+checking.  Reducing these hazards does not require millions of dollars
+of R&amp;D for "specification languages" or theorem-provers, but
+simply requiring that existing run-time type-checks always be
+enabled.</p>
+
+<p>Dr. Leveson does not discuss particular programming languages, but
+since the Ada language is currently required for virtually all
+defense-related "mission-critical" systems, it is pertinent to look at
+the redundancy built into this language.  Ada's highly-sophisticated
+typing system provides redundancy in the form of a "homomorphic
+computation" that can be performed at compile time to determine if a
+program type-checks.  Furthermore, Ada provides additional run-time
+redundancy in the form of subrange checks, array bounds checks,
+pointer dereferencing checks, and variant record (aka union)
+discriminant checks.  Unfortunately, these checks are often not used
+because 1) the precise specification of types and subtypes in Ada is a
+tedious and frustrating activity that is often rewarded by poor
+execution performance and bad software productivity metrics; and 2)
+the speed of an embedded system is often at such a premium that
+management and/or the customer requires that the run-time checking be
+suppressed.</p>
+
+<p>It was intended that sophisticated Ada compilers would be able to
+optimize redundant run-time checks away, whenever the compiler could
+prove mathematically that the checks would always be satisfied.
+Unfortunately, the reliability of optimizing compilers is so suspect,
+that some certification organizations require that critical software
+be compiled with optimization turned off (viz. Ada-9X revision request
+729).  Since the certification organizations do not simultaneously
+require that run-time checks be turned on, we achieve a most
+undesirable situation of no optimization and no run-time checking.
+The tradition of benchmarking with all run-time checking disabled also
+leads to unrealistic performance expectations, and to the virtual
+certainty that performance specifications can only be met by turning
+all run-time checking off.</p>
+
+<p>Even assuming that Ada is used as intended, with full typing and
+type-checking enabled, Ada fails miserably at reducing the next higher
+level of hazards--the provable meeting of specifications.  Even though
+one of the goals of Ada was to enable a computer to construct (with
+human help) mathematical proofs that certain programs could meet
+certain specifications, the sheer complexity of the Ada language made
+the achievement of this goal so expensive that it cannot be routinely
+achieved.  The syntax and semantics of Ada are so complex, that ACM
+<cite>Ada Letters</cite> is filled with "Dear Ada" letters which
+illuminate some incredibly abstruse part of the language.  The only
+hope for achieving some level of mathematical certainty about program
+correctness is to require that the complexity of the language itself
+not get in the way of understanding the complexity of a program in the
+language.  This means that the language should be amenable to a short
+denotational semantics, as has been achieved for languages such as ML
+and Scheme.</p>
+
+<p>In engineering disciplines other than software development,
+reliability can often be improved by reducing the number of parts to a
+minimum, since a greater number of parts means that there is more to
+fail.  The KISS rule ("keep it simple, stupid") has been proven over
+and over to reduce errors, by allowing the engineer to focus on the
+entire system, rather than becoming overloaded with the complexity of
+one of its parts.  The distressing trend of "reusability" requirements
+to force the use of software in unfamiliar environments is more likely
+to decrease, rather than increase, the reliability of the resulting
+systems.</p>
+
+<p>To summarize: we already have within our grasp many tools to
+improve reliability, but due to improper organizational constraints,
+we are often unable or unwilling to use them.  With apologies to Pogo,
+"we have met the enemy, and he is us".</p>
+
+<p>
+Sincerely,<br></p>
+<p>
+Henry G. Baker, Ph.D.<br></p>

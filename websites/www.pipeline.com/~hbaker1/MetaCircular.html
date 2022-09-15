@@ -1,0 +1,761 @@
+<html><head>
+
+<!-- This document was created from RTF source by rtftohtml version 2.7.5 -->
+
+<title>ACM Lisp Pointers V, 4 (Oct/Dec 1992), 11-20.</title>
+
+<link rev="made" href="mailto:hbaker1@pipeline.com">
+
+<h1>Metacircular Semantics for Common Lisp Special Forms</h1>
+
+<address>
+<a href="home.html">Henry G. Baker</a>
+</address>
+
+<address>
+Nimble Computer Corporation, 16231 Meadow Ridge Way, Encino, CA 91436<br>
+(818) 986-1436  (818) 986-1360 (FAX)<br>
+Copyright (c) 1992 by Nimble Computer Corporation
+</address>
+
+<hr>
+
+McCarthy's metacircular interpreter for Lisp has been criticized by Reynolds
+and others for not providing precise semantics.  Unfortunately, the alternative
+of English prose currently favored by the ANSI X3J13 and ISO committees for the
+definition of Common Lisp is even less precise than a metacircular interpreter.
+Thus, while a system of denotational semantics &aacute; la Scheme or ML could
+be developed for Common Lisp, we believe that a carefully fashioned system of
+metacircular definitions can achieve most of the precision of denotational
+semantics.  Furthermore, a metacircular definition is also more readable and
+understandable by the average Common Lisp programmer, since it is written in
+terms he mostly understands.  Finally, a metacircular definition for Common
+Lisp special forms enables us to transparently customize the representation of
+certain "built-in" mechanisms such as <tt>function </tt>closures, to enable
+sophisticated systems like "Portable Common Loops" to become truly portable.
+
+<hr>
+
+</head><body>
+
+<h2>INTRODUCTION</h2>
+
+Members of software standards committees should be required to take the
+Hippocratic Oath, which admonishes the neophyte physician to "first, do no
+harm!".<a href="#fn0">[1]</a>  In other words, before any
+therapy is prescribed, first make sure that it will not make the patient worse
+off.  We believe that the use of natural language (e.g., English) in the
+currently proposed Lisp standards is much worse than McCarthy's metacircular
+interpreter, even with its faults.<a href="#fn1">[2]</a>
+We suggest that a Lisp software standard has much to gain by utilizing its own
+uniquely powerful tools to make the language standard both readable and
+precise.<p>
+
+In the following sections, we will develop a series of definitions of various
+Common Lisp special forms in terms of one another.  While these definitions, by
+themselves, will not pin down the semantics of Common Lisp completely, they can
+be used in conjunction with a rough understanding of Common Lisp semantics to
+understand the less usual cases of interactions of the various features.<p>
+
+We use <tt>defmacro</tt> to define a special form in terms of other forms, and
+perhaps in terms of simpler versions of the form itself.  This is done not just
+because such definitions can be entered and quickly checked using a standard
+Common Lisp implementation, but also because we feel that the Common Lisp
+"macro" is the santioned mechanism for adding new "special forms".  While this
+view of special forms is not evident from CLtL2
+
+<a href="http://www.cs.cmu.edu:8001/Web/Groups/AI/html/cltl/cltl2.html">[Steele90],</a>
+
+it should be
+obvious by the end of this paper.  In short, the choice of which "macros" are
+"special forms" is just as arbitrary as the choice of a axes in a coordinate
+system for the Cartesian X-Y plane--e.g., some sets of macros are "linearly
+independent", and some sets of macros "span" the space of special forms.<p>
+
+Some of our emulations may only be approximate, in the sense that certain
+syntactic variations are not supported, and certain error conditions are not
+recognized.  <u>These emulations are meant to be only a starting point for a
+serious effort in pinning down the semantics of Common Lisp</u>, and
+significant additional effort will be required to complete this task.<a
+href="#fn2">[3]</a><p>
+
+The "Portable Common Loops" ("PCL") version of the Common Lisp Object System
+(CLOS) exemplifies the need for a more reflexive view of Common Lisp special
+forms.  PCL does not quite live up to its name, since it needs to diddle the
+representation of function closures, which is different in every Common Lisp
+implementation.  Through the techniques we exhibit here, a truly portable
+version of PCL could be produced, thereby eliminating the need to include CLOS
+in a Common Lisp standard.
+
+<h2>LAZY EVALUATION OF "IF"</h2>
+
+The Common Lisp special form <tt>if</tt> is often thought to be
+<i>primitive</i>, in the sense that it cannot be defined in terms of other
+special forms.  Of course, <tt>if</tt> can be defined in terms of <tt>cond</tt>
+or <tt>case</tt>, so one of these macros could have been chosen as the
+primitive conditional special form rather than <tt>if</tt>.  Nevertheless, the
+lazy evaluation of the "then" and the "else" arms of if can be emulated by
+means of <tt>lambda</tt>, as the following macro shows:
+
+<tt><pre>
+(setf (get 't 'select-function) #'(lambda (x y) (funcall x))
+      (get 'nil 'select-function) #'(lambda (x y) (funcall y)))
+
+(defmacro if (be te &amp;optional (ee ''nil))
+  `(funcall (get (not (not ,be)) 'select-function)
+     #'(lambda () ,te)
+     #'(lambda () ,ee)))
+</pre></tt>
+
+<h2>CIRCULAR ENVIRONMENTS OF "LABELS" EMULATED BY "FLET" AND "SETQ"</h2>
+
+It is generally believed that the circular environments of <tt>labels</tt>
+cannot be obtained by means of <tt>flet</tt>.  This is incorrect, as the
+following emulation (reminiscent of Scheme) shows.  With a more sophisticated
+macro-expansion, this emulation can be optimized into production-quality code.
+
+<tt><pre>
+(defmacro labels (fns &amp;body forms)
+  (let* ((fnames (mapcar #'car fns))
+         (nfnames (mapcar #'(lambda (ignore) (gensym)) fnames))
+         (nfbodies (mapcar #'(lambda (f) `#'(lambda ,@(cdr f))) fns)))
+    `(let ,(mapcar #'(lambda (nf) `(,nf #'(lambda () ()))) nfnames)
+       (flet ,(mapcar #'(lambda (f nf) `(,f (&amp;rest a) (apply ,nf a)))
+                      fnames nfnames)
+         (flet ,fns
+           (progn ,@(mapcar #'(lambda (f nf) `(setq ,nf #',f))
+                            fnames nfnames))
+           ,@forms)))))
+</pre></tt>
+
+<h2>CIRCULAR ENVIRONMENTS OF "LABELS" EMULATED BY "FLET" ALONE</h2>
+
+Less obvious is the fact that <tt>labels</tt> can be emulated by <tt>flet</tt>
+without the use of side-effects.  Our technique is based on the idea of the "Y
+combinator", discussed at length in [Gabriel88].  With a more sophisticated
+macro-expansion based on topologically sorting the <tt>labels</tt> call graph,
+this technique can approach production quality.
+
+<tt><pre>
+(eval-when (compile)
+  (defun iota-list (n &amp;optional (m 0))
+    (if (zerop n) nil `(,m ,@(iota-list (1- n) (1+ m))))))
+
+(defmacro labels (fns &amp;body forms)
+  (let* ((fnames (mapcar #'car fns))
+         (fnvec (gensym))
+         (findicies (iota-list (length fns)))
+         (fbodies (mapcar #'(lambda (f i)
+                              `(,f (&amp;rest a) (apply (svref ,fnvec ,i) a)))
+                          fnames findicies))
+         (fdecls `(declare (inline ,@fnames)))
+         (nfbodies (mapcar #'(lambda (f)
+                               `#'(lambda (,fnvec ,@(cadr f))
+                                    (flet ,fbodies ,fdecls ,@(cddr f))))
+                           fns)))
+    `(let ((,fnvec (vector ,@nfbodies)))
+       (flet ,fbodies ,fdecls ,@forms))))
+</pre></tt>
+
+<h2>"FLET" EMULATED BY "MACROLET"</h2>
+
+The essence of the lexical scoping of <tt>flet</tt> and <tt>labels</tt>
+function names is captured by the <tt>macrolet</tt> special form, as the
+following emulation demonstrates:
+
+<tt><pre>
+(defmacro flet (fns &amp;body forms)
+  (let* ((fnames (mapcar #'car fns))
+         (nfnames (mapcar #'(lambda (ignore) (gensym)) fnames))
+         (nfbodies (mapcar #'(lambda (f) `#'(lambda ,@(cdr f))) fns)))
+    `(let ,(mapcar #'(lambda (nfn nfb) `(,fnf ,nfb))
+                   nfnames nfbodies)
+       (macrolet
+         ,(mapcar #'(lambda (f nf) `(,f (&amp;rest a) `(apply ,',nf ,a)))
+                  fnames nfnames)
+         ,@forms))))
+</pre></tt>
+
+<h2>"LET" EMULATED BY "LAMBDA"</h2>
+
+The classical emulation of <tt>let</tt> by <tt>lambda</tt> is mentioned in many
+Common Lisp textbooks, and we include it here because it illustrates several
+important points.  First, this simulation indicates that the order of
+evaluation of arguments to a function call is the same as the order of
+evaluation of the forms of a <tt>let</tt>-expression.  However, even though
+CLtL2 stresses the fact that the order of evaluation of the arguments in a
+function call is not defined, the order of evaluation of the forms of a
+<tt>let</tt>-expression <i>is</i> defined.  Thus, the emulation of <tt>let</tt>
+by <tt>lambda</tt> pins down argument evaluation order to be the same in both
+cases.  Variable declarations happen to work correctly for this emulation.
+
+<tt><pre>
+(defmacro let (vs &amp;body forms)
+  `(funcall #'(lambda ,(mapcar #'car vs) ,@forms) ,@(mapcar #'cadr vs)))
+</pre></tt>
+
+<h2>"LET*" EMULATED BY "LET"</h2>
+
+The "sequential" nature of <tt>let*</tt> is achieved by binding only one form
+at a time and nesting the binding forms, as the following code shows.  This
+emulation does not handle declarations correctly, because the parsing and
+interpretation of declarations can be a real pain (declarations can be easily
+and efficiently parsed using the techniques of
+
+<a href="Prag-Parse.html">[Baker91PP]</a>
+
+).  The correct
+handling of the declarations is extremely important, however, as it is one of
+the major sources of confusion in CLtL2
+
+<a href="http://www.cs.cmu.edu:8001/Web/Groups/AI/html/cltl/cltl2.html">[Steele90].</a>
+
+<tt><pre>
+(defmacro let* (vs &amp;body forms)
+  (if vs `(let (,(car vs)) (let* ,(cdr vs) ,@forms))
+    `(let () ,@forms)))
+</pre></tt>
+
+<h2>"LET" EMULATED BY "LET*"</h2>
+
+The emulation of <tt>let</tt> by <tt>let*</tt> is important, because it proves
+the sequentiality of the evaluation of the forms.
+
+<tt><pre>
+(defmacro let (vs &amp;body forms)
+  (let ((nvs (mapcar #'(lambda (ignore) (gensym)) vs)))
+    `(let* ,(mapcar #'(lambda (v nv) `(,nv ,(cadr v))) vs nvs)
+       (let* ,(mapcar #'(lambda (v nv) `(,(car v) ,nv)) vs nvs)
+         ,@forms))))
+</pre></tt>
+
+<h2>"PROGN" EMULATED BY "LET*"</h2>
+
+The emulation of <tt>progn</tt> by <tt>let*</tt> is important, because it
+proves that each form of a <tt>progn</tt> is completely evaluated to a value
+before the commencement of the evaluation of the next form:
+
+<tt><pre>
+(defmacro progn (&amp;body forms)
+  (if forms `(let* ,(mapcar #'(lambda (e) `(,(gensym) ,e)) (butlast forms))
+    ''nil))
+</pre></tt>
+
+<h2>"BLOCK/RETURN-FROM" EMULATED BY "CATCH/THROW"</h2>
+
+We will show that only one of the three non-local exit mechanisms
+<tt>block</tt>/<tt>return-from</tt>, <tt>tagbody</tt>/<tt>go</tt>,
+<tt>catch</tt>/<tt>throw</tt> is required to be primitive, by showing how to
+emulate any two in terms of the third.<a
+href="#fn3">[4]</a>  We first emulate
+<tt>block</tt>/<tt>return-from</tt> in terms of <tt>catch</tt>/<tt>throw</tt>.
+We map the block name into the name of a lexical variable which will hold the
+unique tag which distinguishes this dynamical block from any other.  If trivial
+<tt>return-from</tt>'s are optimized away, then this emulation can be quite
+efficient.
+
+<tt><pre>
+(defmacro return-from (bname exp)
+  (let ((tagname (block-to-tagname bname)))
+    `(throw ,tagname ,exp)))
+
+(defmacro block (bname &amp;body forms)
+  (let ((tagname (block-to-tagname bname)))
+    `(let ((,tagname (list nil))) ; Unique cons cell used as catch tag.
+       (catch ,tagname (progn ,@forms)))))
+</pre></tt>
+
+<h2>"BLOCK/RETURN-FROM" EMULATED BY "TAGBODY/GO"</h2>
+
+The emulation of <tt>block</tt>/<tt>return-from</tt> using
+<tt>tagbody</tt>/<tt>go</tt> is more difficult than when using
+<tt>catch</tt>/<tt>throw</tt> because we must communicate the returned multiple
+values using a lexical variable specifically allocated for this purpose:
+
+<tt><pre>
+(defmacro return-from (bname exp)
+  (let ((vname (block-to-valuesname bname))
+        (labelname (block-to-labelname bname)))
+    `(progn (setq ,vname (multiple-value-list ,exp))
+            (go ,labelname))))
+
+(defmacro block (bname &amp;body forms)
+  (let ((vname (block-to-valuesname bname))
+        (labelname (block-to-labelname bname)))
+    `(let ((,vname nil))
+       (tagbody (setq ,vname (multiple-value-list (progn ,@forms)))
+         ,labelname)
+       (values-list ,vname))))
+</pre></tt>
+
+<h2>"TAGBODY/GO" EMULATED BY "CATCH/THROW"</h2>
+
+The emulation of <tt>tagbody</tt>/<tt>go</tt> by <tt>catch</tt>/<tt>throw</tt>
+is considerably less obvious than the emulation of
+<tt>block</tt>/<tt>return-from</tt>.  This is because <tt>tagbody</tt> defines
+a number of different labels rather than a single block name, and because the
+parsing of the <tt>tagbody</tt> body is considerably more complicated.  The
+various segments of the <tt>tagbody</tt> are emulated by a <tt>labels</tt> nest
+of mutually recursive functions, which are forced to all execute at the correct
+dynamic depth by means of a "trampoline".  If the implementation implements the
+"tail recursion" optimization for functions which have no arguments and return
+no values, and if the simpler cases of <tt>go</tt>'s are optimized away, then
+this emulation can be quite efficient.
+
+<tt><pre>
+(defmacro go (label)
+  (let ((name (label-to-functionname label)))
+    `(throw ,name #',name)))
+
+(defmacro tagbody (&amp;body body)
+  (let* ((init-tag (gensym)) (go-tag (gensym)) (return-tag (gensym))
+         (functions
+          (mapcon
+           #'(lambda (seq &amp;aux (label (car seq) (s (cdr seq)))
+               (when (atom label)
+                 (let ((p (position-if #'atom s)))
+                   `((,(label-to-functionname label) ()
+                        ,@(subseq s 0 (or p (length s)))
+                        ,(if p `(,(label-to-functionname (elt s p)))
+                             `(throw ,return-tag 'nil)))))))
+           `(,init-tag ,@body))))
+    `(let* ((,go-tag (list nil)) (,return-tag (list nil))
+            ,@(mapcar #'(lambda (f) `(,(car f) ,go-tag)) functions))
+       (catch ,return-tag
+         (labels ,functions
+           (let ((nxt-label #',(caar functions)))
+             (loop<a href="#fn4">[5]</a> (setq nxt-label (catch ,go-tag (funcall nxt-label))))))))))
+</pre></tt>
+
+<h2>"CATCH/THROW" EMULATED BY "TAGBODY/GO" AND SPECIAL VARIABLES</h2>
+
+The emulation of <tt>catch</tt>/<tt>throw</tt> requires the use of some sort of
+stack to indicate the dynamic nesting level of the call-return stack.  Common
+Lisp dynamic or "special" variables can be thought of as being "saved" and
+"restored" from a hidden stack sometimes called the "specpdl".  Therefore, we
+can use the dynamic nesting capabilities of special variables to keep track of
+the current list of <tt>catch</tt> tags and "catchers", which is organized as a
+Lisp <tt>assoc</tt> list.  Notice that certain issues involved in the
+implementation of <tt>catch</tt>/<tt>throw</tt> are made completely
+obvious--that the tag is evaluated, that the <tt>throw</tt> expression is
+evaluated before the stack is unwound, that the tag is looked up using an
+<tt>eq</tt> test,<a href="#fn5">[6]</a> that the tag is
+looked up before the stack is unwound, etc.
+
+<tt><pre>
+(defparameter *catchers* nil)
+
+(defmacro throw (tag exp)
+  (let ((vtag (gensym)) (vexp (gensym)))
+    `(let ((,vtag ,tag) (,vexp (multiple-value-list ,exp)))
+       (funcall (cdr (assoc ,vtag *catchers* :test #'eq)) ,vexp))))
+
+(defmacro catch (tag exp)
+  (let ((lbl (gensym)) (vals (gensym)))
+    `(let ((,vals nil))
+       (tagbody
+         (setq ,vals (progv '(*catchers*)
+                            (list
+                             (cons (cons ,tag
+                                         #'(lambda (vs) (setq ,vals vs)
+                                                        (go ,lbl)))
+                                   (symbol-value '*catchers*)))
+                        (multiple-value-list ,exp))
+         ,lbl)
+       (apply #'values ,vals))))
+</pre></tt>
+
+<h2>"CATCH/THROW" EMULATED BY "BLOCK/RETURN-FROM"</h2>
+
+The emulation of <tt>catch</tt>/<tt>throw</tt> by
+<tt>block</tt>/<tt>return-from</tt> is a bit easier than by
+<tt>tagbody</tt>/<tt>go</tt>, because we can communicate the returned values a
+bit more directly.
+
+<tt><pre>
+(defmacro throw (tag exp)
+  (let ((vtag (gensym)) (vexp (gensym)))
+    `(let ((,vtag ,tag) (,vexp (multiple-value-list ,exp)))
+       (funcall (cdr (assoc ,vtag *catchers* :test #'eq)) ,vexp))))
+
+(defmacro catch (tag exp)
+  (let ((tgnm (gensym)))
+    `(block ,tgnm
+       (progv '(*catchers*)
+              (list
+               (cons (cons ,tag
+                           #'(lambda (vs)
+                               (return-from ,tgnm (values-list vs))))
+                     (symbol-value '*catchers*)))
+         (multiple-value-list ,exp)))))
+</pre></tt>
+
+<h2>"PROGV" (DYNAMIC BINDING) EMULATED BY "UNWIND-PROTECT"</h2>
+
+The Common Lisp special form <tt>unwind-protect</tt> allows the programmer to
+perform certain actions any time the form is exited, whether by normal exit, or
+by a non-local exit form such as <tt>throw</tt>, <tt>return-from</tt> or
+<tt>go</tt>.  In particular, the "shallow-binding"
+
+<a href="ShallowBinding.html">[Baker78]</a>
+
+implementation
+of <tt>progv</tt> dynamic variables can be emulated using
+<tt>unwind-protect</tt>.<p>
+
+Unfortunately, our emulation is incomplete, because it cannot handle the case
+of special variables which are referenced without the use of
+<tt>symbol-value</tt>.  Many of these cases could be handled using
+<tt>symbol-macrolet</tt>, but not all.  In particular, the use of the same form
+<tt>setq</tt> for both lexical and dynamic variables in Common Lisp is
+reprehensible.
+
+<tt><pre>
+(defconstant *unbound-value* (list nil))
+
+(defun msymbol-value (var)
+  (if (boundp var) (symbol-value var) *unbound-value*))
+
+(defun mset (var val)
+  (if (eq val *unbound-value*) (makunbound var) (set var val)))
+
+(defmacro progv (syms vals &amp;body forms)
+  (let* ((vsyms (gensym)) (vvals (gensym)) (vovals (gensym)))
+    `(let* ((,vsyms ,syms)
+            (,vvals ,vals)
+            (,vovals ,(mapcar #'msymbol-value ,vsyms))
+       (unwind-protect
+         (progn (mapc #'mset ,vsyms ,vvals)
+                (mapc #'makunbound
+                      (subseq ,vsyms (min (length ,vsyms) (length ,vvals))))
+                ,@forms)
+         (mapc #'mset ,vsyms ,vovals)))))
+</pre></tt>
+
+<h2>EMULATE "UNWIND-PROTECT" AND SPECIAL VARIABLES</h2>
+
+The code above shows how to emulate special variables using
+<tt>unwind-protect</tt>.  We now show how to emulate <tt>unwind-protect
+</tt>itself using an explicit "specpdl" stack.
+
+<tt><pre>
+(defparameter *specpdl* (make-array 100 :adjustable t :fill-pointer 0))
+
+(defun unwind-to (n)
+  (dotimes (i (- n (fill-pointer *specpdl*)) nil)
+    (funcall (vector-pop (symbol-value '*specpdl*)))))
+
+(defmacro unwind-protect (form &amp;body forms)
+  `(multiple-value-prog1
+     (progn (vector-push-extend #'(lambda () ,@forms)
+                                (symbol-value '*specpdl*))
+            ,form)
+     (funcall (vector-pop (symbol-value '*specpdl*)))))
+
+(defmacro return-from (bname exp)
+  (let ((vexp (gensym)))
+    `(let ((,vexp (multiple-value-list ,exp)))
+       (unwind-to ,(blockname-to-levelname bname))
+       (return-from<a href="#fn6">[7]</a> ,bname (values-list ,vexp)))))
+
+(defmacro block (bname &amp;body forms)
+  `(let ((,(blockname-to-levelname bname)
+          (fill-pointer (symbol-value '*specpdl*))))
+     (block ,bname ,@forms)))
+
+;;; catch/throw and tagbody/go are similarly tagged with their dynamic level.
+</pre></tt>
+
+<h2>EMULATE MULTIPLE VALUES</h2>
+
+The emulation of multiple values can be insightful, because it can highlight a
+possible optimization which avoids the execution of those forms whose values
+are not wanted.  In other words, the <tt>values</tt> function should be a
+special form which evaluates only those arguments necessary to fulfill the
+requested number of values.<a href="#fn7">[8]</a>
+
+<tt><pre>
+(defparameter *mv-nbr-expected* 1) ; Usually 1 value expected.
+
+(defparameter *mv-vals* (make-array multiple-values-limit))
+
+(defmacro multiple-value-list (form)
+  (let ((val1 (gensym)))
+    `(progv '(*mv-nbr-expected*) (list multiple-values-limit)
+       (let ((,val1 ,form)) ; Receive the first value here.
+         (if (= (symbol-value '*mv-nbr-expected*) multiple-values-limit)
+           (list ,val1)
+           (coerce (subseq *mv-vals* 0 (symbol-value '*mv-nbr-expected*))
+                   'list))))))
+
+(defun values (&amp;rest args)
+  (dotimes (i (setf (symbol-value '*mv-nbr-expected*)
+                    (min (symbol-value '*mv-nbr-expected*) (length args)))
+              (car args))
+    (setf (aref *mv-vals* i) (elt args i))))
+
+(defmacro multiple-value-prog1 (exp &amp;rest forms)
+  (let ((valn (gensym)))
+    `(let ((,valn (multiple-value-list ,exp)))
+       (progn ,@forms (apply #'values ,valn)))))
+
+(defmacro multiple-value-call (fn &amp;body forms)
+  `(apply ,fn
+     (append ,@(mapcar #'(lambda (fm) `(multiple-value-list ,fm)) forms))))
+
+(defmacro mvprogn (&amp;body forms)
+  (if body `(progn (progv '(*mv-nbr-expected*) '(0)
+                      (progn ,@(butlast forms)))
+                   ,@(last forms))
+    ''nil))
+
+(defmacro mvif (be te &amp;optional (ee ''nil))
+  `(if (progv '(*mv-nbr-expected*) '(1) ,be) ,te ,ee))
+</pre></tt>
+
+<h2>EMULATE "THE" USING "LET" AND "DECLARE"</h2>
+
+The emulation of the <tt>the</tt> special form emphasizes the fact that there
+is a run-time type test which must be passed in order for the program to
+proceed.  Of course, a clever compiler can eliminate the run-time test if it
+can prove that it will always succeed--e.g., the <tt>gcd</tt> function always
+returns an integer if it returns at all.
+
+<tt><pre>
+(defmacro the (typ exp)
+  (if (and (consp typ) (eq (car typ) 'values))
+    (let ((vals (gensym)))
+      `(let ((,vals (multiple-value-list ,exp)))
+         (assert (= (length ,vals) ,(length (cdr typ))))
+         ,@(mapcar #'(lambda (typ i) `(assert (typep (elt ,vals ,i) ',typ)))
+                   (cdr typ) (iota-list (length (cdr typ))))
+         (values-list ,vals)))
+    (let ((val (gensym)))
+      `(let ((,val ,exp))
+         (assert (typep ,val ',typ))
+         (let ((,val ,val)) (declare (type ,typ ,val))
+           ,val)))))
+</pre></tt>
+
+<h2>PERFORM "CELL INTRODUCTION" USING "SYMBOL-MACROLET"</h2>
+
+In order to correctly handle mutable lexical variables which are captured by
+<tt>function</tt> closures, many Lisps perform "cell introduction"
+[Sandewall74] [Kranz86], in which each mutable lexical variable is transformed
+into another lexical variable which is immutably bound to a newly-consed
+mutable "cell", which holds the current value of the original variable.
+
+<tt><pre>
+(defun make-cell (v &amp;aux (c (gensym)))
+  (setf (symbol-value c) v)
+  c)
+
+(defmacro setq (pairs)
+  `(setf ,@pairs))
+
+(defmacro let (vs &amp;body forms)
+  `((lambda ,(mapcar #'(lambda (b) (xform-name (car b))) vs)
+      (symbol-macrolet
+        ,(mapcar #'(lambda (b)
+                     `(,(car b) '(symbol-value ,(xform-name (car b))))
+                 vs)
+        ,@forms))
+    ,@(mapcar #'(lambda (b) `(make-cell ,(cadr b))) vs)))
+
+(defmacro function (fn)
+  (if (atom fn) `#',fn
+    `#'(lambda ,(cadr fn)
+         ((lambda ,(mapcar #'xform-name (cadr fn))
+            (symbol-macrolet
+              ,(mapcar #'(lambda (v)
+                           `(,v '(symbol-value ,(xform-name v))))
+                       (cadr fn))
+              ,@forms))
+          ,@(mapcar #'(lambda (v) `(make-cell ,v)) (cadr fn))))))
+</pre></tt>
+
+<h2>EMULATE "FUNCTION" USING "MACROLET"</h2>
+
+Our final emulation will show how the Common Lisp <tt>function</tt> special
+form can be customized by the user to provide a specialized representation or
+specialized storage allocation for <tt>function</tt> closures.  Such
+customization could be used within the "PCL" implementation of CLOS to make
+this implementation both efficient and portable.  If PCL can be efficiently and
+portably emulated in Common Lisp-84, then it can become a straight-forward
+library, and need not be considered part of the essential core of Common
+Lisp.<p>
+
+Our emulation will utilize some of the previous emulations.  In particular, we
+assume that <tt>block</tt>/<tt>return-from</tt> and
+<tt>tagbody</tt>/<tt>go</tt> have already been emulated by
+<tt>catch</tt>/<tt>throw</tt>; these emulations eliminate the need to close
+over lexical <tt>block</tt> names and <tt>tagbody</tt> labels.  Furthermore, we
+assume that cells have already been introduced for any mutable lexical
+variables.<p>
+
+We will represent the free variables and free functions of the function closure
+in a simple vector.  We could, however, have constructed a different brand-new
+function-closure extension of the function structure for each new invocation of
+the macro <tt>function</tt>; this would allow for a specialized representation
+for each different occurrence of <tt>function</tt> in the user's program.  The
+<tt>make-function-closure</tt> function which generates new function-closure
+instances can then be specialized for each occurrence, and may perform
+different kinds of allocations--e.g., stack allocation
+
+<a href="LazyAlloc.html">[Baker92]</a>
+
+versus heap allocation--for each new function-closure instance.
+
+<tt><pre>
+(defstruct function ; This defstruct is predefined by the implementation.
+  lambda)
+
+(defstruct (function-closure (:include function))
+  acquaintances)
+
+(defmacro function (lexp)
+  (let* ((gvars (free-globals lexp))
+         (fvars (free-lexicals lexp))
+         (ffns (free-functions lexp))
+         (acql (gensym)))
+    `(make-function-closure
+      :acquaintances (vector ,@fvars ,@(mapcar #'(lambda (f) `#',v) ffns))
+      :lambda
+      #'(lambda (,acql ,@(cadr lexp))
+         (symbol-macrolet ; handle free lexical and global variable names.
+          (,@(mapcar #'(lambda (v i) `(,v '(svref ,acql ,i)))
+                     fvars (iota-list (length fvars)))
+           ,@(mapcar #'(lambda (v) `(,v '(symbol-value ',v))) gvars ))
+          (macrolet ; handle free function names.
+           ,(mapcar
+             #'(lambda (f i)
+                 `(,f (&amp;rest a)
+                    (list* 'funcall '(svref ,acql ,(+ i (length fvars))) a)))
+             ffns (iota-list (length fns))))
+           ,@(cddr lexp)))))))
+</pre></tt>
+
+<h2>CONCLUSIONS</h2>
+
+We have shown how a number of Common Lisp special forms can be emulated using
+other Common Lisp special forms.  Taken as a whole, these emulations can
+provide a relatively precise definition of the Common Lisp language in terms of
+classical lambda-calculus notions of alpha-renaming, beta-reduction and
+eta-reduction.  Of course, a complete definition would deal with more issues,
+such as the precise parsing and handling of declarations, and the precise
+meanings of <tt>symbol-macrolet</tt> and <tt>macrolet</tt>, which define the
+meaning of lexical variable and lexical function shadowing, respectively.<p>
+
+Although we have shown the mutual interdefinability of three different
+non-local exit constructs in Common Lisp, we strongly recommend that any formal
+semantics for Common Lisp utilize <tt>catch</tt>/<tt>throw</tt> as its most
+primitive non-local exit mechanism, since <tt>catch</tt>/<tt>throw</tt> cannot
+create Scheme-like first-class continuations, and therefore cannot get into the
+major semantical and implementational problems (particularly painful in
+parallel systems) of first-class continuations.<p>
+
+Our emulations raise as many questions as they answer, and provide illumination
+to some dark corners of Common Lisp.  The inability to completely specify
+certain operations points up some important holes in the semantics of Common
+Lisp, particularly in the area of macro-expansions, lexical <tt>block</tt>
+names and lexical <tt>tagbody</tt> labels.
+
+<h2>REFERENCES</h2>
+
+<a href="ShallowBinding.html">[Baker78]</a>
+
+Baker, Henry G.  "Shallow Binding in Lisp 1.5".  <i>CACM 21</i>,7 (July 1978),
+565-569.<p>
+
+<a href="Prag-Parse.html">[Baker91]</a>
+
+Baker, Henry G.  "Pragmatic Parsing in Common Lisp".  <i>ACM Lisp Pointers
+IV</i>,2 (Apr.-June 1991),3-15.<p>
+
+<a href="LazyAlloc.html">[Baker92]</a>
+
+Baker, Henry G.  "CONS Should not CONS its Arguments, or, a Lazy Alloc is a
+Smart Alloc".  ACM <i>Sigplan Not. 27</i>,3 (March 1992),24-35.<p>
+
+<a href="ObjectIdentity.html">[Baker93]</a>
+
+Baker, Henry G.  "Equal Rights for Functional Objects or, The More Things
+Change, The More They Are the Same".  ACM <i>OOPS Messenger 4</i>,4 (Oct.
+1993), 2-27.<p>
+
+Gabriel, R.P.  The Why of Y".  <i>Lisp Pointers 2</i>,2 (Oct.-Dec. 1988),
+15-25.<p>
+
+Kiczales, G., <i>et al</i>.  <i>The Art of the Metaobject Protocol</i>.  MIT
+Press, Camb., MA, 1991.<p>
+
+Kranz, D., <i>et al</i>.  "Orbit: An Optimizing Compiler for Scheme".
+<i>Sigplan'86 Symp. on Compiler Constr.</i>,219-233.<p>
+
+McCarthy, J.  "Recursive Functions of Symbolic Expressions and Their
+Computation by Machine, Part I".  <i>CACM 3</i>,4 (1960), 184-195.<p>
+
+Reynolds, J.  "Definitional Interpreters for High-order Programming Languages".
+<i>Proc. ACM Nat'l. Conv.</i> (1972), 717-740.<p>
+
+<a href="http://www.cs.cmu.edu:8001/Web/Groups/AI/html/cltl/cltl2.html">[Steele90]</a>
+
+Steele, Guy L.  <i>Common Lisp, The Language; 2nd Ed</i>.  Digital Press,
+Bedford, MA, 1990,1029p.<p>
+
+<a name="fn0">[1]</a>
+
+The ancient Greek's way of saying "if it ain't broke, don't fix it!".<p>
+
+<a name="fn1">[2]</a>
+
+The peculiar penchant of modern software standards committees to couch
+their pronouncements in English prose is symptomatic of an epidemic of
+<i>lawyer envy</i> which is sweeping the computer field.  Lawyers
+understand the fine art of language <i>obfuscation</i>, in which a
+simple thing is made complex for the single purpose of providing
+employment for other lawyers who then interpret the language.  It's
+bad enough that there are already more lawyers than engineers in the
+United States, without having these few remaining engineers talking
+and acting like lawyers, as well.<p>
+
+<a name="fn2">[3]</a>
+
+The emulations below have not undergone extensive testing;
+please contact the author regarding any errors.<p>
+
+<a name="fn3">[4]</a>
+
+Of the three, we strongly recommend that
+<tt>catch</tt>/<tt>throw</tt> be considered the most primitive mechanism,
+because basing <tt>tagbody</tt>/<tt>go</tt> and
+<tt>block</tt>/<tt>return-from</tt> on <tt>catch</tt>/<tt>throw</tt> makes
+absolutely clear the fact that Common Lisp does not and can not have
+Scheme-like first-class continuations.<p>
+
+<a name="fn4">[5]</a>
+
+Many Lisps define <tt>loop</tt> in terms of
+<tt>tagbody</tt>; we, however, think of it as a trivial tail-recursive
+function.<p>
+
+<a name="fn5">[6]</a>
+
+<tt>catch</tt>/<tt>throw</tt> is the only mechanism in
+Common Lisp which defaults to <tt>eq</tt> instead of <tt>eql</tt>; this use
+violates the "object identity"
+
+<a href="ObjectIdentity.html">[Baker93]</a>
+
+of the <tt>catch</tt> tag object.<p>
+
+<a name="fn6">[7]</a>
+
+I warned you that these definitions were metacircular!<p>
+
+<a name="fn7">[8]</a>
+
+There are other reasons for making <tt>values</tt> into a
+special form instead of a function--e.g., compiler optimizations.
+
+</body></html>

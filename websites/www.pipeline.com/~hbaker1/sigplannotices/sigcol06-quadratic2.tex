@@ -1,0 +1,549 @@
+%% Garbage In, Garbage Out, Sigplan Notices, December 1997
+%%
+\documentclass[twocolumn,epsf]{snBaker}
+%\documentstyle[twocolumn,epsf]{article}
+%
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% GENERAL COLUMN MACROS (Do not change)
+%
+% The column series and beginning page number
+\ColumnName{Garbage In/Garbage Out}{27}
+%
+% The column title
+\ColumnTitle{You Could Learn a Lot from a Quadratic: \\
+II.  Digital Dentistry}
+%
+% The column editor
+\ColumnEditor{Henry G. Baker}
+{http://home.pipeline.com/~hbaker1/home.html}{hbaker@pipeline.com}
+%
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% AUTHOR MACROS (Change these to match current author)
+%
+% The column author and bio
+%
+\ColumnAuthor{Henry G. Baker}{%
+Henry Baker 
+has been diddling bits for 35 years, with time off for
+good behavior at MIT and Symbolics.  In his spare time, he collects
+garbage and tilts at windbags.
+}
+%
+% The article's actual title
+%
+\ColumnSubTitle{}      % ??
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% DOCUMENT SECTION
+%
+
+%%\newcommand{\Image}[2]{ \centerline{\Imagenoc{#1}{#2}} }
+%%\newcommand{\Imagenoc}[2]{ \epsfxsize=#2 \epsfbox{#1} }
+
+\begin{document}
+\maketitle
+
+\catcode`\@=11
+
+\def\eqalign#1{\null\,\vcenter{\openup\jot \m@th
+  \ialign{\strut\hfil$\displaystyle{##}$&$
+      \displaystyle{{}##}$\hfil \crcr#1\crcr}}\,}
+
+\def\eqalignno#1{\displ@y \tabskip=\@centering
+  \halign to\displaywidth{\hfil$\@lign\displaystyle{##}$
+    \tabskip=0pt &$\@lign\displaystyle{{}##}$
+    \hfil\tabskip=\@centering
+    &\llap{$\@lign##$}\tabskip=0pt\crcr #1\crcr}}
+
+\def\leqalignno#1{\displ@y \tabskip=\centering
+  \halign to\displaywidth{\hfil$\@lign\displaystyle{##}$
+    \tabskip=0pt &$\@lign\displaystyle{{}##}$
+    \hfil\tabskip=\centering &\kern-\displaywidth\rlap{$\@lign##$}
+    \tabskip=\displaywidth\crcr #1\crcr}}
+
+\catcode`\@=12
+
+\def\mywedge{\char'136}
+\def\mytilde{\char'176}
+\def\jacobi#1#2{\hbox{$\left({#1\over #2}\right)$}}
+\def\sign#1{\hbox{\rm sgn}(#1)}
+\def\ceil#1{\hbox{\rm ceil}(#1)}
+\def\floor#1{\hbox{\rm floor}(#1)}
+\def\xp#1{\hbox{\rm xp}(#1)}
+\def\xpp#1{\hbox{\rm xp2}(#1)}
+\def\mn#1{\hbox{\rm mn}(#1)}
+\def\mnn#1{\hbox{\rm mn2}(#1)}
+\def\asin{\hbox{\rm asin}}
+\def\acos{\hbox{\rm acos}}
+\def\cis{\hbox{\rm cis}}
+\def\acosh{\hbox{\rm acosh}}
+\def\asinh{\hbox{\rm asinh}}
+\def\atanh{\hbox{\rm atanh}}
+\newtheorem{theorem}{Theorem}
+\newtheorem{definition}{Definition}
+\def\diag#1#2{\hbox{\rm diag}(#1,#2)}
+
+{\it In our last episode, our hero was trying desperately to slay a
+quadratic by strangling it with his mouse-cord, but instead he tripped over a
+root.  Yes, I know, this is a surd...}
+
+One {\it graphical} solution for a quadratic $x^2+Bx+C=0$ is
+attributed to Thomas Carlyle [Barbeau89].  Construct the line segment
+from the point $(0,1)$ and the point $(-B,C)$.  Construct the circle
+through these two points having this line segment as its diameter.
+Then $x_1$, $x_2$, such that the points $(x_1,0)$, $(x_2,0)$ are the
+points of intersection of this circle with the $x$-axis, are the roots
+of the given quadratic equation.  Here are the details:
+$$\eqalign{\left(x+{B\over 2}\right)^2+\left(y-{C+1\over 2}\right)^2&={B^2\over 4}+\left({C+1\over 2}-1\right)^2\cr
+x^2+Bx+y^2-(C+1)y&=-C-1+1\cr
+x^2+Bx+C&=(C+1)y-y^2\cr}$$
+Setting $y=0$ gives us the points of intersection with the $x$-axis,
+which is the equation $x^2+Bx+C=0$.
+
+Suppose now that we wish to solve the quadratic equation $x^2+Bx+C=0$,
+but don't know the quadratic formula.  Or perhaps we know the formula,
+but don't know how to find square roots.  Out of idle curiosity we
+start playing with {\it iterative} processes to see if we can find
+roots of the quadratic in this way.
+
+One possibility that might occur to us is to divide the whole equation
+by $x$, to produce the equation $x+B+C/x=0$.  We can then put $x$ by
+itself on the left, giving the equation $x=-B-C/x$.  If we now make an
+initial guess for $x$, say $x_0$, we can produce a (hopefully
+improved) $x_1$ by choosing $x_1=-B-C/{x_0}$, or more generally, given
+a guess $x_i$, we can produce the next guess $x_{i+1}=-B-C/{x_i}$.
+Obviously, if $x_0\not= 0$ already {\it is} a root, then $x_1=x_0$, so
+the sequence immediately converges.  Of course, this will not work
+with an initial guess of $x_0=0$.  In the case where one of the roots
+is zero, however, $C=0$, so that our iteration immediately produces
+the other root $x_1=-B-C/x_0=-B-0/x_0=-B$.  On the other hand, if
+$B=0$, then $x_{i+1}=-C/{x_i}$, so we get the alternating sequence
+$$x_0, -C/x_0, -C/(-C/x_0)=x_0, -C/x_0\hbox{, etc.}$$
+that never converges.
+
+In order to get more experience with this iteration process, we
+try this process on the equation $(x-1)(x-2)=x^2-3x+2=0$, and start
+choosing initial guesses at random.  Since $x_{i+1}=3-2/{x_i}$, we can
+readily calculate the following sequences with a pocket calculator.
+$$3, 2.33, 2.14, 2.07, 2.03, 2.02, 2.01, ...$$
+$$4, 2.5, 2.2, 2.1, 2.04, ...$$
+$$0.5, -1, 5, 2.6, 2.2, 2.1, ...$$
+$$1.5, 1.7, 1.8, 1.9, 1.94, 1.97, ...$$
+$$-5, 3.4,2.4, 2.17, 2.08, 2.04, ...$$
+$$-0.5, 7, 2.7, 2.26, ...$$
+So, in all these cases, our iteration {\it does} converge, and to the
+larger root ($x=2$).  This is a bit peculiar, since if we happen to
+pick the smaller root ($=1$), the iteration converges on this smaller
+root.  This leads us to investigate what happens if we pick a number
+very close to the smaller root --- e.g., $x_0=1+\epsilon$.  We get
+$$x_1=3-{2\over 1+\epsilon}\approx 3-2(1-\epsilon)=1+2\epsilon$$
+Aha!  We now see that if we start even a little bit away from the
+smaller root, then we will move {\it twice} as far away on the very
+first iteration.  In other words, for this iteration, the starting
+point $x_0=1$ is a {\it meta}stable state, whereas the starting point
+$x_0=2$ is apparently a {\it stable} state.
+
+We are now ready to investigate the {\it general} case, to try to
+characterize under what conditions and how fast this iterative process
+will converge on a root.
+
+If we take the iterative formula $x_{i+1}=-B-C/{x_i}$ and arrange the
+right-hand side as a fraction, we get $x_{i+1}=(-Bx_i-C)/x_i$.
+This suggests that we generalize the process slightly to produce not
+just a new $x_{i+1}$, but a new {\it ratio}
+$x_{i+1}/y_{i+1}=-B-C(y_i/{x_i})$, i.e.,
+$${x_{i+1}\over y_{i+1}}={-Bx_i-Cy_i\over x_i}$$
+Since both the top and bottom of the right-hand side of this equation
+are linear functions of $x_i$ and $y_i$, we are led to consider the {\it
+matrix} equation
+
+$$\left(\matrix{x_{i+1}\cr y_{i+1}\cr}\right)=
+\left(\matrix{-B & -C\cr 1 & 0\cr}\right)
+\left(\matrix{x_i\cr y_i\cr}\right)$$
+
+An enormous amount is known about matrices [Golub96], and we can bring
+it all to bear on our problem.  Those of you who have had linear
+algebra and have sharp eyes will instantly recognize our square matrix
+(call it `$M$') as the {\it companion matrix} of the polynomial
+$x^2+Bx+C$.  The companion matrix of a polynomial is a matrix that is
+trivially constructed from the given polynomial, such that the
+`characteristic polynomial' of the matrix is equal to that given
+polynomial.  Thus, the characteristic polynomial of our $2\times 2$
+square matrix $M$ is $x^2+Bx+C$.
+
+After reformulating our iteration process as a {\it matrix} iteration
+process, we see that we are looking for a {\it vector}
+$$V=\left(\matrix{x_n\cr y_n\cr}\right)$$
+such that $MV=\lambda V$, i.e.,
+$$\left(\matrix{-B&-C\cr 1&0\cr}\right)\left(\matrix{x_n\cr y_n\cr}\right)\approx\lambda\left(\matrix{x_n\cr y_n\cr}\right)=\left(\matrix{\lambda x_n\cr \lambda y_n\cr}\right)$$
+This {\it scalar} number $\lambda\not= 0$ will cancel from both the numerator
+$\lambda x_n$ and the denominator $\lambda y_n$, leaving us with a
+`stationary' value $x_n/y_n$.  Such a vector $V$ is called an {\it
+eigenvector} (rough German translation: `own vector'), so the solution
+to our iteration problem is an eigenvector for the matrix $M$.
+
+The iteration process described above has the effect of computing the
+$n$-th {\it power} of our $2\times 2$ matrix $M$ and applying it to
+the initial guess $x_0/y_0$.  How can we characterize the $M^n$---the
+$n$-th power of this matrix $M$?  We have the full power of linear
+algebra at our fingertips.
+
+Suppose, for the moment, that our matrix $M$ is `diagonalizable'---i.e.,
+there exists an invertible matrix $T$ such that $T^{-1}MT=D$, and $D$
+is {\it diagonal}.\footnote{Note that we are not interested in
+actually {\it computing} this `factored' form of $M$, but only in
+using it to better understand the meaning of the matrix power $M^n$.}
+Then $M^n=(TDT^{-1})^n=T(D^n)T^{-1}$, so if
+$D=\diag{\lambda_1}{\lambda_2}$, then
+$D^n=\diag{\lambda_1^n}{\lambda_2^n}$.  In other words,
+$$\eqalign{M^n&=(T\left(\matrix{\lambda_1 & 0\cr
+0 & \lambda_2\cr}\right) T^{-1})^n\cr
+&=T{\left(\matrix{\lambda_1 & 0\cr
+0 & \lambda_2\cr}\right)}^n T^{-1}\cr
+&=T\left(\matrix{\lambda_1^n & 0\cr
+0 & \lambda_2^n\cr}\right) T^{-1}\cr}$$
+
+Let us now make sure that the determinant of $T$ is $1$, i.e., $|T|=1$,
+which we can always arrange by dividing any other diagonalizing $T'$
+by $|T'|$, i.e., $T=T'/|T'|$.  Now let the elements of $T$ be $a$,
+$b$, $c$, $d$, i.e.,
+$$T = \left(\matrix{a&b\cr c&d\cr}\right),\qquad\hbox{and}\qquad |T|=ad-bc.$$
+Since $|T|=1$, the inverse of $T$ is thus
+$$T^{-1} = {1\over |T|}\left(\matrix{d&-b\cr -c&a\cr}\right)=\left(\matrix{d&-b\cr -c&a\cr}\right)$$
+and $M^n=TD^nT^{-1}$ can be written out as:
+$$\eqalign{M^n&={\left(\matrix{-B&-C\cr 1&0\cr}\right)}^n\cr
+&=TD^nT^{-1}\cr
+&=\left(\matrix{a&b\cr c&d\cr}\right)\left(\matrix{\lambda_1^n&0\cr 0&\lambda_2^n}\right)
+\left(\matrix{d&-b\cr -c&a\cr}\right)\cr
+&=\left(\matrix{a\lambda_1^n&b\lambda_2^n\cr
+c\lambda_1^n&d\lambda_2^n\cr}\right)
+\left(\matrix{d&-b\cr -c&a\cr}\right)\cr
+&=\left(\matrix{ad\lambda_1^n-bc\lambda_2^n&-ab\lambda_1^n+ab\lambda_2^n\cr
+cd\lambda_1^n-cd\lambda_2^n&-bc\lambda_1^n+ad\lambda_2^n\cr}\right)\cr
+&=\left(\matrix{ad\lambda_1^n-bc\lambda_2^n&-ab(\lambda_1^n-\lambda_2^n)\cr
+cd(\lambda_1^n-\lambda_2^n)&-bc\lambda_1^n+ad\lambda_2^n\cr}\right)\cr}$$
+
+Now consider the absolute values $|\lambda_1|$, $|\lambda_2|$ of
+$\lambda_1$, $\lambda_2$.  If $|\lambda_1|>|\lambda_2|$, then
+$|\lambda_1^n|>>|\lambda_2^n|$ for sufficiently large $n$, so that the
+terms involving $\lambda_1^n$ will completely dominate those terms
+involving $\lambda_2^n$.  Let $n$ be sufficiently large.  Then
+$$\eqalign{M^n&={\left(\matrix{-B&-C\cr 1&0\cr}\right)}^n\cr
+&=\left(\matrix{ad\lambda_1^n-bc\lambda_2^n&-ab(\lambda_1^n-\lambda_2^n)\cr
+cd(\lambda_1^n-\lambda_2^n)&-bc\lambda_1^n+ad\lambda_2^n\cr}\right)\cr
+&\approx\left(\matrix{ad\lambda_1^n&-ab\lambda_1^n\cr
+cd\lambda_1^n&-bc\lambda_1^n\cr}\right)\cr
+&=\lambda_1^n\left(\matrix{ad&-ab\cr cd&-bc}\right)\cr}$$
+
+We can now {\it ignore} the factor $\lambda_1^n$, because when
+computing $x_n/y_n$ this factor will cancel out.  Let us denote
+$M^n/\lambda_1^n$ by $M_{\infty}$, i.e., $M_{\infty}=M^n/\lambda_1^n$.
+Then
+$$M_{\infty}=\left(\matrix{ad&-ab\cr cd&-bc\cr}\right)$$
+
+Now applying $M_{\infty}$ to an initial guess $x_0/y_0$, we have
+$$\eqalign{\left(\matrix{x_n\cr y_n\cr}\right)&=
+M_{\infty}\left(\matrix{x_0\cr y_0\cr}\right)\cr
+&=\left(\matrix{ad&-ab\cr cd&-bc\cr}\right)\left(\matrix{x_0\cr y_0\cr}\right)\cr
+&=\left(\matrix{adx_0-aby_0\cr cdx_0-bcy_0\cr}\right)\cr
+&=\left(\matrix{a(dx_0-by_0)\cr c(dx_0-by_0)\cr}\right)\cr
+&=(dx_0-by_0)\left(\matrix{a\cr c\cr}\right)\cr}$$
+
+But the number $dx_0-by_0$ is cancelled out in the ratio $x_n/y_n$,
+and thus $x_n/y_n=a/c$, independent of the initial guess $x_0/y_0$!
+In short, the iterative process we developed is a way to compute the
+ratio $a/c$, where $a$ and $c$ are the first column entries in the
+invertible matrix $T$.  But what is this ratio $a/c$?
+
+Since we have 5 equations in the 4 unknowns $a,b,c,d$ (4 equations
+from $M=TDT^{-1}$ plus the equation $|T|=1$), and one of these
+equations is redundant, we can solve for the entries $a,b,c,d$ of $T$
+as follows:\footnote{This solution also proves that $T$ and the matrix factorization exist, so long as $\lambda_1\not=\lambda_2$.}
+$$T=\left(\matrix{a&b\cr c&d\cr}\right)=
+\left(\matrix{1&{\lambda_1\lambda_2\over\lambda_1-\lambda_2}\cr {1\over\lambda_1}&{\lambda_1\over\lambda_1-\lambda_2}\cr}\right)$$
+
+In other words, $a/c=1/(1/\lambda_1)=\lambda_1$, so our iteration does
+indeed produce the root of larger absolute value
+$\lambda_1$.\footnote{Note that the root of {\it smaller} absolute
+value can also be trivially extracted from $M_{\infty}$ as
+$\lambda_2=b/d=-(-ab)/(ad)=-(-bc)/(cd)$, which is minus the ratio
+of the elements of either row, or as $\lambda_2=C/\lambda_1=Cc/a$.}
+Note that nowhere did we actually {\it compute} the factorization
+$TDT^{-1}$ of $M$ by producing $T$ and $D$, but we determined that we
+could extract the ratio of two entries of $T$ by computing
+sufficiently large powers of the matrix $M$.
+
+We also note that since the ratio $a/c$ is {\it independent} of the
+initial guess, we need not explicitly make an initial guess at all,
+but merely compute the matrix powers $M^i$.\footnote{We have thus
+`$M$-powered' our companion.  Note that
+this has the effect of implicitly choosing the initial guess as
+$-B/1=-B=(\lambda_1+\lambda_2)/2$---i.e., the {\it mean average} of
+the roots---since the first column of $M$ is $\left(\matrix{-B\cr
+1\cr}\right)$.}  We can thus compute $\lambda_1$ as
+$\lambda_1=a/c=ad/cd=(-ab)/(-bc)$---i.e., the ratio of either column
+of $M_{\infty}$.
+
+We have thus succeeded in modelling our simple iterative arithmetic
+process as a matrix power.  This allowed us to characterize the
+conditions under which the simple iterative process would converge,
+and to what value.
+
+As we noticed when we performed the sequence of iterative calculations
+on the calculator, this iterative process doesn't converge very fast.
+Empirically, the number of correct digits in the result seems to be
+linearly related to the number of iterations.  We would like to find
+an iterative process which converges more quickly than this.
+
+The budding computer scientist will instantly suggest that instead of
+{\it iteratively} computing the matrix powers, we would be better off
+successively {\it squaring} the matrix $M$, thus producing the powers
+$M^{2^k}$.  This process should get us to the answer we desire much
+more quickly.  Indeed, with each squaring step, we might get {\it
+twice} as much precision as the previous step.
+
+The sequence of squarings for the companion matrix of $x^2-3x+2$ is:
+$$\eqalign{&\left(\matrix{3&-2\cr 1&0\cr}\right),
+\left(\matrix{7&-6\cr 3&-2\cr}\right),
+\left(\matrix{31&-30\cr 15&-14\cr}\right),\cr
+&\left(\matrix{511&-510\cr 255&-254\cr}\right),
+\left(\matrix{131071&-131070\cr 65535&-65534\cr}\right),...\cr}$$
+and the ratios $a/c$ for these matrices are:
+$$3, 2.333, 2.0667, 2.0039, 2.0000, ...$$
+which does converge significantly faster than the iteration $x=3-2/x$.
+
+Let us now see what happens when the roots are identical---i.e.,
+$x^2-2\lambda x+\lambda^2=0$.  In this case,
+$$M=\left(\matrix{2\lambda&-\lambda^2\cr 1&0\cr}\right)$$
+so
+$$M^{2^i}=\left(\matrix{(2^i+1)\lambda^{2^i}&-2^i\lambda^{2^i+1}\cr
+2^i\lambda^{2^i-1}&(1-2^i)\lambda^{2^i}\cr}\right)$$
+
+Thus, even when the roots are identical, the ratio of the entries in
+the first column of the $n$-th squaring will {\it still} converge to
+the value of the root.  In such a case, however, the matrix squaring
+convergence will only be linear, as the ratio $(2^i+1)/2^i=1+2^{-i}$
+converges to 1 only a single bit per iteration.
+
+Let us now see what happens when one root is the negative of the
+other---i.e., $\lambda_1=-\lambda_2$, or $x^2-\lambda^2=0$.  In this
+``square root'' case,
+$$M^2={\left(\matrix{0&\lambda^2\cr 1&0\cr}\right)}^2=\left(\matrix{\lambda^2&0\cr 0&\lambda^2\cr}\right)$$
+so that the $i$-th iteration is
+$$M^{2^i}=\left(\matrix{\lambda^{2^i}&0\cr 0&\lambda^{2^i}\cr}\right)$$
+In this case, the ratio of the entries in the first column is not
+possible to compute, but this will be obvious from the appearance of the matrix $M^{2^i}$.
+Although it works on many quadratic equations, this matrix-squaring process does not
+work for simple square roots.
+
+We have shown a {\it root-squaring} process for finding the roots
+of some quadratics, because at every step, we {\it square} the roots from
+the preceding step:
+$$\eqalign{M^i M^i&=(TD^iT^{-1})(TD^iT^{-1})\cr
+&=TD^{2i}T^{-1}\cr
+&=T\left(\matrix{\lambda_1^{2i}&0\cr 0&\lambda_2^{2i}\cr}\right)T^{-1}\cr
+&=M^{2i}\cr}$$
+
+But if we are merely interested in squaring roots, we might do it
+more directly as 
+$$\eqalign{(x-\lambda_1)(x-\lambda_2)(x+\lambda_1)(x+\lambda_2)&=(x^2-\lambda_1^2)(x^2-\lambda_2^2)\cr
+&=(y-\lambda_1^2)(y-\lambda_2^2)\cr}$$
+where $y=x^2$.  I.e., given the equation $p(x)=x^2+Bx+C=0$, we can compute a new
+equation whose roots are the {\it squares} of the roots of the given
+equation by computing
+$$\eqalign{p(x)p(-x)&=(x^2+Bx+C)(x^2-Bx+C)\cr
+&=(x^2+C+Bx)(x^2+C-Bx)\cr
+&=(x^2+C)^2-(Bx)^2\cr
+&=(y+C)^2-B^2y\cr
+&=y^2+2Cy+C^2-B^2y\cr
+&=y^2+(2C-B^2)y+C^2\cr}$$
+This so-called {\it Graeffe} process produces a new quadratic equation in the variable $y$
+whose roots are the {\it squares} of the previous quadratic equation
+in the variable $x$.  The point of root squaring is that the linear
+term $2C-B^2$ of the new equation is minus the sum of the {\it
+squares} of the roots, i.e., $-\lambda_1^2-\lambda_2^2$.  If the
+absolute values of the roots differ, and this process is repeated,,
+then the root with larger absolute value will eventually dominate in
+the sums of the squares of the roots.  Furthermore, if we continue
+this root-squaring process, the $2^k$-th power of the larger root will
+so dominate the $2^k$-th power of the smaller root in the coefficient
+of the linear term of the $k$-th iteration, so that this coefficient
+{\it is} the $2^k$-th power of the root of larger absolute value.
+Then by taking the $2^k$-th root of the absolute value of this number,
+we can finally find the absolute value of the larger root.\footnote{We can
+also use this Graeffe method to produce a tight upper bound on the size
+(absolute value) if the largest root [Zippel93,11.2].}
+
+While the root-squaring method works well for roots whose absolute
+values are different, it cannot handle the case where the absolute
+values are identical, which is always the case when the roots are
+complex conjugates of one another.
+
+Another way to empower the roots of the quadratic polynomial
+$p(x)=x^2+Bx+C$ is by means of the `logarithmic derivative' power series expansion
+$$\eqalign{(\log p(x))'&={p'(x)\over p(x)}\cr
+&={2x+B\over x^2+Bx+C}\cr
+&={(x-\lambda_2)+(x-\lambda_1)\over (x-\lambda_1)(x-\lambda_2)}\cr
+&={1\over x-\lambda_1}+{1\over x-\lambda_2}\cr
+&={-1/\lambda_1\over 1-x/\lambda_1}+{-1/\lambda_2\over 1-x/\lambda_2}\cr
+&=-\left({s_1+s_2x+s_3x^2+s_4x^3+...}\right)\cr}$$
+and here $s_i=\lambda_1^{-i}+\lambda_2^{-i}$.  The point of this expansion
+is to show that the coefficients of the power series for the ratio of
+polynomials $p'(x)/p(x)$ are the sums of the powers of the root
+inverses.  In other words, the coefficient of $x^i$ in this power
+series expansion is
+$$-\left({{1\over\lambda_1^{i+1}}+{1\over\lambda_2^{i+1}}}\right)$$
+If $|\lambda_1|>|\lambda_2|$, then $1/|\lambda_1|<1/|\lambda_2|$, so
+that as $i$ increases, $1/\lambda_2^i$ will dominate $1/\lambda_1^i$
+in the sum $1/\lambda_1^i+1/\lambda_2^i$.  Thus, if we pick two successive
+coefficients large enough, their ratio will tend towards $\lambda_2$, i.e.,
+$$\eqalign{{s_i\over s_{i+1}}&\approx{\lambda_2^{-i}\over\lambda_2^{-i-1}}\cr
+&={\lambda_2^{i+1}\over\lambda_2^i}\cr
+&=\lambda_2\cr}$$
+
+Ratios of the form $p'(x)/p(x)$ are particularly interesting when
+finding roots, because any repeated roots will cancel out.  Thus,
+if $p(x)=(x-\lambda)^2$, then $p'(x)=2(x-\lambda)$, so
+$$\eqalign{{p'(x)\over p(x)}&={2(x-\lambda)\over (x-\lambda)^2}\cr
+&={2\over x-\lambda}\cr
+&={-2/\lambda\over 1-x/\lambda}\cr
+&=-2\left({1/\lambda+x/\lambda^2+x^2/\lambda^3+x^3/\lambda^4+...}\right)\cr}$$
+and the ratio of successive coefficients converges to (actually
+it already {\it is}) $\lambda$.
+
+Isaac Newton developed a clever and quite general technique for
+finding roots.  Suppose that $f(x)$ is a function with a power series
+$f(x)=f(0)+f'(0)x+f''(0)x^2/2!+...$.  Then if $x_0$ is an initial
+guess for a root of $f(x)$, we can expand $f(x)$ in another power series
+around the point $x=x_0$:
+$$f(x-x_0)=f(x_0)+(x-x_0)f'(x_0)+(x-x_0)^2f''(x_0)/2!+...$$
+If we now ignore the terms beyond the linear terms, then
+$f(x-x_0)\approx f(x_0)+(x-x_0)f'(x_0)$.  Since we are looking
+for a {\it root}, where $f(x)=0$, we assume that our approximation
+is reasonable, and solve it for $x$:
+$$\eqalign{f(x_0)+(x-x_0)f'(x_0)&=0\cr
+{f(x_0)\over f'(x_0)}+x-x_0&=0\cr
+x&=x_0-{f(x_0)\over f'(x_0)}\cr}$$
+In general, of course, we are looking for an improvement $x_{i+1}$
+of $x_i$, so we make a sequence of linear approximations:
+$$x_{i+1}=x_i-{f(x_i)\over f'(x_i)}$$
+Let us now consider Newton's method for the quadratic equation
+$p(x)=x^2-N=0$, i.e., for finding the {\it square root} $\sqrt{N}$ of $N$.
+In this case,
+$$\eqalign{x_{i+1}&=x_i-{p(x_i)\over p'(x_i)}\cr
+&=x_i-{x_i^2-N\over 2x_i}\cr
+&={2x_i^2-x_i^2+N\over 2x_i}\cr
+&={x_i^2+N\over 2x_i}\cr
+&={x_i+N/x_i\over 2}\cr}$$
+In short, a better approximation to the square root of $N$ can be had
+by {\it averaging} the current approximation with the quotient of $N$
+by the current approxmation.\footnote{[Garver32] attributes this square
+root method to {\it Heron of Alexandria} circa 200 A.D.}
+
+Newton's method usually converges very fast.  Suppose, for example, that
+we have a current approximation $\sqrt{N}(1+\epsilon)$ to the square root
+of $N$.  Then
+$$\eqalign{x_{i+1}&={x_i+N/x_i\over 2}\cr
+&={\sqrt{N}(1+\epsilon)+N/\sqrt{N}(1+\epsilon)\over 2}\cr
+&={N(1+\epsilon)^2+N\over 2\sqrt{N}(1+\epsilon)}\cr
+&=\sqrt{N}\,{(1+\epsilon)^2+1\over 2(1+\epsilon)}\cr
+&=\sqrt{N}\,{1+2\epsilon+\epsilon^2+1\over 2(1+\epsilon)}\cr
+&=\sqrt{N}\left({1+{\epsilon^2\over 2(1+\epsilon)}}\right)\cr
+&\approx\sqrt{N}\left({1+\epsilon^2/2}\right)\cr}$$
+Thus, if $\epsilon$ is small, then $\epsilon^2$ is considerably smaller, and
+we have a {\it quadratically} convergent algorithm for the square
+root---i.e., the number of accurate bits in the result {\it doubles}
+with each iteration.
+
+Yet another way to appreciate Newton's iterative square root is to
+consider how it operates when finding the square root of $N=1$,
+considering each guess as a {\it ratio}:
+$$\eqalign{{x_{i+1}\over y_{i+1}}&={x_i/y_i+y_i/x_i\over 2}\cr
+&={x_i^2+y_i^2\over 2x_iy_i}\cr
+&={\cosh^2{\alpha_i}+\sinh^2{\alpha_i}\over 2\cosh{\alpha_i}\sinh{\alpha_i}}\cr
+&={\cosh{2\alpha_i}\over\sinh{2\alpha_i}}\cr
+&=\coth{2\alpha_i}\cr}$$
+In other words, if
+$$x_i/y_i={\cosh{\alpha_i}\over\sinh{\alpha_i}}=\coth{\alpha_i},$$
+then
+$$x_{i+1}/y_{i+1}=\coth{2\alpha_i},$$
+or, for general $N$,
+$${x_i/y_i}=\sqrt{N}\coth{2^i\alpha_0},$$
+where
+$$\alpha_0=\atanh\left({\sqrt{N}/(x_0/y_0)}\right).$$
+($\alpha_0$ is real only when $|x_0/y_0|>\sqrt{N}$.)
+Since $|\coth{2^i\alpha}|=1/|\tanh{2^i\alpha}|$ approaches $1$ {\it very}
+quickly with increasing $i$ (assuming that $\alpha\not= 0$), we have another
+proof that Newton's iteration converges to the square root.  This derivation also shows
+that if $x_0>\sqrt{N}$, then $x_i>\sqrt{N}$ for all $i$, i.e., $x_i$ converges
+{\it monotonically} towards $\sqrt{N}$.
+
+Not only is Newton's method particularly pretty ([Peitgen86]), but it
+is also enormously efficient.  [Paterson72] shows
+that Newton's (Heron's) method has optimal efficiency for quadratic equations,
+where by ``efficiency'' he means the number of bits of precision
+gained per iteration relative to the number of operations performed
+per iteration.  Herein we have show why Heron is our quadratic hero.
+
+%\vfil\pagebreak[4]
+\begin{thebibliography}{7}
+%
+\bibitem[Barbeau89]{barbeau}
+Barbeau, E.J.  {\it Polynomials}.  Springer-Verlag, New York, 1989.
+%
+\bibitem[Frame45]{frame}
+Frame, J.S.  ``Machines for Solving Algebraic Equations.''  {\it Math. Tables
+and other Aids to Comput.} {\bf I}, 9 (Jan. 1945), 337-353.
+%
+\bibitem[Garver32]{garver}
+Garver, R.  ``A Square Root Method and Continued Fractions.''  {\it
+Amer. Math. Monthly} {\bf 39}, 9 (Nov. 1932), 533-535.
+%
+\bibitem[Golub96]{golub}
+Golub, G.H., and Van Loan, C.F.  {\it Matrix Computations, 3rd Ed}.  Johns Hopkins
+Univ. Press, Baltimore, 1996.
+%
+\bibitem[Knuth81]{knuth}
+Knuth, D.E.  {\it Seminumerical Algorithms, 2nd Ed.}  Addison-Wesley, Reading, MA, 1981.
+%
+\bibitem[Melzak73]{melzak}
+Melzak, Z.A.  {\it Companion to Concrete Mathematics: Mathematical Techniques and
+Various Applications}.  John Wiley \& Sons, New York, 1973.
+%
+\bibitem[Paterson72]{paterson}
+Paterson, M.S.  ``Efficient Iterations for Algebraic Numbers.''  In Miller, R.E.,
+and Thatcher, J.W., (eds.)  {\it Complexity of Computer Computations}.  Plenum Press,
+New York, 1972.
+%
+\bibitem[Peitgen86]{peitgen}
+Peitgen, H.-O., and Richter, P.H.  {\it The Beauty of Fractals: Images of Complex
+Dynamic Systems}.  Springer-Verlag, Berlin, 1986.
+%
+\bibitem[Press86]{press}
+Press, W.H., {\it et al}.  {\it Numerical Recipes}.  Cambridge Univ.
+Press, 1986, ISBN 0-521-30811-9.
+%
+\bibitem[Turnbull46]{turnbull}
+Turnbull, H.W.  {\it Theory of Equations}.  Oliver and Boyd, Edinburgh and London;
+New York: Interscience Publishers, Inc., 1946.
+%
+\bibitem[Young72]{young}
+Young, D.M., and Gregory, R.T.  {\it A Survey of Numerical
+Mathematics, Vol. I}.  Dover Publ., New York, 1972.
+%
+\bibitem[Zippel93]{zippel}
+Zippel, R.  {\it Effective Polynomial Computation}.  Kluwer Academic Publishers,
+Boston, 1993.
+%
+\end{thebibliography}
+
+\SpewBio
+\end{document}
+%%%
+%%% end of submission %%%

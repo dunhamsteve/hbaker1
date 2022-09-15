@@ -1,0 +1,210 @@
+<html><head>
+<!-- Based on MIT AI Memo 239 "HAKMEM" -->
+<!-- by M. Beeler, R.W. Gosper, and R. Schroeppel, Feb. 29, 1972. -->
+<!-- This html version Copyright (c) 1995 by Henry G. Baker. -->
+<link rev="made" href="mailto:hbaker1@pipeline.com">
+<title>HAKMEM -- TOPOLOGY -- DRAFT, NOT YET PROOFED</title>
+
+</head><body>
+
+Beeler, M., Gosper, R.W., and Schroeppel, R.  <i>HAKMEM</i>.  MIT AI
+Memo 239, Feb. 29, 1972.
+
+Retyped and converted to <i>html</i> ('Web browser format) by
+
+<a href="http://home.pipeline.com/~hbaker1/home.html">Henry Baker,</a>
+
+April, 1995.
+
+<h2>TOPOLOGY</h2>
+
+<a href="polyominos.html">Previous</a>
+<a href="hakmem.html">Up</a>
+<a href="series.html">Next</a>
+
+<a name="item113"></a>
+
+<h3>ITEM 113:</h3>
+
+Although not new (cf Coxeter, <i>Introduction to Geometry,</i> 1st ed.
+p393), the following coloring number (<i>chromatic number</i>) may be
+useful to have around:
+
+<pre>
+N = [[(7 + sqrt(48 H + 1))/2]]
+</pre>
+
+where N is the number of colors required to color any map on an object
+which has H holes (note: proof not valid for H = 0).<p>
+
+For example:
+
+<ul>
+
+<li>A donut (holes = 1) requires 7 colors to color maps on it.</li>
+
+<li>A 17-hole frob requires 17 colors.</li>
+
+<li>An 18-hole frob requires 18 colors.</li>
+
+</ul>
+
+<a name="item114"></a>
+
+<h3>ITEM 114 (Schroeppel):</h3>
+
+A most regular 7-coloring of the torus can be made by tiling the plane
+with the following repeating pattern of hexagons of 7 colors:
+
+<tt><pre>
+ A A       C C       E E
+A A A     C C C     E E E
+ A A  F F  C C  A A  E E
+     F F F     A A A
+ B B  F F  D D  A A  F F
+B B B     D D D     F F F
+ B B  G G  D D  B B  F F
+     G G G     B B B
+ C C  G G  E E  B B  G G
+C C C     E E E     G G G
+ C C  A A  E E  C C  G G
+     A A A     C C C
+ D D  A A  F F  C C  A A
+D D D     F F F     A A A
+ D D  B B  F F  D D  A A
+     B B B     D D D
+ E E  B B  G G  D D  B B
+E E E     G G G     B B B
+ E E  C C  G G  E E  B B
+     C C C     E E E
+      C C       E E
+</pre></tt>
+
+Draw an area 7 unit cell parallelogram by connecting, say, the center
+B's in each of the four
+
+<tt><pre>
+ B B
+B B B 's.
+ B B
+</pre></tt>
+
+Finally, join the opposite sides of the parallelogram to form a torus
+in the usual (Spacewar) fashion.  QUESTION (Gosper): is there a
+toroidal heptahedron corresponding to this?
+
+<a name="item115"></a>
+
+<h3>ITEM 115 (Gosper):</h3>
+
+A spacefilling curve is a continuous map T -&gt; X(T),Y(T), usually
+from the unit interval onto the unit square, often presented as the
+limit of a sequence of curves made by iteratively quadrisecting the
+unit square.  Each member of the sequence is then 4 copies of its
+predecessor, connected in the shape of an inverted V, with the first
+member being a V which connects 0,0 to 1,0.  The limiting map, X(T)
+and Y(T), can be computed instead by a simple, finite-state machine
+having 4 inputs (digits of T base 4), 4 outputs (one bit of X and one
+bit of Y), and 4 states (2 bits) of memory (the number modulo 2 of 0's
+and 3's seen in T).<p>
+
+Let T, X, and Y be written in binary as:
+
+<tt><pre>
+T=.A B A B A B ...   X=.X X X X X X ...   Y=.Y Y Y Y Y Y ...
+    1 1 2 2 3 3          1 2 3 4 5 6          1 2 3 4 5 6
+</pre></tt>
+
+ALGORITHM S:
+
+<tt><pre>
+        C  &lt;- 0                          ;# of 0's mod 4
+         0
+
+        C  &lt;- 0                          ;# of 3's mod 4
+         1
+
+S1:     X  &lt;- A  XOR C                   ;Ith bit of X
+         I     I      NOT B
+                           I
+
+        Y  &lt;- X  XOR B                   ;Ith bit of Y
+         I     I      I
+
+        C  &lt;- C  XOR (NOT A  AND NOT B ) ;count 00's
+         0     0           I          I
+
+        C  &lt;- C  XOR (A  AND B )         ;count 11's
+         1     1       I      I
+
+        GO S1
+
+
+OLD                  NEW
+C  C   A  B   X  Y   C  C
+ 0  1   I  I   I  I   0  1
+
+0  0   0  0   0  0   1  0
+0  0   0  1   0  1   0  0
+0  0   1  0   1  1   0  0
+0  0   1  1   1  0   0  1
+0  1   0  0   1  1   1  1
+0  1   0  1   0  1   0  1    This is the complete
+0  1   1  0   0  0   0  1    state transition table.
+0  1   1  1   1  0   0  0
+1  0   0  0   0  0   0  0
+1  0   0  1   1  0   1  0
+1  0   1  0   1  1   1  0
+1  0   1  1   0  1   1  1
+1  1   0  0   1  1   0  1
+1  1   0  1   1  0   1  1
+1  1   1  0   0  0   1  1
+1  1   1  1   0  1   1  0
+</pre></tt>
+
+To carry out either the forward or reverse map, label a set of columns as in
+the table above.  Fill in whichever you know of AB or XY, with consecutive rows
+corresponding to consecutive 1's.  Put 0 0 in the top position of the OLD CC
+column.  Exactly one row of the above table will match the row you have written
+so far.  Fill in the rest of the row.  Copy the NEW CC entry to the OLD CC
+column in the next row.  Again, only one row of the state table will match, and
+so forth.  For example, the map 5/6 -&gt; (1/2,1/2) (really .11010101... -&gt;
+(.1000... ,.0111...)):
+
+<tt><pre>
+OLD                  NEW
+C  C   A  B   X  Y   C  C
+ 0  1   I  I   I  I   0  1
+
+0  0   1  1   1  0   0  1
+0  1   0  1   0  1   0  1
+0  1   0  1   0  1   0  1
+0  1   0  1   0  1   0  1
+.  .   .  .   .  .   .  .
+.  .   .  .   .  .   .  .
+    =  5/6  1/2  1/2
+</pre></tt>
+
+We note that since this is a one-to-one map on bit strings, it is not
+a one-to-one map on real numbers.  For instance, there are 2 ways to
+write 1/2, .1000... and .0111..., and thus 4 ways to write (1/2,1/2),
+giving 3 distinct inverses, 1/6, 1/2, and 5/6.  Since the algorithm is
+finite state, X and Y are rational iff T is, e.g., 898/4369 -&gt;
+(1/5,1/3).  The
+
+<a href="series.html#item122"><i>parity number,</i></a>
+
+(see
+
+<a href="series.html">SERIES</a>
+
+section) and 1-(parity number) are the only reals satisfying X(T)=T,
+Y(T)=1.  This is related to the fact that they have no 0's and 3's
+base 4, and along with 0, 1/2, and 1=.111..., are the only numbers
+preserved by the deletion of their even numbered bit positions.<p>
+
+<a href="topology.html">Previous</a>
+<a href="hakmem.html">Up</a>
+<a href="series.html">Next</a>
+
+</body></html>
